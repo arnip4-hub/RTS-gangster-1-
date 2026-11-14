@@ -1,0 +1,52 @@
+# A manual Windows build for testing the RTS branch. It runs on Windows so
+# electron-builder can create the NSIS installer without Wine, and optionally
+# attaches both executable formats to a prerelease.
+name: Windows test build
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Prerelease tag to publish (blank: workflow artifact only)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Package Windows installer and portable app
+        run: npm run package:win -- --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: original-gangster-windows
+          path: release/*.exe
+          if-no-files-found: error
+
+      - name: Attach test build to prerelease
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:TAG --prerelease --title "RTS Test Build" --notes "Windows test build from ${{ github.ref_name }}. Contains an installer and a portable executable."
+          }
+          gh release upload $env:TAG release/*.exe --clobber
