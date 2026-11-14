@@ -82,7 +82,7 @@ export function CityView() {
 
       const player = sim.playerGang;
       let lastCard: unknown = undefined, lastTargetVersion = -1, lastPlanningView = '';
-      let lastStaff: unknown, lastPick: unknown, lastArea: unknown;
+      let lastStaff: unknown, lastPick: unknown, lastArea: unknown, lastOrganizerOpen: boolean | undefined;
       const hq = Object.values(sim.world.buildings).find((b) => b.ownerGangId === player.id && b.isHQ);
       if (hq) {
         const lot = sim.world.lots[hq.lotId];
@@ -140,12 +140,17 @@ export function CityView() {
         // Overlays and selection.
         const areaTeamId = state.pickMode?.kind === 'lieutenantArea' ? state.pickMode.teamId : state.selectedTeamId ?? s.playerGang.teamIds[0];
         const teamBlocks = areaTeamId != null ? (s.world.teams[areaTeamId]?.allocatedBlockIds ?? []) : [];
+        const planningMap = (s.world.phase === 'planning' && state.planningView === 'city') ||
+          (s.world.phase === 'week' && state.organizerOpen);
         renderer.setOverlays(state.pickMode?.kind === 'lieutenantArea' && !state.overlays.includes('lieutenant')
           ? [...state.overlays, 'lieutenant'] : state.overlays, s.playerGang.id, teamBlocks);
-        if (lastCard !== state.jobCard || lastTargetVersion !== state.version || lastPlanningView !== state.planningView || lastStaff !== state.specialistCard || lastPick !== state.pickMode || lastArea !== state.policeAreaBlockIds) {
+        if (lastCard !== state.jobCard || lastTargetVersion !== state.version || lastPlanningView !== state.planningView || lastStaff !== state.specialistCard || lastPick !== state.pickMode || lastArea !== state.policeAreaBlockIds || lastOrganizerOpen !== state.organizerOpen) {
           lastCard = state.jobCard; lastTargetVersion = state.version; lastPlanningView = state.planningView;
-          lastStaff = state.specialistCard; lastPick = state.pickMode; lastArea = state.policeAreaBlockIds;
-          const card = s.world.phase === 'planning' && state.planningView === 'city' ? state.jobCard : null;
+          lastStaff = state.specialistCard; lastPick = state.pickMode; lastArea = state.policeAreaBlockIds; lastOrganizerOpen = state.organizerOpen;
+          // The live Organizer uses the same order cards as planning. Its map
+          // is the 3D city, so the target highlights must stay available while
+          // the working-week clock continues.
+          const card = planningMap ? state.jobCard : null;
           const available = new Set<number>(), selected = new Set(card ? selectedOrderSites(s.world, s.playerGang.id, card) : []);
           if (state.pickMode?.kind === 'lieutenantArea') {
             const areas = lieutenantAreaChoices(s.world, s.playerGang.id, state.pickMode.teamId);
@@ -161,7 +166,7 @@ export function CityView() {
               if (card.personId != null && people.get(b.id) === card.personId) selected.add(b.id);
             }
           }
-          const staff = s.world.phase === 'planning' && state.planningView === 'city' ? state.specialistCard : null;
+          const staff = planningMap ? state.specialistCard : null;
           const crimes = new Set<number>();
           if (staff && state.pickMode?.kind === 'policeArea') {
             const crimeBlocks = plannedCrimeBlocks(s.world, s.playerGang.id);
@@ -179,7 +184,7 @@ export function CityView() {
         }
 
         const sel = state.selectedBuildingId != null ? s.world.buildings[state.selectedBuildingId] : null;
-        const selectedPersonId = s.world.phase === 'planning' && state.specialistCard ? state.specialistCard.personId : state.selectedPersonId;
+        const selectedPersonId = planningMap && state.specialistCard ? state.specialistCard.personId : state.selectedPersonId;
         const selP = selectedPersonId != null ? s.world.people[selectedPersonId] : null;
         renderer.select(state.specialistCard ? null : sel ?? null, state.specialistCard ? null : selP ?? null);
         const tagged = s.world.phase === 'week' ? [...taggedViewApi.views.values()] : [];

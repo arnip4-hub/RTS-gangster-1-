@@ -27,6 +27,10 @@ export function useGameKeyboard() {
 
       const planning = world.phase === 'planning';
       const gang = s.sim!.playerGang;
+      const organizerTabs: Record<string, Parameters<typeof setTab>[0]> = {
+        F1: 'lieutenants', F2: 'accountant', F3: 'lawyer', F4: 'diplomacy',
+        F5: 'newspaper', F6: 'graphs', F7: 'maps', F8: 'options',
+      };
       // Ctrl+S / Ctrl+L / Ctrl+Q: save, load, quit — as the original had them.
       if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
         e.preventDefault();
@@ -46,6 +50,15 @@ export function useGameKeyboard() {
       }
       if (e.key === '?') {
         s.setHelpOpen(!s.helpOpen);
+        return;
+      }
+      if (!planning && !e.ctrlKey && !e.altKey && (e.key === 'o' || e.key === 'O')) {
+        e.preventDefault();
+        s.setOrganizerOpen(!s.organizerOpen);
+        if (!s.organizerOpen) {
+          s.setOrganizerCollapsed(false);
+          s.setPlanningView('city');
+        }
         return;
       }
       // The Organizer's sheets on their letters, and the week's street orders
@@ -78,6 +91,11 @@ export function useGameKeyboard() {
         }
       }
       if (!planning) {
+        if (s.organizerOpen && organizerTabs[e.key]) {
+          e.preventDefault();
+          setTab(organizerTabs[e.key]);
+          return;
+        }
         const streetKeys: Record<string, 'kill' | 'assault' | 'tail' | 'goTo'> = { F1: 'kill', F2: 'assault', F3: 'tail', F4: 'goTo' };
         const kind = streetKeys[e.key];
         if (kind) {

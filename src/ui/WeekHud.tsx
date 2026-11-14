@@ -59,6 +59,7 @@ function currentOrder(p:Person,w:WorldState) {
 export function WeekHud() {
   const sim=useGame(s=>s.sim)!;
   const paused=useGame(s=>s.paused), finishing=useGame(s=>s.finishingWeek);
+  const organizerOpen=useGame(s=>s.organizerOpen);
   const filter=useGame(s=>s.messageFilter), override=useGame(s=>s.messageOverride);
   const messageBox=useGame(s=>s.messageBox), taggedIds=useGame(s=>s.taggedPersonIds);
   const autoCut=useGame(s=>s.autoLowerRoofs), overlays=useGame(s=>s.overlays);
@@ -124,6 +125,10 @@ export function WeekHud() {
         <div className="interface-control-group">
           <InterfaceButton label={paused&&!finishing?'Resume':'Pause'} icon={paused&&!finishing?'hud/play':'hud/pause'} caption={paused&&!finishing?'Resume':'Pause'} aria-pressed={paused&&!finishing}
             title={finishing?'Stop skipping and pause (P)':paused?'Resume (P)':'Pause (P)'} onClick={()=>finishing?state().cancelFinishWeek():state().setPaused(!paused)}/>
+          <InterfaceButton label={organizerOpen?'Close Organizer':'Open Organizer'} glyph="▤" caption="Book" aria-pressed={organizerOpen} title={organizerOpen?'Close the live Organizer (O)':'Open the live Organizer (O)'} onClick={()=>{
+            if(organizerOpen){state().setOrganizerOpen(false);state().setOrganizerCollapsed(false);}
+            else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('city');}
+          }}/>
           <InterfaceButton label="Help" glyph="?" caption="Help" onClick={()=>state().setHelpOpen(true)}/>
           <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={view==='plan'} title="City Plan View (Insert)" onClick={()=>zoom('plan')}/>
           <InterfaceButton label="Rooftop View" glyph="▱" caption="Rooftop" aria-pressed={view==='roof'} title="Rooftop View (Home)" onClick={()=>zoom('roof')}/>

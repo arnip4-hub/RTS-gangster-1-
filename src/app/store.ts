@@ -112,6 +112,8 @@ interface GameState {
   specialistCard: { type: SpecialistJob['type']; personId: ID | null } | null;
   pickMode: PickMode;
   overlays: OverlayKind[];
+  /** The Organizer can be called up over the live city during the working week. */
+  organizerOpen: boolean;
   organizerCollapsed: boolean;
   sheet: OrganizerSheet;
   /** What the boss looks at while planning: the blueprint plan, or the city itself. */
@@ -188,6 +190,7 @@ interface GameState {
   setReviewOrder: (id: ID | null) => void;
   setQuitPrompt: (open: boolean) => void;
   toggleOverlay: (o: OverlayKind) => void;
+  setOrganizerOpen: (v: boolean) => void;
   setOrganizerCollapsed: (v: boolean) => void;
   setOverlays: (o: OverlayKind[]) => void;
   setSheet: (s: OrganizerSheet) => void;
@@ -241,7 +244,7 @@ function fitJobCard(sim: Sim | null, jc: JobCard, refit = false): JobCard {
 
 const endingUi = {
   screen: 'gameOver', streetLoading: false, finishingWeek: false, paused: true,
-  jobCard: null, specialistCard: null, pickMode: null, sheet: null, organizerCollapsed: false,
+  jobCard: null, specialistCard: null, pickMode: null, sheet: null, organizerOpen: false, organizerCollapsed: false,
 } satisfies Partial<GameState>;
 
 function readMouseReversal(): boolean {
@@ -276,7 +279,7 @@ function freshWorldUi() {
     selectedBuildingId: null, selectedPersonId: null, selectedPersonIds: [] as ID[], taggedPersonIds: [] as ID[],
     selectedStreetIds: [] as ID[], policeAreaBlockIds: [] as ID[], reviewOrderId: null,
     helpOpen: false, quitPrompt: false, jobCard: null, specialistCard: null, pickMode: null, messageBox: null,
-    overlays: ['territory'] as OverlayKind[], organizerCollapsed: false,
+    overlays: ['territory'] as OverlayKind[], organizerOpen: false, organizerCollapsed: false,
     sheet: null, planningView: 'plan' as const, speed: 1, paused: false,
     finishingWeek: false, savingToQuit: false, savingSnapshot: false, loadingSave: null, streetLoading: false, messageOverride: false, toast: null, cameraRequest: null,
   };
@@ -309,6 +312,7 @@ export const useGame = create<GameState>((set, get) => ({
   specialistCard: null,
   pickMode: null,
   overlays: ['territory'],
+  organizerOpen: false,
   organizerCollapsed: false,
   sheet: null,
   planningView: 'plan',
@@ -523,6 +527,7 @@ export const useGame = create<GameState>((set, get) => ({
         taggedPersonIds: [],
         jobCard: null,
         pickMode: null,
+        organizerOpen: false,
         organizerCollapsed: false,
         sheet: null,
         version: get().version + 1,
@@ -634,6 +639,7 @@ export const useGame = create<GameState>((set, get) => ({
   },
   setOverlays: (overlays) => set({ overlays,
     ...(get().pickMode?.kind === 'lieutenantArea' && !overlays.includes('lieutenant') ? { pickMode: null } : {}) }),
+  setOrganizerOpen: (organizerOpen) => set({ organizerOpen }),
   setOrganizerCollapsed: (organizerCollapsed) => set({ organizerCollapsed }),
   setSheet: (sheet) => set({ sheet }),
   setPlanningView: (planningView) => set({ planningView }),

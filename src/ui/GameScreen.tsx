@@ -19,6 +19,7 @@ export function GameScreen() {
   const staff = useGame(s => s.specialistCard);
   const pickMode = useGame((s) => s.pickMode);
   const planningView = useGame((s) => s.planningView);
+  const organizerOpen = useGame((s) => s.organizerOpen);
   const helpOpen = useGame((s) => s.helpOpen);
   const setHelpOpen = useGame((s) => s.setHelpOpen);
   const quitPrompt = useGame((s) => s.quitPrompt);
@@ -43,6 +44,7 @@ export function GameScreen() {
 
   if (!sim) return null;
   const planning = sim.world.phase === 'planning';
+  const organizerVisible = planning || organizerOpen;
   if (attract) return <div className="game-shell working-interface attract-shell"><CityView /><AttractMode /></div>;
 
   const hint = (() => {
@@ -63,11 +65,12 @@ export function GameScreen() {
   })();
 
   return (
-    <div className={`game-shell ${planning?'planning-interface':'working-interface'}`} onPointerDown={() => audio.ensure()}>
+    <div className={`game-shell ${planning?'planning-interface':organizerOpen?'working-interface live-organizer-interface':'working-interface'}`} onPointerDown={() => audio.ensure()}>
       <CityView />
       {planning && planningView === 'plan' && <Blueprint />}
 
-      {planning ? <Organizer /> : <WeekHud />}
+      {!planning && <WeekHud />}
+      {organizerVisible && <Organizer />}
       {planning && !jobCard && !staff && <BuildingPanel />}
       {!planning && <BuildingPanel />}
 

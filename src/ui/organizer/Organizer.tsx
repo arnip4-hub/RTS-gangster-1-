@@ -56,6 +56,7 @@ export function Organizer() {
   const tab = useGame((s) => s.organizerTab);
   const setTab = useGame((s) => s.setTab);
   const launchWeek = useGame((s) => s.launchWeek);
+  const setOrganizerOpen = useGame((s) => s.setOrganizerOpen);
   const collapsed = useGame((s) => s.organizerCollapsed);
   const setCollapsed = useGame((s) => s.setOrganizerCollapsed);
   const pickMode = useGame((s) => s.pickMode);
@@ -69,19 +70,26 @@ export function Organizer() {
   if (!sim) return null;
   const w = sim.world;
   const gang = sim.playerGang;
+  const live = w.phase === 'week';
+  const closeLiveOrganizer = () => {
+    setOrganizerOpen(false);
+    setCollapsed(false);
+  };
 
   const mapButtons = (
     <div className="brass flat map-buttons">
       <div className="instrument">
         <Rivets />
         <Kicker className="gold">Map</Kicker>
-        <button className={`hud-btn${planningView === 'plan' ? ' on' : ''}`} onClick={() => setPlanningView('plan')} title="Street plan with building types and known holdings">
-          <Icon name="tabs/maps" size={13} /> City plan
-        </button>
-        <button className={`hud-btn${planningView === 'city' ? ' on' : ''}`} onClick={() => setPlanningView('city')} title="The city itself">
-          City
-        </button>
-        {planningView === 'city' && (
+        {!live && <>
+          <button className={`hud-btn${planningView === 'plan' ? ' on' : ''}`} onClick={() => setPlanningView('plan')} title="Street plan with building types and known holdings">
+            <Icon name="tabs/maps" size={13} /> City plan
+          </button>
+          <button className={`hud-btn${planningView === 'city' ? ' on' : ''}`} onClick={() => setPlanningView('city')} title="The city itself">
+            City
+          </button>
+        </>}
+        {(live || planningView === 'city') && (
           <>
             <button className="hud-btn" onClick={() => cameraApi.ref?.setZoom(VIEW_ZOOM.plan)} title="City Plan (Insert)">
               Plan
@@ -133,6 +141,7 @@ export function Organizer() {
         {staff ? <div className="brass flat order-target-bar" role="region" aria-label="Specialist map selection"><div className="instrument">
           <Kicker className="gold">{SPECIALIST_JOB_NAMES[staff.type]}</Kicker>
           <button className="btn" onClick={() => setCollapsed(false)}>Back to order</button>
+          {live && <button className="btn" onClick={closeLiveOrganizer}>Close organizer</button>}
           <MapAccess label="Clipboard" />
           <button className="btn" onClick={() => { useGame.getState().selectSpecialistTarget(null); useGame.getState().clearPoliceArea(); }}>Clear selection</button>
         </div></div> : jobCard ? (
@@ -140,6 +149,7 @@ export function Organizer() {
             <div className="instrument">
               <div><Kicker className="gold">{ORDERS[jobCard.type].name}</Kicker><span role="status">{selection}</span></div>
               <button className="btn" onClick={() => setCollapsed(false)}>Back to order</button>
+              {live && <button className="btn" onClick={closeLiveOrganizer}>Close organizer</button>}
               <MapAccess label="Find by name" />
               <button className="btn" onClick={() => useGame.getState().updateJobCard({ buildingIds: [], blockIds: [], personId: null, pos: null })}>Clear selection</button>
             </div>
@@ -147,7 +157,7 @@ export function Organizer() {
         ) : planningView === 'plan' ? (
           <div className="brass flat plan-map-bar">
             <div className="instrument">
-              <button className="btn" onClick={() => setCollapsed(false)}>Open journal</button>
+              <button className="btn" onClick={() => live ? closeLiveOrganizer() : setCollapsed(false)}>{live ? 'Close organizer' : 'Open journal'}</button>
               <MapAccess label="Find by name" />
               <LieutenantAreaControls />
             </div>
@@ -188,7 +198,7 @@ export function Organizer() {
 
   return (
     <>
-      <div className="organizer-frame">
+      <div className={`organizer-frame${live ? ' live-organizer' : ''}`}>
         <div className="journal-tabs" role="tablist" aria-label="Organizer sections">
           {TABS.map((t) => (
             <button key={t.id} role="tab" tabIndex={tab === t.id ? 0 : -1} onKeyDown={e => {
@@ -205,12 +215,12 @@ export function Organizer() {
         </div>
         <div className={`journal planning-journal${withStrip ? ' with-strip' : ''}`}>
           <div className="journal-heading">
-            <Kicker className="gold">Gang Organizer · Week {w.week}</Kicker>
+            <Kicker className="gold">Gang Organizer · Week {w.week}{live ? ' · Live' : ''}</Kicker>
             <div className="journal-tools">
               <button className="journal-help" aria-label="Help" title="Help (?)" onClick={()=>useGame.getState().setHelpOpen(true)}>?</button>
               {!jobCard && <MapAccess />}
-              <button className="journal-fold" onClick={() => setCollapsed(true)} title="Fold the journal away to see the whole city">
-                {jobCard ? '▼ See full map' : '▼ See the city'}
+              <button className="journal-fold" onClick={() => live && !jobCard && !staff ? closeLiveOrganizer() : setCollapsed(true)} title={live && !jobCard && !staff ? 'Close the Organizer and return to the city' : 'Fold the journal away to see the whole city'}>
+                {live && !jobCard && !staff ? '× Close Organizer' : jobCard ? '▼ Pick on map' : '▼ See the city'}
               </button>
             </div>
           </div>
@@ -253,9 +263,11 @@ export function Organizer() {
                   </span>
                 </div>
                 <div className="brass flat">
-                  <button className="hit-streets" onClick={launchWeek} title="Save your orders and start the working week">
+                  {live ? <button className="hit-streets" onClick={closeLiveOrganizer} title="Close the Organizer and return to the city">
+                    Back to the City
+                  </button> : <button className="hit-streets" onClick={launchWeek} title="Save your orders and start the working week">
                     Hit the Streets!
-                  </button>
+                  </button>}
                 </div>
               </div>
             </>}
