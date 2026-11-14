@@ -101,6 +101,15 @@ export function WeekHud() {
   for(const m of w.messages)counts[m.category]++;
   const zoom=(mode:CityViewMode)=>{setView(mode);cameraApi.ref?.setZoom(VIEW_ZOOM[mode]);};
   const watch=(p:Person)=>{state().selectPerson(p.id);state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));};
+  // A roster crew is already filtered to people currently out in the city.
+  // Send all of them to one destination without first opening each person's
+  // tagged window. The map click still goes through the normal live-order API.
+  const moveCrew=(people:Person[],name:string)=>{
+    const personIds=people.filter(p=>p.status==='active'&&p.gangId===gang.id).map(p=>p.id);
+    if(!personIds.length){state().notify(`${name} has nobody available to move.`);return;}
+    state().setPickMode({kind:'streetOrder',orderType:'goTo',personIds});
+    state().notify(`Click where ${name} should go.`);
+  };
   const eventView=(m:typeof message|undefined)=>{if(!m)return;if(m.pos)state().requestCamera(m.pos);if(m.personId!=null)state().selectPerson(m.personId);};
   return <div className="classic-hud">
     <header className="week-bars">
@@ -154,7 +163,7 @@ export function WeekHud() {
         <div className="street-list-content">
           {!roster.count && <p>Nobody deployed. The boss and indoor staff are not counted.</p>}
           {roster.groups.map(group=><div className="street-list-group" key={group.key}>
-            <div className="street-list-heading"><b>{group.name}</b><span>{group.people.length}{group.team?` of ${group.crewSize}`:''} deployed</span></div>
+            <div className="street-list-heading"><b>{group.name}</b><div className="street-list-heading-actions"><span>{group.people.length}{group.team?` of ${group.crewSize}`:''} deployed</span>{group.team&&<button className="street-team-move" title={`Order every deployed member of ${group.name} to move`} onClick={()=>moveCrew(group.people,group.name)}>Move crew</button>}</div></div>
             {group.people.map(p=>{
               const weapon=loadout?.get(p.id),order=currentOrder(p,w),role=p.role==='lieutenant'?'Lieutenant':p.role==='accountant'?'Accountant':p.role==='lawyer'?'Lawyer':'Hood';
               return <button key={p.id} className={`street-list-person${group.team&&p.id!==group.team.lieutenantId?' subordinate':''}`} aria-pressed={taggedIds.includes(p.id)}
