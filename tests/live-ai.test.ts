@@ -196,4 +196,38 @@ describe('live rival crew planning', () => {
     expect(gang.aiGoal.kind).toBe('expand');
     expect(gang.aiLastThreatId).toBeUndefined();
   });
+
+  it('responds to visible police and FBI activity, while distant investigations stay private', () => {
+    const sim = city(), w = sim.world;
+    const gang = Object.values(w.gangs).find(g => !g.isPlayer)!;
+    const team = w.teams[gang.teamIds[0]];
+    const site = Object.values(w.buildings).find(b => b.ownerGangId === gang.id && b.state === 'trading')!;
+    const officer = w.people[w.policeIds[0]], agent = w.people[w.fbiIds[0]];
+    const sitePos = w.lots[site.lotId].center;
+    freeCrew(w, team);
+    gang.aiGoal = { kind: 'expand', chosenAt: campaignMinute(w) - 60, until: campaignMinute(w) + 300 };
+    w.blocks[site.blockId].policePresence = 10;
+    planIdleCrews(w, gang);
+    expect(gang.aiGoal.kind).toBe('expand'); // Historic heat is not an officer on the street.
+
+    officer.status = 'active'; officer.buildingId = null; officer.pos = { ...sitePos };
+    officer.emergencyResponse = { week: w.week, buildingId: site.id, startMinute: w.minute,
+      untilMinute: w.minute + 90, kind: 'police', stage: 'working', target: sitePos,
+      lookAt: sitePos, home: sitePos };
+    planIdleCrews(w, gang);
+    expect(gang.aiGoal.kind).toBe('layLow');
+    expect(() => Sim.fromSave(structuredClone(w))).not.toThrow();
+
+    delete officer.emergencyResponse;
+    gang.aiGoal = { kind: 'expand', chosenAt: campaignMinute(w) - 60, until: campaignMinute(w) + 300 };
+    agent.status = 'active'; agent.buildingId = null;
+    agent.fbiAssignment = { buildingId: site.id, kind: 'search', assignedWeek: w.week,
+      phase: 'travelling', searchPoint: 0, workLeft: 30 };
+    agent.pos = { x: sitePos.x + 1000, y: sitePos.y + 1000 };
+    planIdleCrews(w, gang);
+    expect(gang.aiGoal.kind).toBe('expand');
+    agent.pos = { ...sitePos };
+    planIdleCrews(w, gang);
+    expect(gang.aiGoal.kind).toBe('layLow');
+  });
 });

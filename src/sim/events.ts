@@ -1,6 +1,7 @@
 import { fearOf, hostilityOf, NO_ORIGINAL_CHANNEL, opinionSet } from './attitudes';
 import { INCIDENT_HOSTILITY, provoke } from './aiStance';
 import { cityBlockAt } from './cityLayout';
+import { campaignMinute } from './calendar';
 import { ORIGINAL_CELL_METRES, skillByte } from './fireRoll';
 import { ORDERS } from './constants';
 import { BUILDING_BY_ID } from './data/buildings';
@@ -224,6 +225,7 @@ export function recordCrime(w: WorldState, rng: Rng, params: CrimeParams): Crime
   const crime: CrimeRecord = {
     id: w.sequences.crime++,
     week: w.week,
+    ...(w.options.continuousTime ? { reportedAt: campaignMinute(w) } : {}),
     gangId: params.gangId,
     perpetratorId: params.perpetratorId,
     kind: params.type,

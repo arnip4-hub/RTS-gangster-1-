@@ -3518,6 +3518,9 @@
               },
               {
                 "literal": "retaliate"
+              },
+              {
+                "literal": "layLow"
               }
             ]
           }
@@ -4712,6 +4715,26 @@
           "optional": false,
           "shape": {
             "type": "number"
+          }
+        },
+        "reportedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "investigatedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
           }
         },
         "gangId": {

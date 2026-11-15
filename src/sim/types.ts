@@ -311,7 +311,7 @@ export interface Block {
   landValue: number; // 0..100
   squalor: number; // 0..100
   crimeHeat: number; // decays weekly
-  policePresence: number; // 0..10 officers assigned
+  policePresence: number; // 0..10 weekly security estimate, not a live officer count
   /** Logical cells can join into one physical city block. Absorbed cells own no lots. */
   /** Original 40 × 32 city: the generator's content id and 0..255 land value. */
   original?: { content: number; landValue: number };
@@ -645,7 +645,7 @@ export interface Gang {
   personality: 'passive' | 'normal' | 'aggressive';
   /** Current plan for continuous play; a goal lasts several game hours. */
   aiGoal?: {
-    kind: 'income' | 'expand' | 'defend' | 'retaliate';
+    kind: 'income' | 'expand' | 'defend' | 'retaliate' | 'layLow';
     chosenAt: number;
     until: number;
     targetBuildingId?: ID;
@@ -752,6 +752,10 @@ export interface ScoreMeasures {
 export interface CrimeRecord {
   id: ID;
   week: number;
+  /** Absolute game minute when the report was filed; older saves omit it. */
+  reportedAt?: number;
+  /** A live police investigation gets one roll; weekly settlement must not repeat it. */
+  investigatedAt?: number;
   gangId: ID;
   perpetratorId: ID;
   kind: string;

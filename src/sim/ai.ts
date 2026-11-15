@@ -35,7 +35,7 @@ import { buildingMapIntel } from './mapIntel';
 import type { Rng } from './rng';
 import { campaignWeeklyCost, canRunForOffice, electionBlocksRequired } from './systems/politics';
 import { originalElectionPoll } from './originalElection';
-import type { Block, Building, Gang, ID, Team, WorldState } from './types';
+import type { Block, Building, Gang, ID, Person, Team, WorldState } from './types';
 import {
   allBuildings,
   buildingsOfBlock,
@@ -107,6 +107,19 @@ function idleCrew(w: WorldState, team: Team): boolean {
 }
 
 const LIVE_GOAL_MINUTES = 6 * 60;
+const LAW_SIGHT_RADIUS = CELL * 3;
+
+/** A gang can notice an actual responder or FBI agent only near its own
+ * people or premises. Assignment targets and investigation data stay private. */
+function observedLaw(w: WorldState, gang: Gang): Person[] {
+  const witnesses = gangMembers(w, gang).filter(p => p.status === 'active' && p.buildingId == null)
+    .map(p => p.pos);
+  for (const b of ownedBuildings(w, gang.id)) witnesses.push(w.lots[b.lotId].center);
+  return [...w.policeIds, ...w.fbiIds].map(id => w.people[id]).filter((p): p is Person =>
+    !!p && p.status === 'active' && p.buildingId == null &&
+    (p.emergencyResponse?.kind === 'police' || !!p.fbiAssignment) &&
+    witnesses.some(pos => dist(pos, p.pos) <= LAW_SIGHT_RADIUS));
+}
 
 /** A rival learns of a reported attack or visible damage to one of its sites.
  * A perpetrator's identity is usable for retaliation only if already known. */
@@ -124,10 +137,14 @@ function recentThreat(w: WorldState, gang: Gang) {
   return null;
 }
 
-function liveGoal(w: WorldState, gang: Gang): NonNullable<Gang['aiGoal']> {
+function liveGoal(w: WorldState, gang: Gang, law: Person[]): NonNullable<Gang['aiGoal']> {
   const now = campaignMinute(w);
   const threat = recentThreat(w, gang);
-  if (threat && (!gang.aiGoal || now - gang.aiGoal.chosenAt >= LIVE_AI_INTERVAL)) {
+  if (law.length && (gang.aiGoal?.kind !== 'layLow' || now >= gang.aiGoal.until)) {
+    gang.aiGoal = { kind: 'layLow', chosenAt: now, until: now + 2 * 60 };
+  } else if (gang.aiGoal?.kind === 'layLow' && now < gang.aiGoal.until) {
+    return gang.aiGoal;
+  } else if (threat && (!gang.aiGoal || now - gang.aiGoal.chosenAt >= LIVE_AI_INTERVAL)) {
     gang.aiLastThreatId = threat.id;
     const knownAttacker = gang.knownPeople.includes(threat.perpetratorId) &&
       w.gangs[threat.gangId] && !w.gangs[threat.gangId].eliminated && threat.gangId !== gang.id;
@@ -155,7 +172,8 @@ type LiveJob = {
  * assets, mapped fronts and reported attacks, never the player's live orders. */
 export function planIdleCrews(w: WorldState, gang: Gang): void {
   if (!w.options.continuousTime || w.phase !== 'week' || w.settlementStage != null || gang.isPlayer || gang.eliminated) return;
-  const goal = liveGoal(w, gang);
+  const law = observedLaw(w, gang);
+  const goal = liveGoal(w, gang, law);
   const teams = teamsOf(w, gang).filter(team => idleCrew(w, team));
   if (!teams.length) return;
 
@@ -224,8 +242,9 @@ export function planIdleCrews(w: WorldState, gang: Gang): void {
     const pos = job.siteId == null ? block.center : w.lots[w.buildings[job.siteId].lotId].center;
     const travel = dist(w.people[team.lieutenantId].pos, pos) / CELL;
     const nominalProfit = job.siteId == null ? 0 : BUILDING_BY_ID[w.buildings[job.siteId].typeId]?.profit ?? 0;
+    // The weekly security overlay is historical heat, not a live patrol map.
     const risk = job.input.type === 'extort' || job.input.type === 'smashUp'
-      ? block.policePresence * 3 : 0;
+      ? law.filter(p => dist(p.pos, pos) <= LAW_SIGHT_RADIUS).length * 90 : 0;
     return job.base + Math.min(12, nominalProfit / 1000) + (nearbyHoldings.get(block.id) ?? 0) * 5 - travel * 7 -
       ORDERS[job.input.type].minutesPerTarget / 55 - risk;
   };
@@ -238,6 +257,10 @@ export function planIdleCrews(w: WorldState, gang: Gang): void {
       let best = -1, bestScore = -Infinity;
       for (let i = 0; i < jobs.length; i++) {
         if ((jobs[i].input.opts?.manpower ?? 1) > team.memberIds.length + 1) continue;
+        if (goal.kind === 'layLow') {
+          if (jobs[i].input.type !== 'explore') continue;
+          if (law.some(p => dist(p.pos, w.blocks[jobs[i].blockId].center) <= LAW_SIGHT_RADIUS)) continue;
+        }
         const value = score(jobs[i], team);
         if (value > bestScore || value === bestScore && jobs[i].blockId < jobs[best]?.blockId) {
           best = i; bestScore = value;

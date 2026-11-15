@@ -1,4 +1,5 @@
 import { ORDERS } from '../constants';
+import { campaignMinute } from '../calendar';
 import { availableOfficial, ensureCourtOfficials } from '../courtOfficials';
 import { availableSpecialist } from '../specialists';
 import { exposeTaxRecords } from './taxes';
@@ -37,22 +38,43 @@ export function weeklyLaw(w: WorldState, rng: Rng): void {
   w.crimes = w.crimes.filter((c) => w.week - c.week <= 8);
 }
 
+/** Reported crimes are reviewed during the RTS week, after witnesses have had
+ * time to call. Court proceedings and financial disclosures remain weekly. */
+export function tickLaw(w: WorldState, rng: Rng): void {
+  if (!w.options.continuousTime || w.phase !== 'week' || w.minute % 60 !== 0) return;
+  const now = campaignMinute(w);
+  const due = w.crimes.filter(c => c.week === w.week && c.reported && !c.charge &&
+    c.investigatedAt == null && (c.reportedAt == null || now - c.reportedAt >= 30) &&
+    // Let a dispatched car reach the scene before the file is decided. The
+    // desk reviews it after three hours if traffic keeps the officer away.
+    !w.policeIds.some(id => {
+      const response = w.people[id]?.emergencyResponse;
+      return response?.crimeId === c.id && response.stage === 'approaching' &&
+        c.reportedAt != null && now - c.reportedAt < 180;
+    }));
+  if (!due.length) return;
+  investigateCrimes(w, rng, due);
+  openCases(w, rng);
+}
+
 /** Below this severity a crime is minor: the police mostly look the other way. */
 const MINOR_SEVERITY = 2;
 const MINOR_FACTOR = 0.35;
 
 function investigateCrimes(w: WorldState, rng: Rng, records = w.crimes): void {
-  // The police build one case a week against a man, on his worst crime; the
-  // rest of his week adds a little to it. Minor crimes — extortion, bribery,
-  // intimidation — are mostly overlooked, as the manual has it.
+  // The police build one case per review against a man, on his worst reported
+  // crime; the rest of the reviewed reports add a little to it. Minor crimes
+  // (extortion, bribery, intimidation) are mostly overlooked, as in the manual.
   const byPerp = new Map<ID, CrimeRecord[]>();
   for (const crime of records) {
-    if (crime.week !== w.week || !crime.reported) continue;
+    if (crime.week !== w.week || !crime.reported || crime.charge || crime.investigatedAt != null) continue;
     const list = byPerp.get(crime.perpetratorId);
     if (list) list.push(crime);
     else byPerp.set(crime.perpetratorId, [crime]);
   }
   for (const [perpId, crimes] of byPerp) {
+    // Preserve the result of this attempt across saves and the week boundary.
+    if (w.options.continuousTime) for (const crime of crimes) crime.investigatedAt = campaignMinute(w);
     const perp = w.people[perpId];
     if (!perp || perp.status !== 'active') continue;
     const weighted = crimes.map((c) => {
