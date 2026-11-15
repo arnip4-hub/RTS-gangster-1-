@@ -1,6 +1,6 @@
 import { MoneyRoll } from './MoneyRoll';
 import { useEffect, useRef, useState } from 'react';
-import { useGame } from '../app/store';
+import { act, useGame } from '../app/store';
 import { streetRoster } from '../app/streetRoster';
 
 /** The HUD redraws five times a second; the roster walks the whole city, so
@@ -33,6 +33,8 @@ import { TutorialPanel } from './TutorialPanel';
 import { WeekClock, weekTime, WEEK_DAYS } from './WeekClock';
 import './interface.css';
 import { buildingList } from '../sim/entityLists';
+import { personListIds, togglePersonList, type PersonListKind } from '../sim/personLists';
+import { personMapPosition } from '../sim/mapIntel';
 
 const CATEGORIES:Record<MessageCategory,{name:string;short:string;key:string}>={
   combat:{name:'Combat messages',short:'Combat',key:'F5'},
@@ -69,6 +71,7 @@ export function WeekHud() {
   const [view,setView]=useState<CityViewMode>('street');
   const [removed,setRemoved]=useState(false),[flipped,setFlipped]=useState(false);
   const [rosterOpen,setRosterOpen]=useState(false),[rosterMode,setRosterMode]=useState<'people'|'orders'>('people');
+  const [listsOpen,setListsOpen]=useState(false);
   const [messageId,setMessageId]=useState<number|null>(null);
   // The street under the view, in the original's words (manual p.74).
   const [place,setPlace]=useState('');
@@ -139,6 +142,9 @@ export function WeekHud() {
             if(hq)state().requestCamera(w.lots[hq.lotId].center);
           }}/>
           <InterfaceButton label="Tagged Characters" icon="groups/personnel" caption="People" count={roster.count} aria-expanded={rosterOpen} aria-controls="street-roster-window" onClick={()=>setRosterOpen(!rosterOpen)}/>
+          <InterfaceButton label="Person lists" glyph="☷" caption="Lists"
+            count={(gang.watchPersonIds?.length??0)+(gang.hitPersonIds?.length??0)} aria-expanded={listsOpen}
+            aria-controls="person-lists-window" onClick={()=>setListsOpen(!listsOpen)}/>
           <InterfaceButton label="Clear Tagged Windows" glyph="×" caption="Untag" disabled={!taggedIds.length} onClick={()=>state().clearTaggedWindows()}/>
         </div>
         <div className="interface-control-group" aria-label="View options">
@@ -162,6 +168,33 @@ export function WeekHud() {
     </header>
     <div className="week-windows">
       {taggedIds.map(id=><TaggedWindow key={id} id={id}/>)}
+      {listsOpen && <section id="person-lists-window" className="interface-window street-list" aria-label="Person lists">
+        <WindowHeading title="Person lists" onClose={()=>setListsOpen(false)}/>
+        <div className="street-list-content">
+          {(['watch','hit'] as PersonListKind[]).map(kind=><div className="street-list-group" key={kind}>
+            <div className="street-list-heading"><b>{kind==='watch'?'Watch list':'Hit list'}</b>
+              <span>{personListIds(w,gang.id,kind).length}</span></div>
+            {personListIds(w,gang.id,kind).map(id=>{
+              const p=w.people[id],pos=p?.status==='active'||p?.status==='beaten'?personMapPosition(w,gang.id,p):null;
+              return p && <div key={id} className="person-list-entry">
+                <button disabled={!pos} onClick={()=>{state().selectPerson(id);state().requestCamera(pos!);}}>
+                  {p.name} <small>{p.status==='active'?'':p.status}</small>
+                </button>
+                {kind==='hit' && <button disabled={p.status!=='active'||!gang.teamIds.length}
+                  title={`Prepare a Kill order against ${p.name}`}
+                  onClick={()=>{
+                    const game=state();game.setTab('lieutenants');game.beginOrder('kill',gang.teamIds[0]);
+                    game.updateJobCard({personId:id});game.setOrganizerOpen(true);setListsOpen(false);
+                  }}>Plan</button>}
+                <button aria-label={`Remove ${p.name} from ${kind} list`}
+                  onClick={()=>state().notify(act(s=>togglePersonList(s.world,gang.id,id,kind)))}>×</button>
+              </div>;
+            })}
+            {!personListIds(w,gang.id,kind).length && <p className="street-list-summary">No people on this list.</p>}
+          </div>)}
+          <p className="street-list-summary">The hit list records targets; give a Kill order separately.</p>
+        </div>
+      </section>}
       <div className="week-tutorial"><TutorialPanel/></div>
       {rosterOpen && <section id="street-roster-window" className="interface-window street-list" aria-label="Tagged characters">
         <WindowHeading title="Tagged Characters" onClose={()=>setRosterOpen(false)}/>

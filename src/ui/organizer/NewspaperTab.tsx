@@ -6,6 +6,7 @@ import type { Sim } from '../../sim/sim';
 import type { NewsItem } from '../../sim/types';
 import { MASTHEADS, art, pressPhoto } from '../art';
 import { Empty } from '../common';
+import { WEEK_DAYS } from '../WeekClock';
 
 const SECTIONS: { id: NewsItem['section']; label: string }[] = [
   { id: 'front', label: 'Front Page' },
@@ -29,8 +30,8 @@ export function NewspaperContent({ sim }: { sim: Sim }) {
   const [section, setSection] = useState<NewsItem['section']>('front');
 
   const w = sim.world;
-  const { paper, week: lastWeek, items } = newspaperEdition(w, sim.playerGang.id);
-  useEffect(() => setSection('front'), [sim, w.week]);
+  const { paper, week: lastWeek, editionAt, items } = newspaperEdition(w, sim.playerGang.id);
+  useEffect(() => setSection('front'), [sim, w.week, editionAt]);
   const activeSection = items.some(n => n.section === section) ? section : 'front';
   const all = items.filter((n) => n.section === activeSection);
   // The front page prints its lead story large; everything else follows it, and
@@ -39,7 +40,8 @@ export function NewspaperContent({ sim }: { sim: Sim }) {
   const shown = lead ? all.filter((n) => n !== lead) : all;
   const paperIndex = paper ? newspaperNameIndex(w, paper) : 0;
   const paperName = NEWSPAPER_NAMES[paperIndex];
-  const photo = lead ? pressPhoto(lead.section === 'front' ? 'front' : lead.section, lastWeek * 7 + paperIndex) : null;
+  const photo = lead ? pressPhoto(lead.section === 'front' ? 'front' : lead.section,
+    (editionAt==null?lastWeek*7:Math.floor(editionAt/1440)) + paperIndex) : null;
 
   const available = SECTIONS.filter((s) => items.some((n) => n.section === s.id) || s.id === 'front' && newspaperLead(items) != null);
 
@@ -49,7 +51,8 @@ export function NewspaperContent({ sim }: { sim: Sim }) {
         {paper ? <img className="masthead-img" src={MASTHEADS[paperIndex]} alt={paperName} /> : <h2>No newspaper available</h2>}
         <div className="meta">
           <span>New Temperance</span>
-          <span>{lastWeek === 0 ? 'Opening edition' : `Week ${lastWeek}`}</span>
+          <span>{editionAt==null ? lastWeek === 0 ? 'Opening edition' : `Week ${lastWeek}` :
+            `${WEEK_DAYS[Math.floor(editionAt/1440)%7]} · Week ${Math.floor(editionAt/10080)+1} · Morning edition`}</span>
           <span>Two Cents</span>
         </div>
       </div>

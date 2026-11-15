@@ -11,7 +11,7 @@ import { peopleList } from './entityLists';
  * Each milestone is printed once per gang (Gang.pressMilestones); headlines
  * are the original's own strings.
  */
-export function pressStories(w: WorldState): void {
+export function pressStories(w: WorldState, since?: number): void {
   const live = Object.values(w.gangs);
   const blocks = Math.max(1, activeBlocks(w).length);
   let printed = 0;
@@ -31,7 +31,7 @@ export function pressStories(w: WorldState): void {
       continue;
     }
     // A boss killed this week: the warlord story (0x59A510).
-    if (boss && boss.status === 'dead' && boss.diedWeek === w.week)
+    if (boss && boss.status === 'dead' && (since==null ? boss.diedWeek === w.week : boss.diedAt!=null && boss.diedAt>since))
       once(`dead-${boss.id}`, 'LOCAL WARLORD DEAD!', `${name.toUpperCase()} KILLED. The city waits to see who takes control of ${gang.name}.`, 2);
 
     const wealth = gangWealth(w, gang);
@@ -68,7 +68,8 @@ export function pressStories(w: WorldState): void {
   }
 
   // The death toll in the gang wars (0x59D310), when the week was bloody.
-  const dead = peopleList(w).filter(p => p.status === 'dead' && p.diedWeek === w.week && p.gangId != null);
+  const dead = peopleList(w).filter(p => p.status === 'dead' && p.gangId != null &&
+    (since==null ? p.diedWeek===w.week : p.diedAt!=null && p.diedAt>since));
   if (dead.length >= 3) {
     addNews(w, { section: 'deaths', headline: 'VICTIMS OF HATE!',
       body: `The latest death toll in the gang wars: ${dead.map(p => p.name).join(', ')}.`, gangId: null });
@@ -77,7 +78,8 @@ export function pressStories(w: WorldState): void {
 
   // A thin week gets one of the period's colour stories (0x59D4A0).
   if (!printed && w.week > 1) {
-    const story = ERA_STORIES[((w.week * 7 + (w.rngState >>> 0)) % ERA_STORIES.length + ERA_STORIES.length) % ERA_STORIES.length];
+    const issue=since==null?w.week*7:Math.floor(since/1440);
+    const story = ERA_STORIES[((issue + (w.rngState >>> 0)) % ERA_STORIES.length + ERA_STORIES.length) % ERA_STORIES.length];
     // Colour runs inside the paper, not as the lead.
     addNews(w, { section: 'city', headline: story[0], body: story[1], gangId: null });
   }

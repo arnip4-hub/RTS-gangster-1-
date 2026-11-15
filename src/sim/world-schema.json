@@ -229,6 +229,16 @@
             "ref": "T95"
           }
         },
+        "lastNewspaperMinute": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "messages": {
           "optional": false,
           "shape": {
@@ -2573,6 +2583,16 @@
             "type": "number"
           }
         },
+        "diedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "burningEscape": {
           "optional": true,
           "shape": {
@@ -4014,6 +4034,26 @@
           "optional": false,
           "shape": {
             "ref": "T3"
+          }
+        },
+        "watchPersonIds": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T3"
+              }
+            ]
+          }
+        },
+        "hitPersonIds": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T3"
+              }
+            ]
           }
         },
         "history": {
@@ -5722,6 +5762,26 @@
           "optional": false,
           "shape": {
             "type": "number"
+          }
+        },
+        "eventAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "editionAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
           }
         },
         "paperOwnerId": {

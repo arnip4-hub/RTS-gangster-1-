@@ -262,6 +262,9 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     throw Error('Save has an invalid FBI zeal.');
   if (w.fbiCrackdownDue != null && typeof w.fbiCrackdownDue !== 'boolean') throw Error('Save has an invalid FBI crackdown flag.');
   for (const g of Object.values(w.gangs)) {
+    for (const ids of [g.watchPersonIds,g.hitPersonIds]) if (ids &&
+      (ids.length>Object.keys(w.people).length || new Set(ids).size!==ids.length || ids.some(id=>!w.people[id])))
+      throw Error('Save has an invalid person list.');
     const byte = (v: number) => Number.isInteger(v) && v >= 0 && v <= 255;
     if (g.aiProfile && (g.aiProfile.length !== 7 || !g.aiProfile.every(byte) || g.aiProfile[6] > 2))
       throw Error('Save has an invalid AI profile.');

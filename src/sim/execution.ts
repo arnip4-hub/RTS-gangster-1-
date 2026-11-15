@@ -1933,6 +1933,7 @@ export function killPerson(w: WorldState, p: Person, reason: string): void {
   p.orderId = null;
   p.streetOrder = null;
   p.diedWeek = w.week;
+  if (w.options.continuousTime) p.diedAt=campaignMinute(w);
   // A member's death leaves the rest of the gang more afraid of it (0x48D0B0).
   if (p.gangId != null && w.gangs[p.gangId]) {
     for (const q of peopleList(w))

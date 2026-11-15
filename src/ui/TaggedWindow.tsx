@@ -11,6 +11,7 @@ import { Portrait } from './Portrait';
 import { InterfaceButton } from './InterfaceControls';
 import { cancelSpecialistJob, setSpecialistWaiting, SPECIALIST_JOB_NAMES, specialistJobActive } from '../sim/specialistJobs';
 import { personProfile } from '../sim/personProfile';
+import { personListIds, togglePersonList } from '../sim/personLists';
 
 /** Manual pp. 78-79: a live, independent view of the selected character. */
 export function TaggedWindow({id}: {id: number}) {
@@ -86,7 +87,13 @@ export function TaggedWindow({id}: {id: number}) {
       <div><b>{person.name}</b> · {profile.age} years old</div>
       <div>Spouse: {profile.spouse ?? 'None listed'}</div>
       <div>Children: {profile.children} · Household: {profile.householdSize}</div>
-      {person.familyOfId != null && <div>{person.familyRelation} of {w.people[person.familyOfId]?.name ?? 'an official'}</div>}
+      {person.familyOfId != null && <div>{person.familyRelation} of {w.people[person.familyOfId]?.name ?? 'a resident'}</div>}
+      <div className="tagged-profile-actions">
+        <button aria-pressed={personListIds(w,sim.playerGang.id,'watch').includes(person.id)}
+          onClick={()=>notify(act(s=>togglePersonList(s.world,s.playerGang.id,person.id,'watch')))}>Watch list</button>
+        <button aria-pressed={personListIds(w,sim.playerGang.id,'hit').includes(person.id)}
+          onClick={()=>notify(act(s=>togglePersonList(s.world,s.playerGang.id,person.id,'hit')))}>Hit list</button>
+      </div>
       <small>Children and unlinked spouses live off the city map.</small>
     </div>}
     <div className="paper tagged-status">

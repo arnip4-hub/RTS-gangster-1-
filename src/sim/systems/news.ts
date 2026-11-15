@@ -8,17 +8,36 @@ import type { Rng } from '../rng';
 import type { WorldState } from '../types';
 import { placeName } from '../world';
 import { peopleList, buildingList } from '../entityLists';
+import { campaignMinute, FULL_DAY_MINUTES } from '../calendar';
 
 /** Turn the week's events into the morning edition. */
 export function weeklyNews(w: WorldState, _rng: Rng): void {
-  const thisWeek = w.crimes.filter((c) => c.week === w.week && c.reported && !c.charge);
+  writeNews(w);
+}
+
+/** RTS: print one edition at 6 a.m. from events since the previous issue. */
+export function dailyNews(w: WorldState, _rng: Rng): void {
+  if (!w.options.continuousTime || w.phase!=='week' || w.minute%FULL_DAY_MINUTES!==360) return;
+  const now=campaignMinute(w);
+  if (w.lastNewspaperMinute===now) return;
+  writeNews(w,w.lastNewspaperMinute ?? now-FULL_DAY_MINUTES);
+  for (const item of w.news) if (item.editionAt==null && item.eventAt!=null) item.editionAt=now;
+  w.lastNewspaperMinute=now;
+  publishBusinessIntelligence(w);
+}
+
+function writeNews(w: WorldState, since?: number): void {
+  const daily=since!=null;
+  const thisWeek = w.crimes.filter((c) => c.reported && !c.charge &&
+    (daily ? c.reportedAt!=null && c.reportedAt>since : c.week===w.week));
 
   // ---- crimes
   const countedVictims = new Set<number>();
   const murders = thisWeek.filter(c => {
     if (!['kill', 'streetKill', 'shootout', 'assault', 'streetAssault'].includes(c.kind) || c.victimId == null) return false;
     const victim = w.people[c.victimId];
-    if (!victim || victim.status !== 'dead' || victim.diedWeek !== w.week || countedVictims.has(victim.id)) return false;
+    if (!victim || victim.status !== 'dead' ||
+      (daily ? victim.diedAt==null || victim.diedAt<=since : victim.diedWeek!==w.week) || countedVictims.has(victim.id)) return false;
     countedVictims.add(victim.id);
     return true;
   });
@@ -26,8 +45,8 @@ export function weeklyNews(w: WorldState, _rng: Rng): void {
   if (murders.length) {
     addNews(w, {
       section: 'crime',
-      headline: murders.length > 2 ? 'BLOODY WEEK ON CITY STREETS' : 'GANGLAND KILLING',
-      body: `${murders.length} violent death${murders.length === 1 ? ' was' : 's were'} reported this week. Police say enquiries are continuing.`,
+      headline: murders.length > 2 ? `BLOODY ${daily?'DAY':'WEEK'} ON CITY STREETS` : 'GANGLAND KILLING',
+      body: `${murders.length} violent death${murders.length === 1 ? ' was' : 's were'} reported ${daily?'since yesterday':'this week'}. Police say enquiries are continuing.`,
       gangId: murders[0].gangId,
     });
   }
@@ -51,7 +70,8 @@ export function weeklyNews(w: WorldState, _rng: Rng): void {
   }
 
   // ---- deaths
-  const dead = peopleList(w).filter((p) => p.status === 'dead' && p.diedWeek === w.week);
+  const dead = peopleList(w).filter((p) => p.status === 'dead' &&
+    (daily ? p.diedAt!=null && p.diedAt>since : p.diedWeek===w.week));
   if (dead.length) {
     const recent = dead.map((p) => p.name);
     addNews(w, {
@@ -80,19 +100,20 @@ export function weeklyNews(w: WorldState, _rng: Rng): void {
   }
 
   // ---- the front page
-  const front = pickFront(w, thisWeek.length, murders.length);
+  const front = pickFront(w, thisWeek.length, murders.length, daily);
   addNews(w, { section: 'front', ...front });
 
   // ---- the original's gang stories and period colour; added after the
   // routine lead so a milestone of equal rank takes the front page.
-  pressStories(w);
-  publishBusinessIntelligence(w);
+  pressStories(w,since);
+  if (!daily) publishBusinessIntelligence(w);
 }
 
 function pickFront(
   w: WorldState,
   crimeCount: number,
   murderCount: number,
+  daily = false,
 ): { headline: string; body: string; gangId: number | null } {
   // A newly called race already has its own "election called" story.
   if (w.election.active && w.election.weeksLeft < ELECTION_WEEKS) {
@@ -116,14 +137,14 @@ function pickFront(
   }
   if (crimeCount === 0) {
     return {
-      headline: 'A QUIET WEEK IN NEW TEMPERANCE',
-      body: 'Police report an unusually peaceful week. Business leaders welcomed the calm.',
+      headline: `A QUIET ${daily?'DAY':'WEEK'} IN NEW TEMPERANCE`,
+      body: `Police report an unusually peaceful ${daily?'day':'week'}. Business leaders welcomed the calm.`,
       gangId: null,
     };
   }
   return {
     headline: 'POLICE INVESTIGATE CITY CRIME',
-    body: `Police received ${crimeCount} crime report${crimeCount === 1 ? '' : 's'} this week. Investigations continue across New Temperance.`,
+    body: `Police received ${crimeCount} crime report${crimeCount === 1 ? '' : 's'} ${daily?'since yesterday':'this week'}. Investigations continue across New Temperance.`,
     gangId: null,
   };
 }

@@ -50,7 +50,8 @@ export function addMessage(
 }
 
 export function addNews(w: WorldState, item: Omit<NewsItem, 'week'>): void {
-  w.news.push({ ...item, week: w.week });
+  w.news.push({ ...item, week: w.week,
+    ...(w.options.continuousTime ? {eventAt:campaignMinute(w)} : {}) });
   if (w.news.length > 600) w.news.splice(0, w.news.length - 600);
 }
 

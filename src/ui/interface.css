@@ -42,6 +42,13 @@
 .classic-hud .tagged-status { padding: 4px 6px; font-size: 11px; background: #e1d6b9; }
 .classic-hud .tagged-profile { padding: 7px 9px; font-size: 12px; line-height: 1.5; background: #efe5cc; }
 .classic-hud .tagged-profile small { display: block; margin-top: 4px; opacity: .72; }
+.classic-hud .tagged-profile-actions { display: flex; gap: 5px; margin-top: 6px; }
+.classic-hud .tagged-profile-actions button { flex: 1; padding: 3px; background: #d5c49e; border: 1px solid #785f3b; }
+.classic-hud .tagged-profile-actions button[aria-pressed="true"] { background: #a47632; color: white; }
+.person-list-entry { display: flex; gap: 4px; align-items: stretch; padding: 3px 5px; }
+.person-list-entry > button:first-child { flex: 1; text-align: left; }
+.person-list-entry > button:last-child { width: 25px; }
+.person-list-entry small { display: block; opacity: .7; }
 .classic-hud .tagged-viewport { height: 154px; }
 .classic-hud .tagged-target { font-size: 11px; padding: 4px 6px; }
 .street-order-box { padding: 3px; border-top: 1px solid #8b7956; }

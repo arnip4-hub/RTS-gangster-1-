@@ -19,7 +19,7 @@ import { observeTargetRace, tieRank } from './targetRace';
 import { weeklyTaxes } from './systems/taxes';
 import { buildingValue, releaseGangHoldings, standingBlocks } from './execution';
 import { minuteRate, ORDERS } from './constants';
-import { weekDuration } from './calendar';
+import { campaignMinute, weekDuration } from './calendar';
 import { addMessage, addNews } from './events';
 import { beginWeekOrders, disbandTeam, promoteToLieutenant, replaceLieutenant, tickOrders } from './execution';
 import { Rng } from './rng';
@@ -35,7 +35,7 @@ import { dailyBusinessIncome, weeklyEconomy } from './systems/economy';
 import { tickGoods } from './goodsDelivery';
 import { dispatchFbi, normalizeFbiInvestigations, tickFbi, weeklyFbi } from './systems/fbi';
 import { tickLaw, weeklyLaw } from './systems/law';
-import { weeklyNews } from './systems/news';
+import { dailyNews, weeklyNews } from './systems/news';
 import { territoryGoodwill, weeklyOpinion } from './systems/opinion';
 import { weeklyPolitics } from './systems/politics';
 import { replenishOriginalRecruits } from './recruitPool';
@@ -141,6 +141,12 @@ export class Sim {
     recordScorePeaks(w);
     w.phase = 'week';
     w.minute = w.options.continuousTime ? 8 * 60 : 0;
+    if (w.options.continuousTime && w.lastNewspaperMinute==null) {
+      w.lastNewspaperMinute=campaignMinute(w,6*60);
+      w.news.push({week:w.week,eventAt:w.lastNewspaperMinute,editionAt:w.lastNewspaperMinute,
+        section:'front',headline:'WELCOME TO NEW TEMPERANCE',
+        body:'A new day begins in New Temperance as businesses open and the city takes to the streets.',gangId:null});
+    }
     w.messages = [];
     w.weekLog = [];
     this.accumulator = 0;
@@ -318,6 +324,7 @@ export class Sim {
     tickCombat(w, this.rng, 1, undefined, loadout, peaceFireExclusions);
     tickSightings(w, this.rng, sightingBefore);
     dailyBusinessIncome(w, this.rng);
+    dailyNews(w, this.rng);
     // The minute's score peaks read only its closing state, which nothing but
     // the player changes before the next tick: they are taken in the first
     // sub-step after it (settleDeferred), not in this frame.
@@ -378,7 +385,7 @@ export class Sim {
       case 6: weeklyOpinion(w, this.rng); break;
       case 7: territoryGoodwill(w); break;
       case 8: weeklyPolitics(w, this.rng); break;
-      case 9: weeklyNews(w, this.rng); break;
+      case 9: if (!w.options.continuousTime) weeklyNews(w, this.rng); break;
       case 10: this.updateDiplomacyKnowledge(); break;
       case 11: this.rebuildCommand(); break;
       case 12: this.recordHistory(); break;

@@ -40,7 +40,8 @@ export function publishBusinessIntelligence(w: WorldState): void {
   const readers = Object.values(w.gangs).filter(g => !g.eliminated)
     .map(g => ({ gangId: g.id, paper: deliveredNewspaper(w, g.id) })).filter(r => r.paper != null);
   for (const item of w.news) {
-    if (item.week !== w.week || !['purchase', 'opening'].includes(item.kind ?? '') || item.buildingId == null || item.gangId == null) continue;
+    if ((w.options.continuousTime ? item.editionAt!==w.lastNewspaperMinute : item.week!==w.week) ||
+      !['purchase', 'opening'].includes(item.kind ?? '') || item.buildingId == null || item.gangId == null) continue;
     const building = w.buildings[item.buildingId];
     if (!building || building.cls === 'illegal' || building.cls === 'empty' || building.ownerGangId !== item.gangId) continue;
     for (const reader of readers) {
@@ -62,15 +63,16 @@ export function newspaperLead(items: NewsItem[]): NewsItem | null {
   return lead;
 }
 
-/** Editions contain the completed week, never unfinished orders or private gang logs. */
-export function newspaperEdition(w: WorldState, gangId: ID): { paper: Building | null; week: number; items: NewsItem[] } {
+/** Editions contain only published reports, never unfinished orders or private logs. */
+export function newspaperEdition(w: WorldState, gangId: ID): { paper: Building | null; week: number; editionAt?: number; items: NewsItem[] } {
   const paper = deliveredNewspaper(w, gangId), week = Math.max(0, w.week - 1);
-  const items = paper ? w.news.filter(n => n.week === week &&
+  const editionAt=w.options.continuousTime?w.lastNewspaperMinute:undefined;
+  const items = paper ? w.news.filter(n => (editionAt==null ? n.week === week : n.editionAt===editionAt) &&
     (n.paperOwnerId == null || paper.ownerGangId === n.paperOwnerId)) : [];
   if (paper && week === 0 && !items.some(n => n.section === 'front')) items.unshift({
     week, section: 'front', headline: 'WELCOME TO NEW TEMPERANCE',
     body: 'A new week begins in New Temperance. Business owners open their doors as the city prepares for another working week.',
     gangId: null,
   });
-  return { paper, week, items };
+  return { paper, week, editionAt, items };
 }
