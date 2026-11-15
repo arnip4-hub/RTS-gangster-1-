@@ -2918,6 +2918,10 @@ input[type='range']::-moz-range-thumb {
 .city-plan-key-row i.outline { border-width: 2px; }
 .city-plan-key-row i.map-target { background: transparent; border: 2px solid #1fb5aa; }
 .city-plan-key-row i.map-selected { background: #e2338c9e; border: 2px solid #e2338c; box-shadow: 0 0 0 1px #fffdf5; }
+.city-plan-key-row i.map-moving-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid #171e1d; }
+.city-plan-key-row i.map-moving-dot.large { width: 11px; height: 11px; }
+.city-plan-key-row i.map-moving-car { width: 12px; height: 7px; background: #232a2a; border: 1px solid #171e1d; }
+.week-plan-interface .city-plan-key { padding-left: clamp(18px, 10vw, 180px); padding-right: clamp(18px, 8vw, 145px); }
 .blueprint { touch-action: none; }
 .city-plan-key-row .map-heat-key { gap: 7px; }
 .city-plan-key-row .map-heat-key i { width: 74px; height: 9px; }

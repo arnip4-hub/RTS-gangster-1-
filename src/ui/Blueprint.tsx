@@ -22,6 +22,7 @@ import { peopleList, buildingList } from '../sim/entityLists';
 import { cityTramLines } from '../sim/trams';
 import { blockTypeName } from './blockTypeName';
 import { cameraApi } from './CityView';
+import { cityPlanActivity } from './cityPlanActivity';
 
 /** Keyboard navigation for the live overhead plan, parallel to the 3D camera. */
 export const blueprintApi = { ref: null as { panBy(dx: number, dy: number): void } | null };
@@ -85,8 +86,9 @@ function mapArea(canvas: HTMLCanvasElement, journalOpen: boolean, live: boolean)
   const weekBars = live ? document.querySelector('.week-bars')?.getBoundingClientRect() : null;
   const y = Math.max(top ? top.bottom - origin.top + 14 : 24, weekBars ? weekBars.bottom - origin.top + 12 : 24);
   const controls = document.querySelector('.map-buttons')?.getBoundingClientRect();
-  const clock = live ? document.querySelector('.week-clock')?.getBoundingClientRect() : null;
-  const bottom = controls && controls.height > 0 ? controls.top - origin.top - 12 : clock ? clock.top - origin.top - 12 : height - 18;
+  // The live minimap and clock float over the plan. Reserving space above the
+  // clock shrank a tall window's city map into a shallow horizontal strip.
+  const bottom = controls && controls.height > 0 ? controls.top - origin.top - 12 : height - 18;
   return { x, y, w: Math.max(100, width - x - 24), h: Math.max(160, bottom - y) };
 }
 
@@ -116,6 +118,7 @@ export function Blueprint() {
   const ref = useRef<HTMLCanvasElement>(null);
   const header = useRef<HTMLDivElement>(null), key = useRef<HTMLDivElement>(null);
   const [chrome, setChrome] = useState<MapChrome | null>(null);
+  const [showActivity, setShowActivity] = useState(true);
   const mapBounds = useRef<MapArea>({ x: 0, y: 0, w: 1, h: 1 });
   const markerHits = useRef<PlanMarkerHit[]>([]);
   const sheet = useRef<HTMLCanvasElement | null>(null);
@@ -373,6 +376,8 @@ export function Blueprint() {
 
     };
 
+    let activity: ReturnType<typeof cityPlanActivity> = [];
+    let activityAt = -Infinity;
     /** Put the sheet on the canvas, with whatever the mouse is doing on top. */
     const paint = () => {
       const sc = sheet.current;
@@ -390,6 +395,41 @@ export function Blueprint() {
       ctx.clearRect(0, 0, cv.width, cv.height);
       ctx.drawImage(sc, 0, 0);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      if (showActivity && w.phase === 'week') {
+        const a = mapBounds.current, f = frame.current;
+        const neutralPixels = new Set<string>();
+        const now = performance.now();
+        if (now - activityAt >= 200) {
+          activity = cityPlanActivity(w, gang.id, sim.subMinute);
+          activityAt = now;
+        }
+        ctx.save();
+        ctx.beginPath(); ctx.rect(a.x, a.y, a.w, a.h); ctx.clip();
+        for (const marker of activity) {
+          const x = f.ox + marker.pos.x * f.scale, y = f.oy + marker.pos.y * f.scale;
+          if (x < a.x || y < a.y || x > a.x + a.w || y > a.y + a.h) continue;
+          if (marker.kind === 'civilian') {
+            // Dense crowds read as a moving stream, without painting thousands
+            // of overlapping dots into the same few screen pixels.
+            const cell = `${Math.floor(x / 7)},${Math.floor(y / 7)}`;
+            if (neutralPixels.has(cell)) continue;
+            neutralPixels.add(cell);
+          }
+          ctx.fillStyle = marker.kind === 'police' ? '#4c9bd4' : marker.kind === 'civilian' ? '#eadbb6'
+            : marker.kind === 'gang' ? GANG_COLORS[w.gangs[marker.gangId!]?.color ?? gang.color].hex : '#232a2a';
+          ctx.strokeStyle = '#171e1d';
+          ctx.lineWidth = marker.kind === 'gang' ? 1.5 : .8;
+          if (marker.kind === 'car') {
+            ctx.fillRect(x - 3, y - 2, 6, 4);
+            ctx.strokeRect(x - 3, y - 2, 6, 4);
+          } else {
+            const radius = marker.kind === 'gang' ? 5 : marker.kind === 'police' ? 3.5 : 2;
+            ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
 
       const d = drag.current;
       if (d && d.moved && isBoxing(d.button)) {
@@ -439,7 +479,7 @@ export function Blueprint() {
     let active = true;
     void document.fonts.ready.then(() => { if (active) paintBase.current(); });
     return () => { active = false; ro.disconnect(); };
-  }, [sim, version, overlays, heat, jobCard, reviewOrderId, staff, pickMode, selectedBuildingId, selectedTeamId, policeAreaBlockIds, collapsed, organizerOpen]);
+  }, [sim, version, overlays, heat, jobCard, reviewOrderId, staff, pickMode, selectedBuildingId, selectedTeamId, policeAreaBlockIds, collapsed, organizerOpen, showActivity]);
 
   // ---------------------------------------------------------------- hit-testing
 
@@ -685,6 +725,8 @@ export function Blueprint() {
     <div ref={header} className="city-plan-header" style={{ ...panelStyle, top: chrome?.y ?? 0 }}>
       <div className="city-plan-heading"><span>City plan · Week {sim.world.week}</span><h2>New Temperance</h2></div>
       <div className="city-plan-tools" role="group" aria-label="City plan navigation">
+        {sim.world.phase === 'week' && <button aria-pressed={showActivity} onClick={() => setShowActivity(!showActivity)}
+          title="Show or hide moving people and cars on the city plan">People & cars: {showActivity ? 'on' : 'off'}</button>}
         <button onClick={() => zoom(1 / 1.4)} aria-label="Zoom out" title="Zoom out">−</button>
         <button onClick={() => zoom(1.4)} aria-label="Zoom in" title="Zoom in">+</button>
         <button onClick={fitCity}>Fit city</button><button onClick={focusHq} title="Zoom to your headquarters">HQ</button>
@@ -701,6 +743,12 @@ export function Blueprint() {
         <span><b className="map-symbol">HQ</b>Headquarters</span>
       </div>
       <div className="city-plan-key-row types">
+        {sim.world.phase === 'week' && showActivity && <>
+          <span><i className="map-moving-car" />Cars</span>
+          <span><i className="map-moving-dot" style={{ background: '#eadbb6' }} />People</span>
+          <span><i className="map-moving-dot" style={{ background: '#4c9bd4' }} />Police</span>
+          <span><i className="map-moving-dot large" style={{ background: playerColor }} />Gang members</span>
+        </>}
         {target === 'area' || target === 'building' || target === 'person' ? <>
           <span><i className="map-target" />Available target</span>
           <span><i className="map-selected" />Selected</span>

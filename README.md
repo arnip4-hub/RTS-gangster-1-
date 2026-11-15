@@ -148,13 +148,15 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.4)
+The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.5)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
-`RTS-gangster-beta-Portable.exe`. This patch corrects WASD and arrow-key
-camera movement in the 3D city and prevents simultaneous Extort orders on
-the same business, with an explanation when the target is already assigned.
-Existing saves
-keep their original five-day clock; start a new campaign to try the continuous
+`RTS-gangster-beta-Portable.exe`. The City Plan now uses the full height of
+the window while the minimap and clock float over its corners. In the live
+week, **People & cars** shows moving traffic and people: police are blue,
+civilians are small light dots, and identified gang members are larger coloured
+dots. Turn it off from the City Plan toolbar. The previous patch's keyboard
+and duplicate Extort fixes are included.
+Existing saves keep their original five-day clock; start a new campaign to try the continuous
 calendar. The classic mode keeps its original pacing.
 
 To run the newest source code locally, use the `rts-development` branch and the
