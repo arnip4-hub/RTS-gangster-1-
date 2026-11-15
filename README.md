@@ -39,10 +39,14 @@ page and the Windows build workflow.
   street characters to eight. It applies immediately and does not change the
   number of people simulated. The separate Standard textures option reduces
   graphics memory use when the city next loads. Rival gangs now check for idle
-  crews every 30 game minutes and give each free crew one nearby protection or
-  extortion job, without replacing orders already in progress.
+  crews every 30 game minutes. A six-hour goal steers each free crew toward
+  scouting, income or nearby expansion. Reported attacks or visible damage can
+  prompt a temporary guard, patrol or a limited retaliation when the attacker
+  and a rival site are known. Existing orders are left in progress. Scouting
+  reveals sites before the live planner targets them; there is no new district
+  ownership system.
 - **Still to build:** simpler group selection and move orders, better live reports,
-  AI goals, day/night tactics and live responses to events, and a deeper
+  broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.
   Automatic week rollover does not remove weekly rules yet.
 

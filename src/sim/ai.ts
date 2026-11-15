@@ -1,5 +1,6 @@
 import { originalWeeklyStance, rollOriginalProfile, stanceOfHostility, startingHostility } from './aiStance';
 import { cityBlockAt } from './cityLayout';
+import { campaignMinute } from './calendar';
 import {
   buyVehicle,
   buyWeapon,
@@ -9,6 +10,7 @@ import {
   sellVehicle,
   sellWeapon,
   issueOrder,
+  type IssueOrderInput,
   promote,
   setDiplomacy,
   setRunForOffice,
@@ -25,7 +27,7 @@ import {
   repairBuilding,
   setTrading,
 } from './api';
-import { MAX_TEAMS, MAX_TEAM_SIZE, MINUTES_PER_WEEK, WEAPONS } from './constants';
+import { CELL, MAX_TEAMS, MAX_TEAM_SIZE, MINUTES_PER_WEEK, ORDERS, WEAPONS } from './constants';
 import { BUILDING_BY_ID, ILLEGAL_TYPES, coverQuality } from './data/buildings';
 import { isValidAreaTarget, nearestOffice } from './execution';
 import { centreLotNeedsFront, purchasablePremisesType } from './premises';
@@ -104,47 +106,156 @@ function idleCrew(w: WorldState, team: Team): boolean {
   return ![team.lieutenantId, ...team.memberIds].some(id => w.people[id]?.streetOrder || w.people[id]?.resumeOrderId != null);
 }
 
-/** One short new job for each genuinely idle crew. Weekly staff, finance and
- * diplomacy decisions remain with planGang until their RTS rules are ready. */
+const LIVE_GOAL_MINUTES = 6 * 60;
+
+/** A rival learns of a reported attack or visible damage to one of its sites.
+ * A perpetrator's identity is usable for retaliation only if already known. */
+function recentThreat(w: WorldState, gang: Gang) {
+  for (let i = w.crimes.length - 1; i >= 0; i--) {
+    const crime = w.crimes[i];
+    if (crime.week !== w.week || crime.gangId === gang.id || crime.id <= (gang.aiLastThreatId ?? 0) ||
+      crime.buildingId == null) continue;
+    const site = w.buildings[crime.buildingId];
+    const visibleDamage = (site?.state === 'damaged' || site?.state === 'destroyed') &&
+      ['smashUp', 'torch', 'bomb', 'raid'].includes(crime.kind);
+    if (site && (site.ownerGangId === gang.id || site.protection?.gangId === gang.id) &&
+      (crime.reported || visibleDamage)) return crime;
+  }
+  return null;
+}
+
+function liveGoal(w: WorldState, gang: Gang): NonNullable<Gang['aiGoal']> {
+  const now = campaignMinute(w);
+  const threat = recentThreat(w, gang);
+  if (threat && (!gang.aiGoal || now - gang.aiGoal.chosenAt >= LIVE_AI_INTERVAL)) {
+    gang.aiLastThreatId = threat.id;
+    const knownAttacker = gang.knownPeople.includes(threat.perpetratorId) &&
+      w.gangs[threat.gangId] && !w.gangs[threat.gangId].eliminated && threat.gangId !== gang.id;
+    gang.aiGoal = {
+      kind: gang.personality === 'aggressive' && knownAttacker ? 'retaliate' : 'defend',
+      chosenAt: now, until: now + LIVE_GOAL_MINUTES, targetBuildingId: threat.buildingId!,
+      ...(knownAttacker ? { targetGangId: threat.gangId } : {}),
+    };
+  } else if (!gang.aiGoal || now >= gang.aiGoal.until) {
+    const needsCash = gang.cash < gangManpower(w, gang) * 250 + 1500;
+    const incomeCycle = (Math.floor(now / LIVE_GOAL_MINUTES) + gang.id) % (gang.personality === 'passive' ? 2 : 4) === 0;
+    gang.aiGoal = { kind: needsCash || incomeCycle ? 'income' : 'expand', chosenAt: now, until: now + LIVE_GOAL_MINUTES };
+  }
+  return gang.aiGoal;
+}
+
+type LiveJob = {
+  input: IssueOrderInput;
+  siteId?: ID;
+  blockId: ID;
+  base: number;
+};
+
+/** One scored job for each genuinely idle crew. The planner sees its own
+ * assets, mapped fronts and reported attacks, never the player's live orders. */
 export function planIdleCrews(w: WorldState, gang: Gang): void {
   if (!w.options.continuousTime || w.phase !== 'week' || w.settlementStage != null || gang.isPlayer || gang.eliminated) return;
+  const goal = liveGoal(w, gang);
   const teams = teamsOf(w, gang).filter(team => idleCrew(w, team));
   if (!teams.length) return;
 
   const near = homeBlocks(w, gang, 3);
   const sites = near.flatMap(block => buildingsOfBlock(w, block));
-  const ordered = new Set<ID>();
+  const ordered = new Map<string, Set<ID>>();
+  const explored = new Set<ID>();
   for (const order of Object.values(w.orders)) {
     if (order.gangId !== gang.id || order.isStreetOrder || order.state === 'cancelled') continue;
-    for (const id of order.targetBuildingIds) ordered.add(id);
+    let used = ordered.get(order.type);
+    if (!used) ordered.set(order.type, used = new Set());
+    for (const id of order.targetBuildingIds) used.add(id);
+    if (order.type === 'explore') for (const id of order.targetBlockIds) explored.add(id);
   }
-  const collection = sites.filter(b => b.state === 'trading' && b.protection?.gangId === gang.id &&
-    b.protection.collectedWeek !== w.week && !ordered.has(b.id));
-  const expansion = sites.filter(b => b.state === 'trading' && !ordered.has(b.id) &&
-    isValidAreaTarget(w, gang.id, 'extort', b));
+  const jobs: LiveJob[] = [];
+  for (const b of sites) {
+    if (b.state !== 'trading') continue;
+    if (b.protection?.gangId === gang.id && b.protection.collectedWeek !== w.week &&
+      !ordered.get('collectProtection')?.has(b.id))
+      jobs.push({ input: { teamId: -1, type: 'collectProtection', buildingIds: [b.id], opts: { manpower: 1 } },
+        siteId: b.id, blockId: b.blockId, base: goal.kind === 'income' ? 110 : 65 });
+
+    // Unknown ownership or protection is not evidence that a site is free.
+    // Scout first; the API may still refuse an attempted extortion if intel is stale.
+    const intel = buildingMapIntel(b, gang.id);
+    if ((b.knowledge[gang.id] ?? 0) >= 2 && intel.ownerGangId == null && intel.protectionGangId == null &&
+      !ordered.get('extort')?.has(b.id))
+      jobs.push({ input: { teamId: -1, type: 'extort', buildingIds: [b.id], opts: { manpower: 1 } },
+        siteId: b.id, blockId: b.blockId, base: goal.kind === 'expand' ? 105 : 55 });
+
+    if (goal.kind === 'retaliate' && !goal.acted && goal.targetGangId != null &&
+      intel.ownerGangId === goal.targetGangId && !intel.isHQ && !ordered.get('smashUp')?.has(b.id))
+      jobs.push({ input: { teamId: -1, type: 'smashUp', buildingIds: [b.id], opts: { manpower: 2 } },
+        siteId: b.id, blockId: b.blockId, base: 175 });
+  }
+
+  if (goal.kind === 'defend' && !goal.acted) {
+    const threatened = goal.targetBuildingId == null ? null : w.buildings[goal.targetBuildingId];
+    const site = threatened?.ownerGangId === gang.id ? threatened :
+      sites.find(b => b.blockId === threatened?.blockId && b.ownerGangId === gang.id && b.state === 'trading');
+    if (site && site.state !== 'destroyed' && !ordered.get('guardBusiness')?.has(site.id))
+      jobs.push({ input: { teamId: -1, type: 'guardBusiness', buildingIds: [site.id], opts: { manpower: 1 } },
+        siteId: site.id, blockId: site.blockId, base: 185 });
+    else if (threatened && near.some(block => block.id === threatened.blockId))
+      jobs.push({ input: { teamId: -1, type: 'patrol', blockIds: [threatened.blockId], opts: { manpower: 1 } },
+        blockId: threatened.blockId, base: 180 });
+  }
+
+  for (const block of near) {
+    if (explored.has(block.id)) continue;
+    const unknown = buildingsOfBlock(w, block).filter(b => b.cls !== 'empty' && b.cls !== 'illegal' &&
+      (b.knowledge[gang.id] ?? 0) < 2).length;
+    if (unknown)
+      jobs.push({ input: { teamId: -1, type: 'explore', blockIds: [block.id], opts: { manpower: 1 } },
+        blockId: block.id, base: (goal.kind === 'expand' ? 75 : 30) + Math.min(unknown, 8) });
+  }
+
+  const holdings = new Set(sites.filter(b => b.ownerGangId === gang.id || b.protection?.gangId === gang.id)
+    .map(b => b.blockId));
+  const nearbyHoldings = new Map(near.map(block => [block.id, [...holdings].filter(id => {
+    const owned = w.blocks[id];
+    return Math.abs(owned.gx - block.gx) + Math.abs(owned.gy - block.gy) <= 1;
+  }).length]));
+  const score = (job: LiveJob, team: Team) => {
+    const block = w.blocks[job.blockId];
+    const pos = job.siteId == null ? block.center : w.lots[w.buildings[job.siteId].lotId].center;
+    const travel = dist(w.people[team.lieutenantId].pos, pos) / CELL;
+    const nominalProfit = job.siteId == null ? 0 : BUILDING_BY_ID[w.buildings[job.siteId].typeId]?.profit ?? 0;
+    const risk = job.input.type === 'extort' || job.input.type === 'smashUp'
+      ? block.policePresence * 3 : 0;
+    return job.base + Math.min(12, nominalProfit / 1000) + (nearbyHoldings.get(block.id) ?? 0) * 5 - travel * 7 -
+      ORDERS[job.input.type].minutesPerTarget / 55 - risk;
+  };
 
   for (const team of teams) {
     // Done jobs remain in the weekly report, but no longer consume a live crew's
     // capacity. issueOrder still validates the next job's actual size.
     team.timeUsed = 0;
-    const home = w.people[team.lieutenantId].pos;
-    const nearest = (candidates: Building[]) => {
-      let best = -1, distance = Infinity;
-      for (let i = 0; i < candidates.length; i++) {
-        const pos = w.lots[candidates[i].lotId].center;
-        const d = dist(home, pos);
-        if (d < distance || d === distance && candidates[i].id < candidates[best]?.id) { best = i; distance = d; }
+    for (let attempt = 0; attempt < 6 && jobs.length; attempt++) {
+      let best = -1, bestScore = -Infinity;
+      for (let i = 0; i < jobs.length; i++) {
+        if ((jobs[i].input.opts?.manpower ?? 1) > team.memberIds.length + 1) continue;
+        const value = score(jobs[i], team);
+        if (value > bestScore || value === bestScore && jobs[i].blockId < jobs[best]?.blockId) {
+          best = i; bestScore = value;
+        }
       }
-      return best < 0 ? null : candidates.splice(best, 1)[0];
-    };
-    for (const [type, candidates] of [['collectProtection', collection], ['extort', expansion]] as const) {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const site = nearest(candidates);
-        if (!site) break;
-        const result = issueOrder(w, gang.id, { teamId: team.id, type, buildingIds: [site.id], opts: { manpower: 1 } });
-        if (result.ok) { ordered.add(site.id); break; }
+      if (best < 0) break;
+      const job = jobs.splice(best, 1)[0];
+      const result = issueOrder(w, gang.id, { ...job.input, teamId: team.id });
+      if (!result.ok) continue;
+      if (job.input.type === 'guardBusiness' || job.input.type === 'patrol') {
+        w.orders[team.orderIds.at(-1)!].aiGuardUntil = campaignMinute(w) + LIVE_GOAL_MINUTES;
+        goal.acted = true;
       }
-      if (team.orderIds.some(id => w.orders[id] && openOrder(w.orders[id].state))) break;
+      if (job.input.type === 'smashUp') {
+        goal.acted = true;
+        for (let i = jobs.length - 1; i >= 0; i--) if (jobs[i].input.type === 'smashUp') jobs.splice(i, 1);
+      }
+      break;
     }
   }
 }
@@ -730,7 +841,12 @@ function manageProperty(w: WorldState, rng: Rng, gang: Gang, teamIds: ID[]): voi
   const candidates: Building[] = [];
   for (const blk of near) {
     for (const b of buildingsOfBlock(w, blk)) {
-      if (b.ownerGangId != null || b.state === 'destroyed') continue;
+      if (b.state === 'destroyed') continue;
+      if (w.options.continuousTime) {
+        // A live rival must scout a front before assuming it is on the market.
+        const intel = buildingMapIntel(b, gang.id);
+        if ((b.knowledge[gang.id] ?? 0) < 2 || intel.ownerGangId != null || intel.protectionGangId != null) continue;
+      } else if (b.ownerGangId != null) continue;
       if (!purchasablePremisesType(b)) continue;
       // The middle of a block is only sold to the owner of one of its fronts.
       if (centreLotNeedsFront(w, gang.id, b)) continue;

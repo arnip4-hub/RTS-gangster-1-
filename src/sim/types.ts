@@ -511,6 +511,8 @@ export interface Order {
   /** Street orders are transient and re-entrant. */
   isStreetOrder: boolean;
   completedTargets: number;
+  /** A rival's temporary defensive assignment ends after this absolute game minute. */
+  aiGuardUntil?: number;
   /** Continue releases this week's initial Wait without changing the planning option. */
   waitReleased?: boolean;
   /** Resume the same phase and remaining work after a live pause. */
@@ -641,6 +643,17 @@ export interface Gang {
   bossId: ID;
   isPlayer: boolean;
   personality: 'passive' | 'normal' | 'aggressive';
+  /** Current plan for continuous play; a goal lasts several game hours. */
+  aiGoal?: {
+    kind: 'income' | 'expand' | 'defend' | 'retaliate';
+    chosenAt: number;
+    until: number;
+    targetBuildingId?: ID;
+    targetGangId?: ID;
+    acted?: boolean;
+  };
+  /** Last attack on our property the planner has considered. */
+  aiLastThreatId?: ID;
   cash: number;
   teamIds: ID[];
   poolIds: ID[];

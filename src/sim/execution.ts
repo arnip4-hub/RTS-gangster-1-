@@ -10,7 +10,7 @@ import { claimedTerritoryBlocks, distanceToTerritory } from './territory';
 import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
-import { stampedMinute } from './calendar';
+import { campaignMinute, stampedMinute } from './calendar';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
   DRIVE_MIN_DISTANCE,
@@ -561,6 +561,11 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
       if (!order) continue;
       if (w.targetRace) return;
       if (order.state === 'done' || order.state === 'failed' || order.state === 'cancelled') continue;
+      if (order.aiGuardUntil != null && campaignMinute(w) >= order.aiGuardUntil) {
+        finishOrder(w, order, null);
+        freedSomething = true;
+        continue;
+      }
       if (order.state === 'queued') continue;
 
       const actors = orderActors(w, order);
