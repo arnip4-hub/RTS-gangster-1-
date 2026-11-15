@@ -227,9 +227,14 @@ export interface FbiAssignment {
   workLeft: number;
 }
 export interface EmergencyResponse {
-  week:number; buildingId:ID; startMinute:number; untilMinute:number;
+  week:number; buildingId:ID|null; startMinute:number; untilMinute:number;
   kind:'police'|'fire'|'reporter'; stage:'approaching'|'working'|'returning';
   target:Vec2; lookAt:Vec2; home:Vec2; arrivedMinute?:number;
+  /** A live witness call uses the normal road/traffic movement model. */
+  vehicle?: boolean;
+  /** The officer's home to re-enter after the call, if he was dispatched at night. */
+  homeBuildingId?: ID;
+  crimeId?: ID;
 }
 
 export type BuildingClass =

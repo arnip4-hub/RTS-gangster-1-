@@ -300,7 +300,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     const e=p.burningEscape,r=p.emergencyResponse,s=p.shockReaction;
     const earliest = (week: number) => w.options.continuousTime && week === w.week ? -weekDuration(w) : 0;
     if(e&&(!Number.isInteger(e.week)||e.week<1||e.week>w.week||!w.buildings[e.buildingId]||e.startMinute<earliest(e.week)))throw Error('Save has an invalid burning escape.');
-    if(r&&(!Number.isInteger(r.week)||r.week<1||r.week>w.week||!w.buildings[r.buildingId]||r.startMinute<earliest(r.week)||r.untilMinute<=r.startMinute))throw Error('Save has an invalid emergency response.');
+    if(r&&(!Number.isInteger(r.week)||r.week<1||r.week>w.week||r.buildingId!=null&&!w.buildings[r.buildingId]||r.startMinute<earliest(r.week)||r.untilMinute<=r.startMinute||r.homeBuildingId!=null&&!w.buildings[r.homeBuildingId]||r.crimeId!=null&&!w.crimes.some(c=>c.id===r.crimeId)))throw Error('Save has an invalid emergency response.');
     if(s&&(!Number.isInteger(s.week)||s.week<1||s.week>w.week||!w.people[s.victimId]||s.startMinute<earliest(s.week)||s.untilMinute<=s.startMinute))throw Error('Save has an invalid shock reaction.');
   }
   for (const o of [...Object.values(w.orders), ...w.lastWeekOrders]) {

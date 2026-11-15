@@ -2815,7 +2815,14 @@
         "buildingId": {
           "optional": false,
           "shape": {
-            "type": "number"
+            "union": [
+              {
+                "literal": null
+              },
+              {
+                "type": "number"
+              }
+            ]
           }
         },
         "startMinute": {
@@ -2881,6 +2888,39 @@
           }
         },
         "arrivedMinute": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "vehicle": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
+        "homeBuildingId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "crimeId": {
           "optional": true,
           "shape": {
             "union": [

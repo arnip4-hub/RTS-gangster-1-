@@ -6,6 +6,8 @@ import { CELL } from '../src/sim/constants';
 import { clearDestination, setDestination } from '../src/sim/movement';
 import { Sim } from '../src/sim/sim';
 import { tickAmbient } from '../src/sim/systems/ambient';
+import { tickBuildingEmergencies } from '../src/sim/systems/buildingEmergency';
+import { recordCrime } from '../src/sim/events';
 import { buildingDoor, dayIndex, dayPhase, dist } from '../src/sim/world';
 import { weekTime } from '../src/ui/WeekClock';
 
@@ -173,5 +175,70 @@ describe('continuous RTS calendar', () => {
     w.minute = 12 * 60;
     tickAmbient(w, sim.rng, 1);
     expect(mayor.buildingId).toBeNull();
+  });
+
+  it('keeps police off the night streets and sends a witness call by car', () => {
+    const sim = new Sim(options());
+    sim.launchWeek();
+    const w = sim.world;
+    const officers = w.policeIds.slice(0, 8).map(id => w.people[id]);
+    w.minute = 20 * 60;
+    tickAmbient(w, sim.rng, 1); // assign homes before the focused night check
+    for (const p of officers) {
+      const home = p.homeBuildingId == null ? undefined : w.buildings[p.homeBuildingId];
+      if (home) { p.buildingId = home.id; p.pos = { ...w.lots[home.lotId].center }; }
+      p.inVehicle = false;
+      clearDestination(p);
+      delete p.emergencyResponse;
+    }
+    for (let i = 0; i < 4; i++) { w.minute++; tickAmbient(w, sim.rng, 1); }
+    expect(officers.every(p => !p.dest && !p.inVehicle && !p.emergencyResponse)).toBe(true);
+
+    const perp = w.people[sim.playerGang.bossId];
+    const police = officers[0];
+    const pos = { ...police.pos };
+    perp.pos = { ...pos };
+    perp.buildingId = null;
+    clearDestination(perp);
+    // The officer notice roll is intentionally probabilistic; a few witnesses
+    // close to the scene make this a stable public-call fixture.
+    for (const p of officers) { p.pos = { ...pos }; p.buildingId = null; clearDestination(p); }
+    let crime = recordCrime(w, sim.rng, { gangId: sim.playerGang.id, perpetratorId: perp.id,
+      type: 'streetKill', pos, severity: 10 });
+    for (let i = 0; i < 8 && !crime.reported; i++)
+      crime = recordCrime(w, sim.rng, { gangId: sim.playerGang.id, perpetratorId: perp.id,
+        type: 'streetKill', pos, severity: 10 });
+    const responder = Object.values(w.people).find(p => p.emergencyResponse?.crimeId === crime.id);
+    expect(crime.reported).toBe(true);
+    expect(responder?.role).toBe('police');
+    expect(responder?.inVehicle).toBe(true);
+    expect(responder?.emergencyResponse?.vehicle).toBe(true);
+    expect(w.messages.some(m => m.text.includes('responding by car'))).toBe(true);
+    expect(() => Sim.fromSave(structuredClone(w))).not.toThrow();
+
+    // One minute of the response is driven by the ordinary road movement code.
+    w.minute++;
+    tickBuildingEmergencies(w, sim.rng, 1);
+    expect(responder?.emergencyResponse).toBeDefined();
+  });
+
+  it('gives a long evening commute to civic officials without a permanent fleet', () => {
+    const sim = new Sim(options());
+    sim.launchWeek();
+    const w = sim.world, mayor = w.people[w.mayorId];
+    w.minute = 19 * 60;
+    tickAmbient(w, sim.rng, 1); // assign a deterministic home
+    const home = w.buildings[mayor.homeBuildingId!];
+    const far = Object.values(w.buildings).find(b => dist(buildingDoor(w, b), buildingDoor(w, home)) > 260)!;
+    mayor.buildingId = null;
+    mayor.pos = buildingDoor(w, far);
+    mayor.inVehicle = false;
+    clearDestination(mayor);
+    w.minute = 20 * 60;
+    tickAmbient(w, sim.rng, 1);
+    expect(mayor.inVehicle).toBe(true);
+    expect(mayor.dest).not.toBeNull();
+    expect(mayor.vehicleKey).toBeUndefined();
+    expect(() => Sim.fromSave(structuredClone(w))).not.toThrow();
   });
 });

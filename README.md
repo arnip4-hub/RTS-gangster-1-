@@ -26,10 +26,15 @@ page and the Windows build workflow.
   New campaigns run through all 24 hours of Monday through Sunday, with city
   lighting and street activity changing at night. Most residents go home after
   dark; a small nightlife crowd heads for cafes, pool halls, hotels, clubs and
-  gambling rooms, while officials and most police go home. Weekly finances
-  still settle, but the city stays open: people, cars and unfinished orders
-  keep their positions and continue into the next week. The Organizer remains
-  available on demand.
+  gambling rooms, while officials and most police go home. Police no longer
+  wander aimlessly: a small night-shift group waits at headquarters, and a
+  witnessed, reported crime can call an available officer out by car. The
+  officer returns home or to headquarters after the response. Mayors, police
+  chiefs, judges, DAs and the FBI head use a lightweight service car for long
+  evening commutes without adding a permanent fleet to the save. Weekly
+  finances still settle, but the city stays open: people, cars and unfinished
+  orders keep their positions and continue into the next week. The Organizer
+  remains available on demand.
 - **Still to build:** simpler group selection and move orders, better live reports,
   and a deeper redesign of weekly orders and accounting so the game can become
   a full RTS. Automatic week rollover does not remove weekly rules yet.

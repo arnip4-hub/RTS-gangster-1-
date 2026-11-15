@@ -160,13 +160,27 @@ export function tickBuildingEmergencies(w:WorldState,rng:Rng,minutes:number):voi
     if(w.minute<response.startMinute)continue;
     if(response.stage==='working'){
       if(response.kind==='reporter'&&Math.floor(w.minute-(response.arrivedMinute??0))%Math.round(secs(20))===0)presentPhoto(w,p);
-      if(w.minute-(response.arrivedMinute??0)>=secs(53)){response.stage='returning';setDestination(w,p,response.home);}
+      if(w.minute-(response.arrivedMinute??0)>=secs(response.crimeId == null ? 53 : 18)){
+        response.stage='returning';setDestination(w,p,response.home);
+      }
     }else if(p.dest&&stepPerson(p,Math.min(minutes,w.minute-response.startMinute),traffic)){
-      if(response.stage==='returning')delete p.emergencyResponse;
-      else {response.stage='working';response.arrivedMinute=w.minute;if(response.kind==='reporter')presentPhoto(w,p);}
+      if(response.stage==='returning'){
+        if(response.vehicle)p.inVehicle=false;
+        const home=response.homeBuildingId==null?undefined:w.buildings[response.homeBuildingId];
+        if(home){clearDestination(p);p.buildingId=home.id;p.pos={...w.lots[home.lotId].center};}
+        delete p.emergencyResponse;
+      } else {
+        if(response.vehicle)p.inVehicle=false;
+        response.stage='working';response.arrivedMinute=w.minute;if(response.kind==='reporter')presentPhoto(w,p);
+      }
     }
-    // Out of time on the job: home on foot (the fire crew has nothing else to
-    // take it there and stood in the street for good).
-    if(w.minute>response.untilMinute){delete p.emergencyResponse;setDestination(w,p,response.home);}
+    // Out of time on the job: begin the return leg rather than dropping the
+    // response record. A long route must still be allowed to reach the saved
+    // home (and, for a night call, re-enter that home) after the deadline.
+    if(w.minute>response.untilMinute && response.stage!=='returning'){
+      response.stage='returning';
+      if(response.vehicle)p.inVehicle=false;
+      setDestination(w,p,response.home);
+    }
   }
 }

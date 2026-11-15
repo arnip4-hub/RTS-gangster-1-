@@ -1,4 +1,4 @@
-import { BLOCK_SIZE, CELL } from '../constants';
+import { BLOCK_SIZE, CELL, DRIVE_MIN_DISTANCE } from '../constants';
 import { FULL_DAY_MINUTES, hourOfDay } from '../calendar';
 import { presentPhoto } from '../presentationEvents';
 import { specialistParticipants, specialistVisitTargets } from '../specialistJobs';
@@ -13,8 +13,9 @@ import { allBuildings, buildingDoor, dist } from '../world';
 
 /**
  * Everyone who is not carrying out an order still has to be somewhere: citizens
- * wander, officers walk their beat, snitches drift between gang turf, and FBI
- * agents make their way toward whatever they are investigating.
+ * wander, snitches drift between gang turf, and FBI agents make their way
+ * toward whatever they are investigating. Police wait at home or on station
+ * duty until a response system gives them a route.
  */
 export function tickAmbient(w: WorldState, rng: Rng, minutes: number,
   slice?: { index: number; count: number; early: boolean; traffic?: ReturnType<typeof trafficContext>; vehicles?: 'skip' | 'only' }): void {
@@ -115,12 +116,10 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
         break;
       }
       case 'police': {
-        if (!p.dest) {
-          // A small night patrol remains visible; most officers are at home.
-          if (rng.chance(Math.min(1, (night ? .08 : BEAT_RESTART) * minutes))) wanderTo(w, rng, p, 2);
-        } else {
-          stepPerson(p, minutes, traffic);
-        }
+        // Police do not run a random ambient walk. They stay at their home or
+        // station until a witnessed crime gives them an emergencyResponse;
+        // that response is the only route that puts an officer back in a car.
+        if (p.dest) stepPerson(p, minutes, traffic);
         break;
       }
       case 'fbi': {
@@ -152,7 +151,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
 
 /** Restart chances per simulated minute: civilians ~0.33 min (≈2 s real),
  * officers ~1 min. */
-const CIVILIAN_RESTART = 3, BEAT_RESTART = 1;
+const CIVILIAN_RESTART = 3;
 const isNight = (minute: number) => {
   const hour = hourOfDay(minute, true);
   return hour < 6 || hour >= 20;
@@ -167,6 +166,7 @@ const NIGHTLIFE_TYPES = new Set([
 ]);
 const residentialCache = new WeakMap<WorldState, Building[]>();
 const nightlifeCache = new WeakMap<WorldState, Building[]>();
+const policeStationCache = new WeakMap<WorldState, Building | null>();
 
 function residential(b: Building): boolean {
   return (b.cls === 'residential' || b.cls === 'tenement') && b.state !== 'destroyed';
@@ -211,6 +211,15 @@ function nightVenue(w: WorldState, p: Person): Building | undefined {
   return undefined;
 }
 
+function policeStation(w: WorldState): Building | undefined {
+  let station = policeStationCache.get(w);
+  if (station === undefined) {
+    station = allBuildings(w).find(b => b.typeId === 'policeHQ' && b.state !== 'destroyed') ?? null;
+    policeStationCache.set(w, station);
+  }
+  return station ?? undefined;
+}
+
 function enterHome(w: WorldState, p: Person, home: Building): void {
   clearDestination(p);
   p.buildingId = home.id;
@@ -224,15 +233,49 @@ function leaveHome(w: WorldState, p: Person, home: Building): void {
   p.pos = buildingDoor(w, home);
 }
 
-function goHome(w: WorldState, p: Person, home: Building, minutes: number, traffic: ReturnType<typeof trafficContext>): boolean {
-  if (p.buildingId === home.id) return true;
+function enterBuilding(w: WorldState, p: Person, building: Building): void {
+  clearDestination(p);
+  p.buildingId = building.id;
+  p.inVehicle = false;
+  p.pos = { ...w.lots[building.lotId].center };
+}
+
+function goToPoliceStation(w: WorldState, p: Person, station: Building, minutes: number,
+  traffic: ReturnType<typeof trafficContext>): boolean {
+  if (p.buildingId === station.id) return true;
   if (p.inVehicle) alight(w, p);
-  const target = buildingDoor(w, home);
+  if (p.buildingId != null) {
+    const previous = w.buildings[p.buildingId];
+    if (previous) p.pos = buildingDoor(w, previous);
+    p.buildingId = null;
+  }
+  const target = buildingDoor(w, station);
   if (!p.dest || dist(p.dest, target) > 1) {
     clearDestination(p);
     setDestination(w, p, target);
   }
-  if (stepPerson(p, minutes, traffic)) enterHome(w, p, home);
+  if (stepPerson(p, minutes, traffic)) enterBuilding(w, p, station);
+  return true;
+}
+
+function goHome(w: WorldState, p: Person, home: Building, minutes: number, traffic: ReturnType<typeof trafficContext>): boolean {
+  if (p.buildingId === home.id) return true;
+  const target = buildingDoor(w, home);
+  const official = p.role === 'mayor' || p.role === 'policeChief' || p.role === 'judge' || p.role === 'da' || p.role === 'fbiHead';
+  // Officials make the longer evening commute by car. This is deliberately a
+  // lightweight service trip (no permanent fleet entry); the existing vehicle
+  // route, traffic and renderer still show a real period car on the street.
+  if (p.inVehicle && p.dest) {
+    if (stepPerson(p, minutes, traffic)) { p.inVehicle = false; enterHome(w, p, home); }
+    return true;
+  }
+  if (p.inVehicle) p.inVehicle = false;
+  if (!p.dest || dist(p.dest, target) > 1) {
+    clearDestination(p);
+    if (official && dist(p.pos, target) > DRIVE_MIN_DISTANCE) p.inVehicle = true;
+    setDestination(w, p, target);
+  }
+  if (stepPerson(p, minutes, traffic)) { p.inVehicle = false; enterHome(w, p, home); }
   return true;
 }
 
@@ -259,9 +302,16 @@ function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
   traffic: ReturnType<typeof trafficContext>): boolean {
   if (!NIGHT_HOME_ROLES.has(p.role)) return false;
   const home = homeFor(w, p);
+  const official = p.role === 'mayor' || p.role === 'policeChief' || p.role === 'judge' || p.role === 'da' || p.role === 'fbiHead';
   if (!home) return false;
+  const station = p.role === 'police' ? policeStation(w) : undefined;
   if (!night) {
+    // Finish a long official car ride even if dawn arrives before the car
+    // reaches its kerb; otherwise the morning role pass would leave the car
+    // flag stranded on the road.
+    if (official && p.inVehicle && p.dest) return goHome(w, p, home, minutes, traffic);
     if (p.buildingId === home.id) leaveHome(w, p, home);
+    else if (station && p.buildingId === station.id) leaveHome(w, p, station);
     else if (p.role === 'citizen' && p.buildingId != null) {
       // A citizen's only other indoor location is last night's venue.
       const venue = w.buildings[p.buildingId];
@@ -271,10 +321,7 @@ function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
     return false;
   }
 
-  if (p.role === 'police' && nightOut(w, p)) {
-    if (p.buildingId === home.id) leaveHome(w, p, home);
-    return false;
-  }
+  if (station && nightOut(w, p)) return goToPoliceStation(w, p, station, minutes, traffic);
   const social = p.role === 'citizen' || p.role === 'snitch';
   if (social && nightOut(w, p)) {
     if (p.buildingId != null && p.buildingId !== home.id) return true;

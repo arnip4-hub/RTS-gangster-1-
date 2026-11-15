@@ -17,9 +17,12 @@ import type {
   Vec2,
   WorldState,
 } from './types';
-import { dist2, placeName } from './world';
+import { buildingDoor, dist2, placeName } from './world';
 import { peopleList } from './entityLists';
 import { onGangPayroll } from './payrollMark';
+import { clearDestination, setDestination } from './movement';
+import { parkingSpot } from './vehicleNavigation';
+import { MINUTES_PER_SECOND } from './constants';
 
 
 
@@ -106,6 +109,40 @@ export interface CrimeParams {
 const PASSER_BY_WEIGHT = 0.15;
 /** Crime rows 18/19/24/27 against a business owner file nothing (0x4DB750). */
 const OWNER_SILENT = new Set<CrimeParams['type']>(['extort', 'intimidate', 'assault', 'smashUp']);
+
+/** Keep police calls rare enough to read as a response, not a second crowd of
+ * people wandering the map. One available officer is sent for each reported
+ * witnessed crime; everyone else remains at home/on call. */
+function dispatchWitnessedCrime(w: WorldState, crime: CrimeRecord, pos: Vec2): Person | undefined {
+  if (w.phase !== 'week' || !w.options.continuousTime || !crime.reported || !crime.witnesses.length) return undefined;
+  const officer = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p &&
+    p.status === 'active' && p.role === 'police' && !p.emergencyResponse && !p.dest &&
+    !p.streetOrder && p.orderId == null && !p.inVehicle)
+    .sort((a, b) => dist2(a.pos, pos) - dist2(b.pos, pos))[0];
+  if (!officer) return undefined;
+
+  // An officer may be indoors at home when the call comes in. Put him at the
+  // door first; the actual route then uses the same road graph as every other
+  // car, instead of teleporting from a living room to the incident.
+  const home = officer.buildingId != null ? w.buildings[officer.buildingId] : undefined;
+  const homeBuildingId = home?.id;
+  const homePos = home ? buildingDoor(w, home) : { ...officer.pos };
+  if (home) {
+    officer.buildingId = null;
+    officer.pos = { ...homePos };
+  }
+  const target = parkingSpot(w, pos, []);
+  officer.inVehicle = true;
+  clearDestination(officer);
+  setDestination(w, officer, target);
+  officer.emergencyResponse = {
+    week: w.week, buildingId: crime.buildingId, crimeId: crime.id,
+    startMinute: w.minute, untilMinute: w.minute + 90 * MINUTES_PER_SECOND,
+    kind: 'police', stage: 'approaching', target, lookAt: { ...pos },
+    home: homePos, ...(homeBuildingId == null ? {} : { homeBuildingId }), vehicle: true,
+  };
+  return officer;
+}
 
 /**
  * Record a crime: works out who saw it, how much heat it generates and how
@@ -197,6 +234,8 @@ export function recordCrime(w: WorldState, rng: Rng, params: CrimeParams): Crime
     reported,
   };
   w.crimes.push(crime);
+  const responder = dispatchWitnessedCrime(w, crime, params.pos);
+  if (responder) addMessage(w, 'police', `Witnesses reported a ${params.type}; police are responding by car.`, params.pos, responder.id);
   // The gang wronged takes it badly: the man's own gang, or the gang that
   // owns or protects the premises.
   const premises = params.buildingId != null ? w.buildings[params.buildingId] : undefined;
