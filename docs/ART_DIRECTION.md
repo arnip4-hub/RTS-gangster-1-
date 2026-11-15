@@ -63,6 +63,34 @@ capture, run `node scripts/capture-visual-review.mjs docs/images/illustrated-cor
 The illustrated material selection itself runs in the game whenever that
 artwork option is chosen.
 
+## Painted art on a moving 3D character
+
+The next proof uses the existing fedora man's actual skinned 3D mesh and walk
+clip, with a newly painted brown suit and felt hat albedo. The buildings remain
+3D, with the illustrated material set above. The surrounding pedestrians and
+car in this comparison are still sprites; the brown-suited man immediately
+outside the pool hall is the 3D prototype.
+
+![Painted 3D man outside the pool hall](images/illustrated-3d-person-review.png)
+
+![Close inspection of the rigged character and painted suit](images/illustrated-3d-person-close.png)
+
+This verifies that painted art can wrap around the existing body and move with
+its skeleton. It does not convert every illustrated costume into a new body:
+fur coats, long dresses and different hats need matching geometry and weights.
+The source atlas has many small UV islands, so each new costume also needs a
+close inspection for seams and misplaced details.
+
+Run `npm run art:character` to rebuild the 1024-pixel character map. Capture
+the proof with `node scripts/capture-visual-review.mjs /tmp/painted-3d.png 0.25 --hybrid`;
+add `--close` for inspection, or `--texture=source` for the original albedo.
+This person is currently a development preview. The normal artwork option
+still uses the delivered street sprites.
+
+For wider 3D adoption, reuse a small set of animated bodies with different
+clothes, hats, faces and skin palettes. Preserve the existing visible-rig limit
+and simpler distant figures, then measure busy streets before raising it.
+
 ## What the prototype reveals
 
 The illustrated textures make the street less photographic. The repeated

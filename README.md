@@ -177,6 +177,8 @@ The latest street-corner trial adds newly painted brick, storefront, road and
 pavement materials in this mode. Save and reopen the city after changing the
 setting. It is independent of Light graphics. The trial and remaining visual
 work are shown in [Art direction](docs/ART_DIRECTION.md).
+That page also shows the first painted 3D character proof: an animated fedora
+man beside the illustrated buildings, currently in the development review scene.
 
 ```bash
 git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git

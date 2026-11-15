@@ -14,6 +14,10 @@
     <canvas id="city"></canvas>
     <script type="module">
       import { CityRenderer } from './src/render/scene.ts';
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+      import { CHARACTER_SCALE, DETAILED_CHARACTER_HEIGHTS } from './src/render/detailedCharacters.ts';
+      import { KERB_H } from './src/render/util.ts';
       import { createWorld } from './src/sim/citygen.ts';
       import { defaultGameOptions } from './src/app/newGame.ts';
       import { buildingDoor } from './src/sim/world.ts';
@@ -26,6 +30,9 @@
       // This page is intentionally outside the game's menu and release build.
       // The fixed seed and positions give art changes the same camera and actors.
       localStorage.setItem('og.visualStyle', 'illustrated');
+      const query = new URLSearchParams(location.search);
+      const hybrid = query.get('people') === 'painted3d';
+      const close = hybrid && query.get('close') === '1';
       const canvas = document.getElementById('city');
       const { world } = createWorld({ ...defaultGameOptions(), continuousTime: true,
         citySize: 12, cityLayout: 'varied', seed: 193022 });
@@ -97,8 +104,11 @@
       renderer.resize(innerWidth, innerHeight);
       renderer.setOverlays([], null);
       renderer.setStreetsOpen(true);
-      renderer.setZoom(8.5);
-      renderer.centerOn(door.x + 6, door.y + 4);
+      renderer.setZoom(hybrid ? 11 : 8.5);
+      // Close-up deliberately exceeds the game's normal street zoom for UV
+      // inspection. This development page does not change the game limit.
+      if (close) renderer.zoom = 38;
+      renderer.centerOn(door.x + (close ? 1.3 : hybrid ? 3 : 6), door.y + (close ? 1.7 : hybrid ? 2 : 4));
       if (!await renderer.prepare()) throw Error('Could not prepare the review city.');
       // Atlases and illustrated walls/storefronts load separately from the
       // geometry. Wait for the final material set before accepting a frame.
@@ -114,6 +124,75 @@
         throw Error('Illustrated street assets did not finish loading.');
       if (!await renderer.prepare()) throw Error('Could not prepare illustrated street assets.');
 
+      // An isolated character proof keeps the existing street cast and game
+      // renderer intact while testing a painted albedo on the working 3D rig.
+      let paintedActor;
+      if (hybrid) {
+        const asset = await new GLTFLoader().loadAsync('./art/city/sculpt/fedora.glb');
+        const clip = asset.animations[0];
+        if (!clip) throw Error('Fedora prototype has no walk animation.');
+        const model = asset.scene;
+        const mixer = new THREE.AnimationMixer(model);
+        mixer.clipAction(clip).play();
+        mixer.setTime(0);
+        model.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        model.scale.multiplyScalar(DETAILED_CHARACTER_HEIGHTS.fedora / size.y);
+        model.updateMatrixWorld(true);
+        const fitted = new THREE.Box3().setFromObject(model);
+        const center = fitted.getCenter(new THREE.Vector3());
+        model.position.sub(new THREE.Vector3(center.x, fitted.min.y, center.z));
+        const root = new THREE.Group();
+        root.name = 'painted-3d-fedora-proof';
+        root.scale.setScalar(CHARACTER_SCALE);
+        root.add(model);
+        const materialPath = query.get('texture') ?? './art/city/illustrated-fedora-albedo.jpg';
+        const texture = materialPath === 'source' ? null : await new THREE.TextureLoader().loadAsync(materialPath);
+        if (texture) {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.flipY = false;
+          texture.minFilter = THREE.LinearFilter;
+          texture.generateMipmaps = false;
+        }
+        const materials = [], skeletons = [], sourceTextures = new Set(), geometries = new Set();
+        let triangles = 0;
+        model.traverse(child => {
+          if (!(child instanceof THREE.Mesh)) return;
+          child.castShadow = true;
+          child.receiveShadow = false;
+          child.frustumCulled = false;
+          geometries.add(child.geometry);
+          triangles += (child.geometry.index?.count ?? child.geometry.attributes.position.count) / 3;
+          if (child instanceof THREE.SkinnedMesh) skeletons.push(child.skeleton.bones.length);
+          for (const mat of Array.isArray(child.material) ? child.material : [child.material]) {
+            if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+            for (const value of Object.values(mat)) if (value instanceof THREE.Texture) sourceTextures.add(value);
+            if (mat.map) {
+              mat.map.minFilter = THREE.LinearFilter;
+              mat.map.generateMipmaps = false;
+            }
+            if (texture) mat.map = texture;
+            mat.emissiveMap = null;
+            mat.emissive.setRGB(0, 0, 0);
+            mat.roughness = 1;
+            mat.metalness = 0;
+            if (mat instanceof THREE.MeshPhysicalMaterial) mat.specularIntensity = 0;
+            mat.needsUpdate = true;
+            materials.push(mat);
+          }
+        });
+        renderer.scene.add(root);
+        paintedActor = { root, mixer, clip, skeletons, triangles, materials,
+          start: { x: door.x + 1, y: door.y + 1.7 },
+          dispose() {
+            root.removeFromParent(); mixer.stopAllAction();
+            model.traverse(child => { if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose(); });
+            materials.forEach(mat => mat.dispose()); geometries.forEach(geo => geo.dispose());
+            sourceTextures.forEach(map => map.dispose()); texture?.dispose();
+          } };
+      }
+
       let paused = false, elapsed = 0, lastFrame = performance.now();
       function seek(minutes) {
         const time = Math.max(0, Math.min(4, minutes));
@@ -127,6 +206,14 @@
         world.minute = 900 + whole;
         renderer.setSubMinute(time - whole);
         renderer.update();
+        if (paintedActor) {
+          const { root, mixer, clip, start } = paintedActor;
+          root.position.set(start.x + tangent.x * time, KERB_H + .008,
+            start.y + tangent.y * time);
+          root.rotation.y = alongX ? Math.PI / 2 : 0;
+          mixer.setTime(time * clip.duration);
+          root.updateMatrixWorld(true);
+        }
         renderer.render();
       }
       window.__visualReview = {
@@ -139,10 +226,14 @@
                 lotFacing(lot, block.center, b.id)).facade }; }) },
         cast: cast.map(p => ({ id: p.id, role: p.role })),
         stats() { return { drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
-          carSprites: renderer.vehicleSprites?.sprites.count, carModels: renderer.sedans?.count }; },
+          carSprites: renderer.vehicleSprites?.sprites.count, carModels: renderer.sedans?.count,
+          painted3d: paintedActor ? { skinnedMeshes: paintedActor.skeletons.length,
+            boneCounts: paintedActor.skeletons, triangles: paintedActor.triangles,
+            animation: paintedActor.clip.name, animationTime: paintedActor.mixer.time,
+            textures: paintedActor.materials.map(mat => mat.map?.image?.src ?? null) } : null }; },
         seek(minutes) { paused = true; elapsed = minutes; seek(minutes); },
         resume() { paused = false; lastFrame = performance.now(); },
-        dispose() { paused = true; renderer.dispose(); },
+        dispose() { paused = true; paintedActor?.dispose(); renderer.dispose(); },
       };
       function animate(now) {
         if (!paused) {
