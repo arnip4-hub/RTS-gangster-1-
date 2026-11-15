@@ -92,12 +92,21 @@ branch. The `main` branch keeps the earlier remake baseline.
   person in the live city to open a camera window, then use **Person profile**
   to see their age, spouse, children and household size. Spouses without a
   named city character and children are background household records. A
+  profile can add someone to a persistent **Watch list** or **Hit list**; open
+  **Lists** in the city toolbar to revisit or remove names. The hit list can
+  open a **Kill** order card for a name; the player must still confirm the
+  order. Lists do not reveal hidden rival locations. A
   planned **Kill** or live street **Kill** order can target any available
   person in RTS mode, including civilians and officials; held captives can be
   **Executed** from the Prisoners panel. Unwitnessed kidnappings lead to a
   missing-person report after a delay. Police must trace the safe house before
   dispatching an officer, and a visit there can supply evidence for a live
   arrest review. The family of the FBI chief draws extra Bureau attention.
+- **Daily paper:** in RTS mode a new edition appears at 6 a.m. each day in the
+  Organizer. It carries the previous day's reported crimes, deaths, business
+  moves, politics, charity appeals and period stories. Events after printing
+  wait for the next morning, including Sunday news across the weekly accounts.
+  The classic calendar retains its weekly newspaper.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.
