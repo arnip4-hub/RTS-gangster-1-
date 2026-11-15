@@ -832,6 +832,38 @@ async function loadPair(stem: string, ext: string): Promise<{ map: THREE.Texture
 }
 
 let artLoading: Promise<CityArt> | null = null;
+let illustratedArtLoading: Promise<CityArt> | null = null;
+
+/** A painted material set for the illustrated street view. The church and
+ * roof retain procedural art; detailed style keeps its separate sheets. */
+export function loadIllustratedCityArt(): Promise<CityArt> {
+  if (illustratedArtLoading) return illustratedArtLoading;
+  illustratedArtLoading = (async () => {
+    const [red, brown, buff, limestone, stucco, redLights, brownLights, buffLights, limestoneLights, stuccoLights,
+      storefront, storefrontLights, pavement, road] = await Promise.all([
+      loadTexture('illustrated-facade-red-brick.jpg'),
+      loadTexture('illustrated-facade-brown-brick.jpg'),
+      loadTexture('illustrated-facade-buff-brick.jpg'),
+      loadTexture('illustrated-facade-limestone.jpg'),
+      loadTexture('illustrated-facade-stucco.jpg'),
+      loadTexture('facade-red-brick-lit.png'),
+      loadTexture('facade-brown-brick-lit.png'),
+      loadTexture('facade-buff-brick-lit.png'),
+      loadTexture('facade-limestone-lit.png'),
+      loadTexture('facade-stucco-lit.png'),
+      loadTexture('illustrated-storefront.jpg'),
+      loadTexture('storefront-lit.png'),
+      loadTexture('illustrated-pavement.jpg'),
+      loadImageFile('illustrated-road-asphalt.jpg'),
+    ]);
+    const maps = [red, brown, buff, limestone, stucco], lights = [redLights, brownLights, buffLights, limestoneLights, stuccoLights];
+    const facades: CityArt['facades'] = FACADE_PALETTES.map((_, index) =>
+      maps[index] && lights[index] ? { map: maps[index]!, lights: lights[index]! } : null);
+    return { facades, storefront: storefront && storefrontLights ? { map: storefront, lights: storefrontLights } : null,
+      pavement, road, roof: null, plinth: null, kerb: null, awning: null, sawtooth: null, signs: null };
+  })();
+  return illustratedArtLoading;
+}
 
 /**
  * Fetch the delivered city textures. Loaded once per page; anything missing

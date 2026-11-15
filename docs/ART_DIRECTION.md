@@ -7,8 +7,10 @@ The original game's images are not part of this project.
 
 ## First playable comparison
 
-**Game Options → City artwork → Illustrated 1930s (preview)** keeps the
-remake's own canvas-painted facades, storefronts, pavement, roof and road.
+**Game Options → City artwork → Illustrated 1930s (preview)** uses newly
+painted red, brown and buff brick facades, limestone and stucco facades, a
+storefront, pavement and road.
+Other building materials and roofs still use the remake's procedural art.
 It requests eight-direction car art, 32 four-direction people silhouettes,
 48 painted portraits, and a layered portrait drawing for everyday citizens
 and rank-and-file police/FBI. The drawing has 1,536 deterministic identity
@@ -36,6 +38,30 @@ Examples: [gang portraits](../art-source/illustrated/portraits-04.png) ·
 [street silhouettes](../art-source/illustrated/people-03.png).
 
 ![First illustrated street preview](images/illustrated-street-preview.png)
+
+## Street-corner review
+
+The second pass tests the illustrated setting in the actual city renderer,
+with a commercial corner, a period car and walking citizens, police and FBI.
+It uses one fixed city seed and camera position so later art revisions can be
+compared at the same scale. The three brick palettes now use painted sheets,
+and pale roof props have a warmer finish.
+The street and pavement use a shared palette. No images from the 1998 game are
+included.
+
+![Illustrated street-corner review](images/illustrated-corner-review.png)
+
+![Four renderer frames showing the street figures walking](images/illustrated-corner-motion.gif)
+
+The animation combines four frames from the same running renderer at different
+game minutes. The coupe is parked; pedestrians move across the pavement.
+
+The source sheets live in `art-source/illustrated/corner`; run
+`npm run art:corner` to rebuild the smaller game textures. For a fresh renderer
+capture, run `node scripts/capture-visual-review.mjs docs/images/illustrated-corner-review.png`.
+`visual-review.html` is a development preview, outside the normal game menu.
+The illustrated material selection itself runs in the game whenever that
+artwork option is chosen.
 
 ## What the prototype reveals
 

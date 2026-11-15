@@ -48,7 +48,7 @@ describe('delivered storefront material transition', () => {
 
 it('daytime does not add flat emission while the existing afternoon ramp remains available', () => {
   const view = Object.assign(Object.create(CityRenderer.prototype), {
-    world: { phase: 'planning', minute: 0 }, target: new THREE.Vector3(),
+    world: { phase: 'planning', minute: 0, options: { continuousTime: false } }, target: new THREE.Vector3(),
     sun: new THREE.DirectionalLight(), hemi: new THREE.HemisphereLight(), bounce: new THREE.DirectionalLight(),
     scene: new THREE.Scene(), facadeMats: [new THREE.MeshStandardMaterial()],
     shopMat: new THREE.MeshStandardMaterial(), glowMat: new THREE.MeshBasicMaterial(),

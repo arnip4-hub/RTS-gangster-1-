@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Street corner visual review</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #252322; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <canvas id="city"></canvas>
+    <script type="module">
+      import { CityRenderer } from './src/render/scene.ts';
+      import { createWorld } from './src/sim/citygen.ts';
+      import { defaultGameOptions } from './src/app/newGame.ts';
+      import { buildingDoor } from './src/sim/world.ts';
+      import { parkingSpot } from './src/sim/vehicleNavigation.ts';
+      import { BUILDING_BY_ID } from './src/sim/data/buildings.ts';
+      import { lotFacing, profileForLot } from './src/render/profile.ts';
+      import { clearDestination, setDestination, stepPerson } from './src/sim/movement.ts';
+      import { CELL } from './src/sim/constants.ts';
+
+      // This page is intentionally outside the game's menu and release build.
+      // The fixed seed and positions give art changes the same camera and actors.
+      localStorage.setItem('og.visualStyle', 'illustrated');
+      const canvas = document.getElementById('city');
+      const { world } = createWorld({ ...defaultGameOptions(), continuousTime: true,
+        citySize: 12, cityLayout: 'varied', seed: 193022 });
+      world.phase = 'week';
+      world.minute = 900;
+      const buildings = Object.values(world.buildings).filter(b => b.cls === 'commercial' &&
+        b.frontId == null && b.state !== 'destroyed');
+      const preferred = ['cafe', 'jazzClub', 'restaurant', 'barbers', 'tailors'];
+      buildings.sort((a, b) => {
+        const rank = site => {
+          const block = world.blocks[site.blockId];
+          const preference = preferred.indexOf(site.typeId);
+          const lot = world.lots[site.lotId];
+          const door = buildingDoor(world, site);
+          const south = door.y > lot.center.y + 1;
+          const east = door.x > lot.center.x + 1;
+          // The facade faces the camera and the road has no foreground block.
+          const exposed = south || east
+            ? world.gridW - 1 - block.gx + world.gridH - 1 - block.gy : 99;
+          return exposed * 100 + (preference < 0 ? 8 : preference) * 10;
+        };
+        return rank(a) - rank(b);
+      });
+      const building = buildings[0];
+      if (!building) throw Error('The review city has no commercial corner.');
+      const door = buildingDoor(world, building);
+      const block = world.blocks[building.blockId];
+      // The reference corner has a vacant lot opposite its storefront. It
+      // leaves the street and cast in view without changing the real renderer.
+      const vacant = world.blocks.find(b => b.gx === block.gx && b.gy === block.gy + 1);
+      for (const lotId of (vacant?.lotIds ?? []).filter(id => world.lots[id].index < 3)) {
+        const frontage = world.buildings[world.lots[lotId].buildingId];
+        if (frontage) { frontage.state = 'empty'; frontage.cls = 'empty'; frontage.typeId = 'empty'; }
+      }
+      const alongX = Math.abs(door.y - block.center.y) > Math.abs(door.x - block.center.x);
+      const tangent = alongX ? { x: 1, y: 0 } : { x: 0, y: 1 };
+      const byRole = role => Object.values(world.people).filter(p => p.status === 'active' && p.role === role);
+      const cast = [byRole('citizen')[0], byRole('citizen')[1], byRole('police')[0],
+        byRole('fbi')[0], byRole('citizen')[2]].filter(Boolean);
+      const positions = [-10, -6, -1, 4, 9];
+      const walkers = cast.map((person, i) => {
+        person.buildingId = null;
+        person.inVehicle = false;
+        person.streetOrder = null;
+        person.orderId = null;
+        person.emergencyResponse = undefined;
+        person.pos = { x: door.x + tangent.x * positions[i], y: door.y + tangent.y * positions[i] };
+        clearDestination(person);
+        const start = { ...person.pos };
+        const finish = { x: start.x + tangent.x * (i % 2 ? -9 : 9),
+          y: start.y + tangent.y * (i % 2 ? -9 : 9) };
+        setDestination(world, person, finish);
+        return { person, start, finish };
+      });
+      // One guaranteed 1930s car beside the cast; ambient traffic also runs.
+      const driver = byRole('citizen').find(p => !cast.includes(p));
+      driver.buildingId = null;
+      const adjacentRoad = alongX
+        ? { x: door.x + 12, y: (block.gy + 1) * CELL }
+        : { x: (block.gx + 1) * CELL, y: door.y + 12 };
+      driver.pos = parkingSpot(world, adjacentRoad, []);
+      driver.inVehicle = true;
+      driver.streetOrder = null;
+      driver.orderId = null;
+      clearDestination(driver);
+
+      const renderer = await CityRenderer.create(canvas, world);
+      if (!renderer) throw Error('Could not construct the review city.');
+      renderer.resize(innerWidth, innerHeight);
+      renderer.setOverlays([], null);
+      renderer.setStreetsOpen(true);
+      renderer.setZoom(8.5);
+      renderer.centerOn(door.x + 6, door.y + 4);
+      if (!await renderer.prepare()) throw Error('Could not prepare the review city.');
+      // Atlases and illustrated walls/storefronts load separately from the
+      // geometry. Wait for the final material set before accepting a frame.
+      const until = performance.now() + 30000;
+      while (performance.now() < until &&
+        (!renderer.illustratedPeople?.ready || !renderer.vehicleSprites?.ready ||
+         !renderer.facadeMats?.[0]?.map?.image?.src?.includes('illustrated-facade-red-brick.jpg') ||
+         !renderer.shopMat?.map?.image?.src?.includes('illustrated-storefront.jpg')))
+        await new Promise(resolve => setTimeout(resolve, 100));
+      if (!renderer.illustratedPeople?.ready || !renderer.vehicleSprites?.ready ||
+          !renderer.facadeMats?.[0]?.map?.image?.src?.includes('illustrated-facade-red-brick.jpg') ||
+          !renderer.shopMat?.map?.image?.src?.includes('illustrated-storefront.jpg'))
+        throw Error('Illustrated street assets did not finish loading.');
+      if (!await renderer.prepare()) throw Error('Could not prepare illustrated street assets.');
+
+      let paused = false, elapsed = 0, lastFrame = performance.now();
+      function seek(minutes) {
+        const time = Math.max(0, Math.min(4, minutes));
+        const whole = Math.floor(time);
+        for (const { person, start, finish } of walkers) {
+          person.pos = { ...start };
+          clearDestination(person);
+          setDestination(world, person, finish);
+          for (let m = 0; m < whole; m++) stepPerson(person, 1);
+        }
+        world.minute = 900 + whole;
+        renderer.setSubMinute(time - whole);
+        renderer.update();
+        renderer.render();
+      }
+      window.__visualReview = {
+        ready: true,
+        building: { id: building.id, name: building.typeId, door, block: { gx: block.gx, gy: block.gy },
+          lot: world.lots[building.lotId].center, camera: renderer.getTarget(), car: driver.pos,
+          neighboringFacades: Object.values(world.buildings).filter(b => b.blockId === block.id)
+            .map(b => { const lot = world.lots[b.lotId]; return { id: b.id, type: b.typeId,
+              facade: profileForLot(b, BUILDING_BY_ID[b.typeId], lot,
+                lotFacing(lot, block.center, b.id)).facade }; }) },
+        cast: cast.map(p => ({ id: p.id, role: p.role })),
+        stats() { return { drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
+          carSprites: renderer.vehicleSprites?.sprites.count, carModels: renderer.sedans?.count }; },
+        seek(minutes) { paused = true; elapsed = minutes; seek(minutes); },
+        resume() { paused = false; lastFrame = performance.now(); },
+        dispose() { paused = true; renderer.dispose(); },
+      };
+      function animate(now) {
+        if (!paused) {
+          elapsed = (elapsed + Math.min(.05, (now - lastFrame) / 1000)) % 4;
+          seek(elapsed);
+        }
+        lastFrame = now;
+        requestAnimationFrame(animate);
+      }
+      seek(.5);
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

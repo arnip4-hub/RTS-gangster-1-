@@ -88,7 +88,7 @@ import { churchBelfryLayout, civicDomeLayout, porticoColumnScale, CIVIC_STONE } 
 import { dailyMotion, deliveryDriver, loadingShuttle } from './dailyMotion';
 import { dockCraneGeometry, stationClockGeometry, trainShedGeometry } from './architecture';
 import { centreSiteHalfExtent, entryDoorGeometry, mouldingsFor, rusticationCourses, frontOf, frontageGeometry, interiorGeometry, massesForView, sectionMasses, pitchedRoofGeometry, storedGoodsGeometry, worksMachineGeometry } from './architecture';
-import { cityTextures, loadCityArt, type CityArt, type CityTextures } from './textures';
+import { cityTextures, loadCityArt, loadIllustratedCityArt, type CityArt, type CityTextures } from './textures';
 import {
   BAY_W,
   KERB_H,
@@ -558,13 +558,11 @@ export class CityRenderer {
     // A handle for poking at the scene from the console while developing.
     if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__city = this;
 
-    // The painted city is on screen already; the photographed one replaces it
-    // texture by texture as the files come in.
-    if (this.visualStyle === 'detailed') {
-      void loadCityArt().then((art) => {
-        if (!this.disposed) this.applyArt(art);
-      });
-    }
+    // Show procedural city art immediately, then swap in the delivered sheets
+    // for the selected visual style as they finish loading.
+    void (this.visualStyle === 'illustrated' ? loadIllustratedCityArt() : loadCityArt()).then((art) => {
+      if (!this.disposed) this.applyArt(art);
+    });
   }
 
   /** Swap the delivered textures into the materials that are already in use. */
@@ -678,7 +676,11 @@ export class CityRenderer {
 
   private buildMaterials(): void {
     this.facadeMats = this.tex.facades.map((f, index) => {
-      const gain = FACADE_ALBEDO_GAIN[index] ?? 1;
+      // The painted sheets already carry their own highlights and soot. The
+      // stronger gain belongs to the photographed sheets in detailed mode.
+      const gain = this.visualStyle === 'illustrated' && index < 5
+        ? [1.15, 1.45, 1.05, 1, 1.05][index]
+        : FACADE_ALBEDO_GAIN[index] ?? 1;
       const m = new THREE.MeshStandardMaterial({
         color: new THREE.Color(gain, gain, gain),
         map: this.ownedTextures.clone(f.map),
@@ -828,7 +830,10 @@ export class CityRenderer {
     const ironMat = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.35, vertexColors: true });
     this.fireEscapes = new InstancePool(fireEscapeGeometry(), ironMat, nB, { castShadow: true });
 
-    const roofPropMat = new THREE.MeshStandardMaterial({ roughness: 0.9, vertexColors: true });
+    const roofPropMat = new THREE.MeshStandardMaterial({
+      color: this.visualStyle === 'illustrated' ? 0xb6a994 : 0xffffff,
+      roughness: 0.9, vertexColors: true,
+    });
     // The saw-tooth roofs get a material of their own so the glazing can be mapped in later.
     this.sawMat = new THREE.MeshStandardMaterial({ roughness: 0.9, vertexColors: true });
     this.sawteeth = new InstancePool(sawtoothGeometry(), this.sawMat, nB, {
@@ -1442,8 +1447,9 @@ export class CityRenderer {
       // Base colour: a period wall tint per building (fresh and sooted brick,
       // limewash, buff, ochre, grey stone) over the facade texture, with a
       // little lightness variation, then washed with gang colour.
-      const tint = WALL_TINTS[Math.floor(r01(b.id, 33) * WALL_TINTS.length)];
-      const v = 0.88 + r01(b.id, 30) * 0.24;
+      const paintedFacade = this.visualStyle === 'illustrated' && prof.facade < 5;
+      const tint = paintedFacade ? [1, 1, 1] : WALL_TINTS[Math.floor(r01(b.id, 33) * WALL_TINTS.length)];
+      const v = paintedFacade ? 0.94 + r01(b.id, 30) * 0.12 : 0.88 + r01(b.id, 30) * 0.24;
       this.colorScratch.setRGB(v * tint[0], v * tint[1], v * tint[2]);
       if (b.state === 'destroyed') this.colorScratch.setRGB(0.26, 0.24, 0.23);
       else if (b.state === 'damaged') this.colorScratch.multiplyScalar(0.52);
