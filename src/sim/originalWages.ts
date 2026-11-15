@@ -13,7 +13,7 @@
  * Compact cities keep the remake's wage drift and loyalty-based skim.
  */
 import { effectiveHostility, fearOf, hostilityOf, shiftAttitude } from './attitudes';
-import { SKILLS, type ID, type Person, type Skill } from './types';
+import { SKILLS, type ID, type Person, type Skill, type WorldState } from './types';
 
 /** Our half-star skill to the original byte: the midpoint of each star band
  * in Character Generation.txt (intelligence 0..256, other skills 0..64). */
@@ -90,6 +90,18 @@ export function originalRetainerQuote(p: Person, gangId: ID): number {
  * ($10..$35). A fee below it costs the shortfall in hostility each week. */
 export function originalRetainerFloor(p: Person, gangId: ID): number {
   return Math.trunc(originalRetainerQuote(p, gangId) / 5);
+}
+
+/** Compact-city specialists are hired for Intelligence, not combat skills. */
+export function compactSpecialistWage(p: Person): number {
+  return Math.round((90 + p.skills.intelligence * 44) / 5) * 5;
+}
+
+/** The weekly wage offered on hiring, shared by city generation, the quote
+ * and the hire action. Requote free specialists from older saves too;
+ * existing employees keep their contracted wage. */
+export function specialistAskingWage(w: WorldState, p: Person, gangId: ID): number {
+  return w.cityLayout?.original ? originalWageQuote(p, gangId) : compactSpecialistWage(p);
 }
 
 /** A starting or newly hired member is offered his quote. */

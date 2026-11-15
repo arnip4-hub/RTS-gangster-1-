@@ -29,6 +29,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Check targeting, pricing, skills and map regressions
+        run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts
+
       - name: Package Windows installer and portable app
         run: npm run package:win -- --publish never
 

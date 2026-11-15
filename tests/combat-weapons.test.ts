@@ -231,10 +231,10 @@ describe('combat uses the assigned weapon', () => {
     expect(order.state).toBe('done');
     expect(w.messages.some(m => m.sound === 'gunshot')).toBe(armed);
   });
-  it('planned Kill uses fists for unequipped actors and firearms only for equipped actors', () => {
-    function attempt(firearms: number, fists: number, armed: boolean) {
+  it('planned Kill uses knives for unequipped actors and firearms only for equipped actors', () => {
+    function attempt(firearms: number, knives: number, armed: boolean) {
       const { sim, w, gang, team, people, target } = scene();
-      people[0].skills.firearms = firearms; people[0].skills.fists = fists;
+      people[0].skills.firearms = firearms; people[0].skills.knives = knives;
       if (armed) team.weapons.pistol = 1;
       expect(issueOrder(w, gang.id, { teamId: team.id, type: 'kill', personId: target.id }).ok).toBe(true);
       const order = w.orders[team.orderIds.at(-1)!];

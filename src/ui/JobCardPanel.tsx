@@ -9,9 +9,10 @@ import { BUILDING_BY_ID, ILLEGAL_TYPES, ESTABLISHABLE_TYPES, coverQuality } from
 import { buildingValue, expandTargets, fitsWeek, weekCharge } from '../sim/execution';
 import { SKILL_LABELS } from '../sim/types';
 import { donationAmount } from '../sim/charity';
-import { crewPeople, orderStaffing, readyForPlanning } from '../sim/orderStaffing';
-import { buildingName, buildingsOfBlock, money, placeName, skillAvg } from '../sim/world';
-import { buildingMapIntel } from '../sim/mapIntel';
+import { crewHasFirearm, crewPeople, crewWeaponLoadout, orderStaffing, readyForPlanning } from '../sim/orderStaffing';
+import { orderSkill, orderSkillText } from '../sim/orderSkills';
+import { buildingName, buildingsOfBlock, money, placeName } from '../sim/world';
+import { buildingMapIntel, knownShopkeeper } from '../sim/mapIntel';
 import { Icon, Kicker, Rivets, Stars } from './common';
 
 /** Who a Recruit order can look for, and where each kind is found. */
@@ -59,7 +60,7 @@ export function JobCardPanel() {
       case 'building':
         return jc.buildingIds.length ? `Target: ${buildingName(w, jc.buildingIds[0])}` : 'Click a site on the map.';
       case 'area':
-        return targetCount ? `${targetCount} valid target${targetCount === 1 ? '' : 's'} selected` : 'Click blocks or drag an area. Repeat over a selected area to clear it.';
+        return targetCount ? `${targetCount} valid target${targetCount === 1 ? '' : 's'} selected` : 'Click blocks or drag an area; shift-click picks a single site. Repeat over a selected area to clear it.';
       case 'point':
         return jc.pos ? 'Position chosen' : 'Click where you want them to go.';
       default:
@@ -86,9 +87,12 @@ export function JobCardPanel() {
   const shortBy = price != null ? Math.max(0, Math.round(price - gang.cash)) : 0;
 
   // The people best suited to the job first, with the skills it calls on.
-  const suited = (p: (typeof people)[number]) => (def.skills.length ? skillAvg(p, def.skills) : 0);
+  const armedCrew = crewHasFirearm(team);
+  const crewLoadout = team ? crewWeaponLoadout(w, team) : new Map();
+  const suited = (p: (typeof people)[number]) => (def.skills.length ? orderSkill(p, def, crewLoadout.has(p.id)) : 0);
   const ranked = [...people].sort((a, b) => Number(readyForPlanning(w, b)) - Number(readyForPlanning(w, a)) || suited(b) - suited(a));
-  const skillNote = (p: (typeof people)[number]) => def.skills.map((k) => `${SKILL_LABELS[k]} ${p.skills[k]}★`).join(' · ');
+  const skillNote = (p: (typeof people)[number]) => [...new Set([...def.skills, ...(def.armedSkills ?? [])])]
+    .map((k) => `${SKILL_LABELS[k]} ${p.skills[k]}★`).join(' · ');
 
   const canConfirm = (() => {
     if (!team || staffing?.reason) return false;
@@ -180,7 +184,7 @@ export function JobCardPanel() {
                 Crew {crewIndex} · {lt?.name ?? team?.name ?? 'Crew'}
               </b>
             </span>
-            <span className="muted tiny">{def.skills.join(' · ') || 'no skill needed'}</span>
+            <span className="muted tiny">{orderSkillText(def) ? `Skill used: ${orderSkillText(def)}` : 'no skill needed'}</span>
           </div>
 
           <div className="target-box">
@@ -209,7 +213,8 @@ export function JobCardPanel() {
                   const intel = buildingMapIntel(b, gang.id);
                   const holder = intel.ownerGangId != null ? (intel.ownerGangId === gang.id ? 'yours' : w.gangs[intel.ownerGangId]?.name)
                     : intel.protectionGangId != null ? `pays ${intel.protectionGangId === gang.id ? 'you' : w.gangs[intel.protectionGangId]?.name}` : null;
-                  const owner = b.ownerPersonId != null ? w.people[b.ownerPersonId]?.name : null;
+                  const manager = intel.ownerGangId === gang.id && b.managerId != null ? w.people[b.managerId] : null;
+                  const owner = manager ? `run by ${manager.name}` : knownShopkeeper(w, b, gang.id)?.name ?? null;
                   return <li key={id}>
                     <button className="order-target-link" title="Show on the map" onClick={() => useGame.getState().requestCamera({ ...w.lots[b.lotId].center })}>{placeName(w, b)}</button>
                     {(holder || owner) && <span className="muted"> · {[holder, owner].filter(Boolean).join(' · ')}</span>}
@@ -402,7 +407,7 @@ export function JobCardPanel() {
                   ))}
               </select>
               {def.skills.length > 0 && <div className="muted tiny" style={{ marginTop: 4 }}>
-                Listed best first for this job: {def.skills.map((k) => SKILL_LABELS[k].toLowerCase()).join(' and ')}.
+                Listed best first for this job: {orderSkillText(def).toLowerCase()}.{def.armedSkills && !armedCrew ? ' This crew has no firearms.' : ''}
               </div>}
             </div>
           )}

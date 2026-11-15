@@ -3120,6 +3120,12 @@ button:disabled {
 .order-text {
   min-width: 0;
 }
+.order-skill {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
 .gb-name {
   display: inline-flex;
   align-items: center;

@@ -272,8 +272,9 @@ export function Blueprint() {
       const crimeBlocks = policeArea ? plannedCrimeBlocks(w, gang.id) : new Set<ID>();
       // The This Week's Orders rolodex highlights the order it is showing.
       const reviewed = !jobCard && reviewOrderId != null ? w.orders[reviewOrderId] : undefined;
+      // Reviewed site jobs mark their actual stops, not every shop on the block.
+      for (const id of reviewed?.targetBuildingIds ?? []) if (w.buildings[id]) pickedSites.add(siteBuilding(w, w.buildings[id]).id);
       const reviewBlocks = new Set<ID>(reviewed ? [...reviewed.targetBlockIds,
-        ...reviewed.targetBuildingIds.map(id => w.buildings[id]?.blockId).filter((id): id is ID => id != null),
         ...(reviewed.targetPersonId != null && w.people[reviewed.targetPersonId]
           ? [blockAt(w, Math.floor(w.people[reviewed.targetPersonId].pos.x / CELL), Math.floor(w.people[reviewed.targetPersonId].pos.y / CELL))?.id].filter((id): id is ID => id != null) : [])] : []);
       if (areaTeam && areaChoices) for (const id of areaChoices.available) if (!ltBlocks.has(id)) validBlocks.add(id);
@@ -312,12 +313,14 @@ export function Blueprint() {
           ctx.strokeStyle = PLAN.target; ctx.lineWidth = 2; ctx.strokeRect(x, y, s, h);
         }
         if (crimeBlocks.has(blk.id)) { ctx.strokeStyle = '#e4b422'; ctx.lineWidth = 4; ctx.strokeRect(x - 2, y - 2, s + 4, h + 4); }
+        let sitesMarked = false;
         for (const lotId of blk.lotIds) {
           const lot = w.lots[lotId], b = w.buildings[lot.buildingId];
           if (!b) continue;
           const lr = toPlanRect(blk, lotRect(lot)), lx = X(lr.x), ly = Y(lr.y), ls = S(lr.w);
           // An apartment block's terraces are drawn and marked with its tenement.
           const site = siteBuilding(w, b);
+          if (pickedSites.has(site.id)) sitesMarked = true;
           drawPlanLot(ctx, w, b, lx, ly, ls, gang.id, validSites.has(site.id), pickedSites.has(site.id), heat != null, S(lr.h), site);
           const intel = buildingMapIntel(b, gang.id);
           if (!intel.siteKnown || b.state === 'destroyed') continue;
@@ -337,7 +340,9 @@ export function Blueprint() {
           ctx.strokeStyle = '#514b40'; ctx.lineWidth = 4; ctx.strokeRect(x - 1.5, y - 1.5, s + 3, h + 3);
           ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(x - 1.5, y - 1.5, s + 3, h + 3);
         }
-        if (jobCard?.blockIds.includes(blk.id) || policeArea && ltBlocks.has(blk.id) || reviewBlocks.has(blk.id)) drawPlanSelection(ctx, x - 1, y - 1, s + 2, h + 2);
+        // Only whole-area orders without individual stops wash the whole block.
+        if (policeArea && ltBlocks.has(blk.id) || !sitesMarked && (jobCard?.blockIds.includes(blk.id) || reviewBlocks.has(blk.id)))
+          drawPlanSelection(ctx, x - 1, y - 1, s + 2, h + 2);
       }
 
       drawElevatedRail(ctx, w, X, Y, S);
@@ -682,24 +687,26 @@ export function Blueprint() {
     zoomAt(view.current.zoom * factor, { x: a.x + a.w / 2, y: a.y + a.h / 2 });
   };
   const fitCity = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; paintBase.current(); syncCityCamera(); };
+  // Keep the player's chosen zoom. A fitted city needs a closer view before
+  // centring can distinguish a particular place from the rest of the city.
+  const centreOn = (pos: { x: number; y: number }) => {
+    if (!sim) return;
+    const zoom = view.current.zoom > 1 ? view.current.zoom : 3;
+    const a = mapBounds.current, f = fit(sim.world, a, { zoom, panX: 0, panY: 0 });
+    view.current = { zoom, panX: a.x + a.w / 2 - f.ox - pos.x * f.scale, panY: a.y + a.h / 2 - f.oy - pos.y * f.scale };
+    paintBase.current();
+  };
   const focusHq = () => {
     if (!sim) return;
     const hq = Object.values(sim.world.buildings).find(b => b.isHQ && b.ownerGangId === sim.playerGang.id);
-    if (!hq) return;
-    const a = mapBounds.current, pos = sim.world.lots[hq.lotId].center;
-    const f = fit(sim.world, a, { zoom: 3, panX: 0, panY: 0 });
-    view.current = { zoom: 3, panX: a.x + a.w / 2 - f.ox - pos.x * f.scale, panY: a.y + a.h / 2 - f.oy - pos.y * f.scale };
-    paintBase.current();
-    syncCityCamera();
+    if (hq) { centreOn(sim.world.lots[hq.lotId].center); syncCityCamera(); }
   };
 
   // Names in organizer reports/Clipboard centre the visible plan as well as the city camera.
   useEffect(() => useGame.subscribe((state, previous) => {
     const pos = state.cameraRequest;
     if (!sim || !pos || pos === previous.cameraRequest) return;
-    const a = mapBounds.current, f = fit(sim.world, a, { zoom: 3, panX: 0, panY: 0 });
-    view.current = { zoom: 3, panX: a.x + a.w / 2 - f.ox - pos.x * f.scale, panY: a.y + a.h / 2 - f.oy - pos.y * f.scale };
-    paintBase.current();
+    centreOn(pos);
   }), [sim]);
 
   if (!sim) return null;
@@ -729,7 +736,7 @@ export function Blueprint() {
           title="Show or hide moving people and cars on the city plan">People & cars: {showActivity ? 'on' : 'off'}</button>}
         <button onClick={() => zoom(1 / 1.4)} aria-label="Zoom out" title="Zoom out">−</button>
         <button onClick={() => zoom(1.4)} aria-label="Zoom in" title="Zoom in">+</button>
-        <button onClick={fitCity}>Fit city</button><button onClick={focusHq} title="Zoom to your headquarters">HQ</button>
+        <button onClick={fitCity}>Fit city</button><button onClick={focusHq} title="Centre on your headquarters">HQ</button>
       </div>
       <p className={jobCard || isBoxing(0) ? 'target-hint' : undefined}>{jobCard ? `${ORDERS[jobCard.type].name} · ${targetHint}`
         : pickMode?.kind === 'lieutenantArea' ? 'Allocate your territory · click or drag · repeat to remove · right-drag to pan'

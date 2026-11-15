@@ -28,9 +28,39 @@ export const SURNAMES = [
   'Schmidt', 'Braun', 'Wagner', 'Keller', 'Hoffman', 'Zimmer', 'Krause', 'Bauer',
   'Kowalski', 'Nowak', 'Wozniak', 'Zielinski', 'Jankowski',
   'Whitaker', 'Ashford', 'Carmichael', 'Blackwood', 'Hollis', 'Vance', 'Sterling', 'Marsh',
-  'Doyle', 'Crane', 'Hargrove', 'Pemberton', 'Locke', 'Radcliffe', 'Winslow',
+  'Crane', 'Hargrove', 'Pemberton', 'Locke', 'Radcliffe', 'Winslow',
   'Petrov', 'Sokolov', 'Ivanov', 'Volkov',
   'Papadakis', 'Stavros', 'Kostas',
+  // Italian
+  'Esposito', 'Romano', 'Colombo', 'DeLuca', 'Mancini', 'Giordano', 'Conti', 'Santoro', 'Caruso',
+  'Ferrara', 'Russo', 'Longo', 'Leone', 'Marchetti', 'Vanetti', 'Corvino', 'Pellegrino', 'Sartori',
+  'Amato', 'Basile', 'Coppola', 'DAngelo', 'Fabbri', 'Guerra', 'Messina', 'Palumbo', 'Serra', 'Testa',
+  // Irish
+  'Casey', 'Nolan', 'Regan', 'Keane', 'Tierney', 'Hanlon', 'Malone', 'Shea', 'Cassidy', 'Dolan',
+  'Riordan', 'Mulligan', 'Kavanagh', 'Brady', 'Callahan', 'Devlin', 'Farrell', 'Hogan', 'Lynch', 'McBride',
+  // Jewish
+  'Adler', 'Cohen', 'Feldman', 'Katz', 'Levine', 'Singer', 'Stein', 'Blum', 'Hirsch', 'Rubin',
+  'Friedman', 'Glick', 'Horowitz', 'Lerner', 'Mandel', 'Perlman', 'Segal', 'Wolfe',
+  // German
+  'Becker', 'Fischer', 'Hartmann', 'Koch', 'Lang', 'Meyer', 'Richter', 'Schultz', 'Vogel', 'Weber',
+  'Brandt', 'Engel', 'Franke', 'Graf', 'Huber', 'Jaeger', 'Kruger', 'Neumann', 'Schroeder', 'Ziegler',
+  // Polish
+  'Wisniewski', 'Kaminski', 'Lewandowski', 'Dabrowski', 'Kozlowski', 'Mazur', 'Pawlak', 'Sikora',
+  'Adamski', 'Borkowski', 'Czarnecki', 'Gorski', 'Kubiak', 'Majewski', 'Olszewski', 'Sobczak',
+  // Russian
+  'Orlov', 'Morozov', 'Kuznetsov', 'Fedorov', 'Belov', 'Zaitsev', 'Antonov', 'Baranov', 'Gusev',
+  'Karpov', 'Lebedev', 'Melnikov', 'Popov', 'Romanov', 'Smirnov', 'Tarasov',
+  // Greek
+  'Pappas', 'Demos', 'Nikolaidis', 'Economos', 'Karras', 'Manos', 'Vlahos', 'Zervas',
+  // Chinese
+  'Lee', 'Wong', 'Chin', 'Chan', 'Fong', 'Moy', 'Yee', 'Lum', 'Eng', 'Gee', 'Hom', 'Jung', 'Leong', 'Tom',
+  // Mexican
+  'Delgado', 'Ramirez', 'Castillo', 'Morales', 'Vega', 'Salazar', 'Herrera', 'Navarro',
+  // Town and country
+  'Abbott', 'Baxter', 'Calloway', 'Dawson', 'Ellsworth', 'Fairbanks', 'Garrison', 'Holloway', 'Jennings',
+  'Kendall', 'Langley', 'Merritt', 'Norwood', 'Prescott', 'Ridgeway', 'Sawyer', 'Thornton', 'Underwood',
+  'Wainwright', 'Yates', 'Washington', 'Jefferson', 'Coleman', 'Booker', 'Tolliver', 'Mosley',
+  'Bishop', 'Cutler', 'Dunbar', 'Hadley', 'Lockwood', 'Mercer', 'Pruitt', 'Shelby', 'Tanner', 'Whitlock',
 ];
 
 export const NICKNAMES = [

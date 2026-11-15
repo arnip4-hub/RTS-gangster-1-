@@ -71,7 +71,12 @@ describe('real crew transport',()=>{
   expect(o.state).toBe('travelling'); // a fast driver cannot perform work for walkers still elsewhere
  });
  it('does not lend the same coupe to a second simultaneous job',()=>{
-  const s=fixture();s.t.vehicles.coupe=1;const a=queue(s,1,s.people[0].id),b=queue(s,1,s.people[1].id);s.sim.launchWeek();
+  const s=fixture();s.t.vehicles.coupe=1;
+  // Use separate businesses: the duplicate Extort guard correctly rejects
+  // two active attempts at the same site before transport is allocated.
+  const other=Object.values(s.w.buildings).find(b=>b.id!==s.target.id&&b.ownerGangId==null&&b.cls==='commercial'&&dist(buildingDoor(s.w,b),buildingDoor(s.w,s.hq))>220)!;
+  expect(other).toBeDefined();
+  const a=queue(s,1,s.people[0].id),b=queue({...s,target:other},1,s.people[1].id);s.sim.launchWeek();
   expect(s.w.people[a.assignedIds[0]].inVehicle).toBe(true);
   expect(s.w.people[b.assignedIds[0]].inVehicle).toBe(false);
  });

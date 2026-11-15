@@ -27,6 +27,7 @@ import { reportedSquealers } from '../../sim/squealers';
 import type { OrderType } from '../../sim/types';
 import { queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
 import { knownPrisonRivals, PRISON_NAMES, prisonOf, requestPrisonAttack, requestPrisonContact, requestPrisonProtection } from '../../sim/prison';
+import { specialistAskingWage } from '../../sim/originalWages';
 
 export function LawyerTab() {
   const sim = useGame((s) => s.sim)!;
@@ -143,7 +144,7 @@ export function LawyerTab() {
                     <span className="tiny">{p.name}</span>
                     <div className="row" style={{ gap: 5 }}>
                       <Stars value={p.skills.intelligence} />
-                      <span className="muted tiny mono">{money(p.payDemand)}</span>
+                      <span className="muted tiny mono">{money(specialistAskingWage(w, p, gang.id))}</span>
                       {gang.recruitIds.includes(p.id) && (
                         <button
                           className="btn sm"

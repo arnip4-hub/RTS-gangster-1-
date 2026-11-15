@@ -1410,6 +1410,9 @@ export class CityRenderer {
     const outline = this.makingBuildingView ? null : this.buildingOutline;
     outline?.clear();
     const outlinePools = outline ? [...this.wallPools, ...this.cutawayWalls, ...this.decor].filter(p => p !== this.picks && p !== this.sightProxies) : [];
+    // An apartment site's outline spans the tenement and all its terrace lots.
+    // setInstances replaces the selection, so collect every part before handing it over.
+    const outlineRanges: { mesh: THREE.InstancedMesh; start: number; count: number }[] = [];
     const targetPools = [...this.wallPools, ...this.cutawayWalls, ...this.decor].filter(p => p !== this.picks && p !== this.sightProxies && p.mesh.instanceColor);
 
     if (this.buildingsRemoved) {
@@ -1441,9 +1444,9 @@ export class CityRenderer {
       const facing = lotFacing(lot, blk?.center, b.id);
       const prof = profileForLot(b, t, lot, facing);
       const fireStage=fireDamageStage(b,w.week);
-      const outlineStarts = outline && b.id === this.selectedBuildingId ? outlinePools.map(p => p.count) : null;
       // An apartment block's terraces are marked with its tenement.
       const siteId = b.cls === 'residential' ? siteBuilding(w, b).id : b.id;
+      const outlineStarts = outline && siteId === this.selectedBuildingId ? outlinePools.map(p => p.count) : null;
       const targetColor = this.planningSelected.has(siteId) ? this.planningRed : this.planningCrimes.has(siteId) ? this.planningYellow : this.planningAvailable.has(siteId) ? this.planningBlue : null;
       const targetStarts = targetColor ? targetPools.map(p => p.count) : null;
 
@@ -1836,10 +1839,11 @@ export class CityRenderer {
       }
       this.buildingIds.push(b.id);
       if (targetStarts && targetColor) targetPools.forEach((p, i) => p.tintFrom(targetStarts[i], targetColor, .78));
-      if (outlineStarts) outline!.setInstances(outlinePools.map((p, i) => ({
+      if (outlineStarts) outlinePools.forEach((p, i) => outlineRanges.push({
         mesh: p.mesh, start: outlineStarts[i], count: p.count - outlineStarts[i],
-      })));
+      }));
     }
+    if (outlineRanges.length) outline!.setInstances(outlineRanges);
 
     if (outline && !outline.partCount && this.selectedBuildingId != null) {
       const selected = w.buildings[this.selectedBuildingId], lot = selected && w.lots[selected.lotId];

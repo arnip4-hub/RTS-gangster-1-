@@ -115,7 +115,8 @@ describe('planning map selection', () => {
     expect(orderPeopleBySite(w, g.id, 'bribe').get(site.id)).toBe(site.ownerPersonId);
     const hidden = Object.values(w.buildings).find(b => b.isHQ && b.ownerGangId !== g.id)!;
     expect(orderPeopleBySite(w, g.id, 'kill').has(hidden.id)).toBe(false);
-    begin('kidnap'); hit(site); expect(card().personId).toBeNull();
+    // RTS kidnapping includes civilian shopkeepers as well as rival hoods.
+    begin('kidnap'); hit(site); expect(card().personId).toBe(site.ownerPersonId);
   });
 
   it('building and point orders reject unrelated map targets', () => {

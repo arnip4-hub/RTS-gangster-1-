@@ -23,12 +23,23 @@ export function buildingMapIntel(b: Building, viewer: ID | null) {
   };
 }
 
+/** An independent shopkeeper is known after a visit or scouting. A gang-owned
+ * business belongs to the gang, even if its former seller still stays inside. */
+export function knownShopkeeper(w: WorldState, b: Building, viewer: ID | null): Person | null {
+  if (b.ownerPersonId == null || b.ownerGangId != null || viewer == null || (b.knowledge[viewer] ?? 0) < 2) return null;
+  return w.people[b.ownerPersonId] ?? null;
+}
+
 /**
- * Where a gang's map can place a person. Your own people and civilians are
- * where they are; a rival only at premises you have identified as his gang's
+ * Where a gang's map can place a person. Your own people and ordinary civilians
+ * are where they are; an unlocated relative must first be found. A rival is
+ * placed only at premises you have identified as his gang's
  * (inside, or at the door of its office), never at his true position.
  */
 export function personMapPosition(w: WorldState, viewer: ID, p: Person): Vec2 | null {
+  // A household connection identifies a target, not their whereabouts. Keep
+  // map navigation subject to the same discovery rule as the RTS hunt.
+  if (p.familyOfId != null && p.gangId !== viewer && !w.gangs[viewer]?.knownPeople.includes(p.id)) return null;
   if (p.gangId == null || p.gangId === viewer) return p.pos;
   const inside = p.buildingId != null ? w.buildings[p.buildingId] : null;
   const site = inside ?? buildingList(w).find(b => b.ownerGangId === p.gangId && b.typeId === 'office' &&

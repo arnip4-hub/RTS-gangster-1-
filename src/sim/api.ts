@@ -2,7 +2,7 @@ import { INCIDENT_HOSTILITY, provoke } from './aiStance';
 import { huntStops, whereaboutsUnknown } from './execution';
 export { huntStops, whereaboutsUnknown };
 import { LEFT_GANG, NO_ORIGINAL_CHANNEL, opinionSet } from './attitudes';
-import { originalStartingWage } from './originalWages';
+import { originalStartingWage, specialistAskingWage } from './originalWages';
 import { cityBlockAt } from './cityLayout';
 import { orderStaffing } from './orderStaffing';
 import { observeTargetRace } from './targetRace';
@@ -699,6 +699,7 @@ export function hireRecruit(
   if (p.status !== 'active') return fail('That recruit is not available.');
 
   if (p.role === 'accountant' || p.role === 'lawyer') {
+    const wage = specialistAskingWage(w, p, gangId);
     const slot = p.role === 'accountant' ? 'accountantId' : 'lawyerId';
     const existing = gang[slot];
     if (existing != null) {
@@ -713,8 +714,7 @@ export function hireRecruit(
     gang[slot] = p.id;
     p.gangId = gangId;
     p.buildingId = null;
-    p.pay = p.payDemand;
-    if (w.cityLayout?.original) originalStartingWage(p, gangId);
+    p.pay = p.payDemand = wage;
     p.loyalty = 70;
     p.inVehicle = false;
     const office = nearestOffice(w, gangId, p.pos);
@@ -1278,15 +1278,22 @@ export function buySnitchInfo(
   }
   if (!candidates.length) return fail('He has nothing you do not already know.');
 
-  const price = 400 * targetGangIds.length + candidates.length * 30;
+  const price = snitchFee(targetGangIds.length, candidates.length);
   if (gang.cash < price) return fail(`He wants ${price.toLocaleString('en-US')} for that.`);
   payCash(w, gang, 'purchases', price);
   gang.snitchUsedWeek = w.week;
 
   rng.shuffle(candidates);
-  const n = Math.min(candidates.length, rng.int(2, 6));
+  const n = Math.min(candidates.length, rng.int(2, SNITCH_MOST_NAMES));
   for (let i = 0; i < n; i++) gang.knownPeople.push(candidates[i].id);
   return ok(`${snitch.name} named ${n} people for ${price.toLocaleString('en-US')}.`);
+}
+
+/** At most this many names can be sold at one sitting. */
+const SNITCH_MOST_NAMES = 6;
+
+function snitchFee(groups: number, unknown: number): number {
+  return 400 * groups + Math.min(unknown, SNITCH_MOST_NAMES) * 30;
 }
 
 export function snitchPrice(w: WorldState, gangId: ID, targetGangIds: ID[]): number {
@@ -1298,7 +1305,7 @@ export function snitchPrice(w: WorldState, gangId: ID, targetGangIds: ID[]): num
     if (p.gangId == null && targetGangIds.includes(0) && (p.role === 'hood' || p.role === 'lieutenant')) count++;
     else if (p.gangId != null && targetGangIds.includes(p.gangId)) count++;
   }
-  return 400 * targetGangIds.length + count * 30;
+  return snitchFee(targetGangIds.length, count);
 }
 
 // ---------------------------------------------------------------- street orders

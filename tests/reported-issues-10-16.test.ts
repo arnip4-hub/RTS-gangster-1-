@@ -170,19 +170,29 @@ describe('issue 10 item 19: the week clock', () => {
 });
 
 describe('issue 10 item 21: an apartment block is one building', () => {
-  it('resolves the terraces of a tenement block to its tenement, and leaves plain row houses alone', () => {
+  it('groups tenement and headquarters terraces, while leaving plain row houses alone', () => {
     const sim = new Sim({ ...newCampaignOptions(), seed: 4711 });
     const w = sim.world;
     const houses = allBuildings(w).filter(b => b.cls === 'residential');
     expect(houses.length).toBeGreaterThan(0);
-    let resolved = 0, alone = 0;
+    let resolved = 0, headquarters = 0, alone = 0;
+    const fronts = allBuildings(w).filter(b => b.hidesId != null && w.buildings[b.hidesId]?.isHQ);
     for (const house of houses) {
       const site = siteBuilding(w, house);
       const tenement = w.blocks[house.blockId].lotIds.map(id => w.buildings[w.lots[id].buildingId]).find(b => b.cls === 'tenement');
-      if (tenement) { expect(site.id).toBe(tenement.id); resolved++; } else { expect(site.id).toBe(house.id); alone++; }
+      const front = fronts.find(b => b.blockId === house.blockId);
+      if (tenement) { expect(site.id).toBe(tenement.id); resolved++; }
+      else if (front) { expect(site.id).toBe(front.id); headquarters++; }
+      else { expect(site.id).toBe(house.id); alone++; }
     }
     expect(resolved).toBeGreaterThan(0);
+    expect(headquarters).toBeGreaterThan(0);
     expect(alone).toBeGreaterThan(0);
+    // A demolished front no longer absorbs houses on the headquarters block.
+    const front = fronts.find(b => houses.some(house => house.blockId === b.blockId))!;
+    const terrace = houses.find(house => house.blockId === front.blockId)!;
+    front.state = 'destroyed';
+    expect(siteBuilding(w, terrace)).toBe(terrace);
     // Everything else is itself.
     const shop = allBuildings(w).find(b => b.cls === 'commercial')!;
     expect(siteBuilding(w, shop)).toBe(shop);

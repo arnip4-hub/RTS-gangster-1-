@@ -1,7 +1,7 @@
 import type { Building, Person, WorldState } from './types';
 import { buildingList, peopleList } from './entityLists';
 import { dist } from './world';
-import { createPerson } from './citygen';
+import { createPerson, giveFamilySurname } from './citygen';
 import type { Rng } from './rng';
 
 /** Public household records give officials one adult civilian relative each.
@@ -23,7 +23,7 @@ export function ensureOfficialFamilies(w: WorldState): void {
     used.add(relative.id);
     relative.familyOfId = official.id;
     relative.familyRelation = i % 2 === 0 ? 'spouse' : 'sibling';
-    relative.name = `${relative.name.split(' ')[0]} ${official.name.split(' ').at(-1)}`;
+    giveFamilySurname(w, relative, official);
     const home = official.homeBuildingId != null ? w.buildings[official.homeBuildingId]
       : homes.sort((a,b) => dist(w.lots[a.lotId].center,official.pos)-dist(w.lots[b.lotId].center,official.pos) || a.id-b.id)[0];
     if (home) official.homeBuildingId = relative.homeBuildingId = home.id;
@@ -41,7 +41,7 @@ export function ensureOwnerRelative(w: WorldState, rng: Rng, owner: Person): Per
   const relative=candidate ?? createPerson(w,rng,'citizen',owner.pos);
   relative.familyOfId=owner.id;
   relative.familyRelation=owner.id%2===0?'spouse':'sibling';
-  relative.name=`${relative.name.split(' ')[0]} ${owner.name.split(' ').at(-1)}`;
+  giveFamilySurname(w, relative, owner);
   if (owner.homeBuildingId != null) relative.homeBuildingId=owner.homeBuildingId;
   else if (relative.homeBuildingId != null) owner.homeBuildingId=relative.homeBuildingId;
   return relative;

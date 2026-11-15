@@ -15,11 +15,13 @@ export function serviceWeapon(p: Pick<Person, 'role' | 'skills'>): Firearm | und
 }
 
 /** One reservation per person per tick; stock stays in its existing crew/cache.
- * Rebuilt from saved state, without RNG or a new save-format requirement. */
-export function allocateWeapons(w: WorldState): Loadout {
+ * Rebuilt from saved state, without RNG or a new save-format requirement.
+ * A caller estimating one crew may supply that entire inventory-sharing group,
+ * avoiding a city-wide scan for each job card. */
+export function allocateWeapons(w: WorldState, participants: readonly Person[] = peopleList(w)): Loadout {
   const result = new Map<ID, Firearm>();
   const groups = new Map<Record<WeaponId, number>, Person[]>();
-  for (const p of peopleList(w)) {
+  for (const p of participants) {
     if (p.status !== 'active') continue;
     if (p.role === 'police' || p.role === 'fbi') {
       result.set(p.id, serviceWeapon(p)!);

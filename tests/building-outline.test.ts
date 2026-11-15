@@ -43,6 +43,20 @@ describe('building silhouette glow', () => {
     } finally { f.close(); }
   });
 
+  it('outlines every terrace range of a selected apartment site together', () => {
+    const f = fixture();
+    try {
+      f.outline.setInstances([
+        { mesh: f.source, start: 0, count: 1 },
+        { mesh: f.source, start: 1, count: 1 },
+      ]);
+      expect(f.outline.partCount).toBe(2);
+      const bounds = new THREE.Box3().setFromObject(f.outline.shape);
+      expect(bounds.min.x).toBeLessThan(-65);
+      expect(bounds.max.x).toBeGreaterThan(5);
+    } finally { f.close(); }
+  });
+
   it('caches a stationary mask, updates for camera/viewport changes, and keeps renderer state intact', () => {
     const f = fixture();
     try {

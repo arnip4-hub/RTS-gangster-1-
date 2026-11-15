@@ -48,7 +48,7 @@ import {
   type WorldState,
 } from './types';
 import { CENTRE_LOT, blockCenter, gangMembers, lotCenter } from './world';
-import { originalStartingWage } from './originalWages';
+import { compactSpecialistWage, originalStartingWage } from './originalWages';
 import { protectionFee } from './premises';
 import { forgetEntityLists } from './entityLists';
 
@@ -65,9 +65,53 @@ function makeSkills(rng: Rng, quality = 1): Skills {
   return s;
 }
 
-function makeName(rng: Rng, female: boolean): string {
-  const first = female ? rng.pick(FEMALE_FIRST) : rng.pick(MALE_FIRST);
-  return `${first} ${rng.pick(SURNAMES)}`;
+// Rebuilt lazily for a loaded world, rather than adding derived state to saves.
+// Household renames maintain this index too, so saving does not change which
+// names are available to the next recruit.
+const namesInUse = new WeakMap<WorldState, Set<string>>();
+function cityNames(w: WorldState): Set<string> {
+  let names = namesInUse.get(w);
+  if (!names) {
+    names = new Set(Object.values(w.people).map(p => p.name));
+    namesInUse.set(w, names);
+  }
+  return names;
+}
+
+/** Resolve collisions without further RNG draws, preserving simulation rolls. */
+function unusedName(w: WorldState, firsts: readonly string[], first: string,
+  surnames: readonly string[], surname: string): string {
+  const taken = cityNames(w), f = Math.max(0, firsts.indexOf(first)), s = surnames.indexOf(surname);
+  if (!taken.has(`${first} ${surname}`)) return `${first} ${surname}`;
+  for (let step = 0; step < firsts.length * surnames.length; step++) {
+    const name = `${firsts[(f + Math.floor(step / surnames.length)) % firsts.length]} ${surnames[(s + step) % surnames.length]}`;
+    if (!taken.has(name)) return name;
+  }
+  // A long-running campaign can exhaust a particular household's first names.
+  // Middle names keep relatives distinguishable without changing their surname.
+  for (let middle = 1; ; middle++) {
+    let n = middle, initials = '';
+    while (n > 0) { n--; initials = String.fromCharCode(65 + n % 26) + initials; n = Math.floor(n / 26); }
+    const name = `${first} ${initials}. ${surname}`;
+    if (!taken.has(name)) return name;
+  }
+}
+
+function makeName(w: WorldState, rng: Rng, female: boolean): string {
+  const firsts = female ? FEMALE_FIRST : MALE_FIRST;
+  return unusedName(w, firsts, rng.pick(firsts), SURNAMES, rng.pick(SURNAMES));
+}
+
+/** Household ties share a surname, while each relative remains identifiable. */
+export function giveFamilySurname(w: WorldState, relative: Person, head: Person): void {
+  const surname = head.name.split(' ').at(-1)!;
+  const first = relative.name.split(' ')[0];
+  if (relative.name === `${first} ${surname}`) return;
+  const oldName = relative.name;
+  relative.name = unusedName(w, relative.female ? FEMALE_FIRST : MALE_FIRST, first, [surname], surname);
+  const names = cityNames(w);
+  names.add(relative.name);
+  if (!Object.values(w.people).some(p => p.id !== relative.id && p.name === oldName)) names.delete(oldName);
 }
 
 export function createPerson(
@@ -80,7 +124,7 @@ export function createPerson(
   const female = opts.female ?? rng.chance(role === 'hood' ? 0.22 : 0.4);
   const p: Person = {
     id: newId(w),
-    name: opts.name ?? makeName(rng, female),
+    name: opts.name ?? makeName(w, rng, female),
     female,
     portrait: opts.portrait ?? rng.int(0, 23),
     role,
@@ -111,17 +155,18 @@ export function createPerson(
     streetOrder: null,
   };
   w.people[p.id] = p;
+  cityNames(w).add(p.name);
   return p;
 }
 
-/** Pay demand for a hood scales with their overall quality. */
+/** Crew pay follows overall quality; specialists are hired for Intelligence. */
 export function hoodPayDemand(p: Person, role: PersonRole): number {
+  if (role === 'accountant' || role === 'lawyer') return compactSpecialistWage(p);
   let total = 0;
   for (const k of SKILLS) total += p.skills[k];
   const avg = total / SKILLS.length;
   let base = 30 + avg * 26;
   if (role === 'lieutenant') base += 50;
-  if (role === 'accountant' || role === 'lawyer') base = 90 + avg * 44;
   return Math.round(base / 5) * 5;
 }
 
@@ -374,6 +419,9 @@ export function createWorld(options: GameOptions): { world: WorldState; rng: Rng
     auditResults: {},
     weekLog: [],
   };
+
+  // Citizens are created before the player's boss. Reserve the chosen name.
+  cityNames(w).add(bossName(options.playerName, options.playerNickname));
 
   // Register the empty-land pseudo type so lookups never miss.
   BUILDING_BY_ID[EMPTY_TYPE.id] = EMPTY_TYPE;

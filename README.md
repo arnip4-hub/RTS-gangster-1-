@@ -8,16 +8,24 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial and court
 reports still close weekly; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.2.0-beta.2
+## Windows download — 0.2.0-beta.3
 
-[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261115.6/RTS-gangster-beta-Setup.exe)
+[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261115.7/RTS-gangster-beta-Setup.exe)
 
 This installer includes the illustrated 3D buildings, 50 civilian clothing
 combinations, eight uniforms, varied body builds and skin tones, and painted
 3D cars in twelve colours. New profiles start with **Illustrated 3D**.
 For an existing profile, choose **Book → Options → City artwork → Illustrated 3D**,
 then save and reopen the city. The existing save folder is retained.
-[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.6).
+[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.7).
+
+This patch adapts the remake's 1.0.8 targeting, owner-privacy, pricing, task-skill
+and map fixes to continuous RTS play. Firearm skill requires an available gun;
+task skills now agree across dispatch, job cards and execution. New cities use
+an expanded name pool with unique full names, including relatives. Existing
+saved names and employed specialists' contracted wages are preserved. Find
+excludes dead people, and unknown relatives keep their locations hidden.
+See the [patch details](docs/releases/rts-beta-20261115.7.md).
 
 ## Where the project stands
 
@@ -159,7 +167,7 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.5)
+The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.7)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
 `RTS-gangster-beta-Portable.exe`. The City Plan now uses the full height of
 the window while the minimap and clock float over its corners. In the live

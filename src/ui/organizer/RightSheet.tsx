@@ -19,6 +19,8 @@ import {
 import { GANG_COLORS, ORDERS, ORDER_GROUPS, VEHICLES, VEHICLE_ORDER, WEAPONS, WEAPON_ORDER, type OrderDef } from '../../sim/constants';
 import { SKILLS, SKILL_LABELS, type Building, type ID, type OrderType, type Person, type Skill, type VehicleId, type WeaponId } from '../../sim/types';
 import { buildingName, money, placeName } from '../../sim/world';
+import { orderSkillText } from '../../sim/orderSkills';
+import { specialistAskingWage } from '../../sim/originalWages';
 import { buildingMapIntel } from '../../sim/mapIntel';
 import { ConfirmDialog, Empty, Hint, Icon, Kicker, Rivets, SkillList, Stamp, Stars } from '../common';
 
@@ -209,6 +211,7 @@ function OrderListSheet({ group, teamId }: { group: OrderDef['group']; teamId: I
           <span className="order-text">
             <b>{o.name}</b>
             <span className="cost">{orderCost(o)}</span>
+            {orderSkillText(o) && <span className="order-skill">Skill used: {orderSkillText(o)}</span>}
             <span className="desc">{o.desc}</span>
           </span>
         </button>
@@ -438,7 +441,7 @@ function RecruitsSheet({ teamId }: { teamId: ID | null }) {
                 <div className="row between">
                   <b style={{ fontWeight: 500, fontSize: 15 }}>{p.name}</b>
                   <span className="muted">
-                    {sortBy && <><Stars value={p.skills[sortBy]} /> · </>}{p.role} · wants {money(p.payDemand)}/week
+                    {sortBy && <><Stars value={p.skills[sortBy]} /> · </>}{p.role} · wants {money(isStaffRole(p.role) ? specialistAskingWage(w, p, gang.id) : p.payDemand)}/week
                   </span>
                 </div>
                 <div style={{ margin: '5px 0' }}>
@@ -493,6 +496,8 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
   const [confirm, setConfirm] = useState<{ text: string; go: () => void } | null>(null);
   const gang = sim.playerGang;
   const absent = ABSENT[person.status];
+  const askingWage = person.gangId == null && isStaffRole(person.role)
+    ? specialistAskingWage(sim.world, person, gang.id) : person.payDemand;
 
   return (
     <>
@@ -518,7 +523,7 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
             <span className="tag">Wanted {Math.round(person.wanted)}</span>
           </div>
           <div className={`pay-lines${person.pay < person.payDemand ? ' unhappy' : ''}`} style={{ textAlign: 'left', marginTop: 8 }}>
-            <Kicker>Wants {money(person.payDemand)}</Kicker>
+            <Kicker>Wants {money(askingWage)}</Kicker>
             <b>Pay {money(person.pay)}</b>
           </div>
         </div>

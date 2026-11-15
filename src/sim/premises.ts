@@ -39,16 +39,23 @@ export function ownsBusinessOnBlock(w: WorldState, gangId: ID, b: Building): boo
  * own to click on (no owner, nothing to extort or buy). They stand for the
  * block's tenement: a click on one is a click on it, and the plan marks them
  * with it. Row-house blocks with no tenement keep their houses as they are.
+ * A headquarters street front replaces the tenement and owns its terraces too.
  */
 export function siteBuilding(w: WorldState, b: Building): Building {
   if (b.cls !== 'residential') return b;
   const block = w.blocks[b.blockId];
+  let front: Building | null = null;
   for (const lotId of block?.lotIds ?? []) {
     const other = w.buildings[w.lots[lotId]?.buildingId];
-    if (other && other.cls === 'tenement' && other.state !== 'destroyed') return other;
+    if (!other || other.state === 'destroyed') continue;
+    if (other.cls === 'tenement') return other;
+    if (other.originalKind === ORIGINAL_HQ_FRONT_KIND && other.hidesId != null && w.buildings[other.hidesId]?.isHQ) front = other;
   }
-  return b;
+  return front ?? b;
 }
+
+/** Original city perfume-store front created when a tenement becomes an HQ. */
+export const ORIGINAL_HQ_FRONT_KIND = 85;
 
 /** As in the original, the land in the middle of a block is sold only to a
  * gang that already owns a business in front of it; every other lot is sold

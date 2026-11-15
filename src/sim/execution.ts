@@ -5,7 +5,8 @@ import { onMayorDeath, refreshNominees } from './systems/politics';
 import { originalHuntArrived, originalHuntFinds, startOriginalHunt } from './systems/originalHunt';
 import {startBuildingEmergency} from './systems/buildingEmergency';
 import { validAmbushTarget } from './ambush';
-import { crewPeople, orderStaffing, readyForPlanning } from './orderStaffing';
+import { crewPeople, crewWeaponLoadout, orderStaffing, readyForPlanning } from './orderStaffing';
+import { crewOrderSkill } from './orderSkills';
 import { claimedTerritoryBlocks, distanceToTerritory } from './territory';
 import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
@@ -163,6 +164,16 @@ function actorSkill(actors: Person[], skills: (keyof Skills)[]): number {
 /** The odds of the success roll shared by every order. `difficulty` is 0 (trivial) .. 1 (brutal). */
 function successChance(actors: Person[], skills: (keyof Skills)[], difficulty: number): number {
   const s = starFactor(actorSkill(actors, skills));
+  return Math.max(0.03, Math.min(0.97, 0.18 + s * 0.85 - difficulty * 0.75));
+}
+
+/** Rate only the skills and equipment that can actually perform this order. */
+function orderCrewSkill(actors: Person[], type: OrderType, loadout: Loadout): number {
+  return crewOrderSkill(actors, ORDERS[type], p => loadout.has(p.id));
+}
+
+function orderChance(actors: Person[], type: OrderType, loadout: Loadout, difficulty: number): number {
+  const s = starFactor(orderCrewSkill(actors, type, loadout));
   return Math.max(0.03, Math.min(0.97, 0.18 + s * 0.85 - difficulty * 0.75));
 }
 
@@ -367,13 +378,14 @@ export function estimateMinutes(w: WorldState, team: Team, order: Order): number
   const manpower = Math.max(1, order.opts.manpower);
   const candidates=orderStaffing(w,team,order,w.phase==='planning').chosen;
   const speed=plannedTravelSpeed(w,team,candidates,order.type);
-  const lt = w.people[team.lieutenantId];
-  const efficiency = lt ? 1.35 - starFactor(skillAvg(lt, ['organization', 'intelligence'])) * 0.4 : 1.2;
+  // Use the same task skill as execution. Travel remains a rough route estimate.
+  const loadout = crewWeaponLoadout(w, team);
+  const efficiency = 1.35 - starFactor(crewOrderSkill(candidates, def, p => loadout.has(p.id))) * 0.5;
 
   let targets = 1;
   if (def.target === 'area') targets = Math.max(1, order.targetBuildingIds.length);
 
-  let work = def.minutesPerTarget * targets * efficiency;
+  let work = Math.max(20, def.minutesPerTarget * efficiency) * targets;
 
   // Travel: rough march from the office through the targets.
   const office = nearestOffice(w, order.gangId, w.blocks[0].center);
@@ -739,7 +751,7 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
           // (Standing orders walk their own rounds, to the exact spot.)
           if (!def.wholeWeek) for (const a of actors) if (!a.inVehicle && a.dest) clearDestination(a);
           // Catching up with a man they had started on, the work done stands.
-          if (!(def.target === 'person' && order.workLeft > 0)) order.workLeft = workForTarget(w, order, actors);
+          if (!(def.target === 'person' && order.workLeft > 0)) order.workLeft = workForTarget(w, order, actors, loadout);
           if (order.opts.wait && !order.waitReleased) {
             order.waitResumeState = 'executing';
             order.state = 'waiting';
@@ -814,11 +826,11 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
   }
 }
 
-function workForTarget(w: WorldState, order: Order, actors: Person[]): number {
+function workForTarget(w: WorldState, order: Order, actors: Person[], loadout: Loadout): number {
   if(order.raidDelivery)return 10;
   if(order.kidnapDelivery)return 10;
   const def = ORDERS[order.type];
-  const skill = starFactor(actorSkill(actors, def.skills));
+  const skill = starFactor(orderCrewSkill(actors, order.type, loadout));
   void w;
   // Keep the original total work allowance, divided between loading and sale.
   const stage = order.type === 'export' ? (order.exportDelivery ? 0.25 : 0.75) : 1;
@@ -1122,7 +1134,12 @@ function resolveTarget(
   // the job is not counted done for it.
   let missed: string | null = null;
   const miss = (s: string) => { order.results.push(s); missed = s; };
-  const refused = (s: string, site: Building) => { (order.refusals ??= []).push({ line: order.results.length, buildingId: site.id }); miss(s); };
+  // Even a refusal is a face-to-face visit: owner and protection become known.
+  const refused = (s: string, site: Building) => {
+    (order.refusals ??= []).push({ line: order.results.length, buildingId: site.id });
+    site.knowledge[gang.id] = Math.max(site.knowledge[gang.id] ?? 0, 2);
+    miss(s);
+  };
   const signUp = (site: Building) => {
     const base = protectionFee(site);
     site.protection = { gangId: gang.id, weekly: base, base, refusing: false, grievance: 0 };
@@ -1477,7 +1494,7 @@ function resolveTarget(
     case 'intimidate': {
       const target = victim ?? (building?.ownerPersonId != null ? w.people[building.ownerPersonId] : null);
       if (!target) return;
-      const success = roll(rng, actors, ['intimidation'], 0.25 + Math.max(0, -(target.opinion[gang.id] ?? 0)) / 220);
+      const success = rng.chance(orderChance(actors, 'intimidate', loadout, 0.25 + Math.max(0, -(target.opinion[gang.id] ?? 0)) / 220));
       recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,
@@ -1608,7 +1625,7 @@ function resolveTarget(
       const t = typeOf(building);
       const blk = w.blocks[building.blockId];
       const guards = standingGuards(w, building);
-      const odds = successChance(actors, ['stealth', 'firearms'], 0.28 + guards * 0.12);
+      const odds = orderChance(actors, 'raid', loadout, 0.28 + guards * 0.12);
       const success = rng.chance(odds);
       recordCrime(w, rng, {
         gangId: gang.id,
@@ -1654,10 +1671,11 @@ function resolveTarget(
         }
       } else {
         // The report says what went against the crew, not just that it failed.
-        const stars = actorSkill(actors, ['stealth', 'firearms']);
+        const stars = orderCrewSkill(actors, 'raid', loadout), armed = actors.some(p => loadout.has(p.id));
         const why = guards > 0
           ? `The place was guarded (${guards} on the door${building.guardIds.includes(-1) ? ', the police among them' : ''})`
-          : stars < 3 ? `The crew is short on stealth and firearms (${stars.toFixed(1)} stars between them)`
+          : stars < 3 ? armed ? `The crew is short on firearms skill (${stars.toFixed(1)} stars between them)`
+            : `The crew went in without guns and is short on fists (${stars.toFixed(1)} stars between them)`
           : 'The luck ran against them';
         return finishOrder(w, order, `The raid on ${placeName(w, building)} was botched. ${why}; their chances were about ${Math.round(odds * 100)}%.`);
       }
@@ -1682,7 +1700,7 @@ function resolveTarget(
       if (!victim) return finishOrder(w, order, 'The target could not be found.');
       if (!kidnappableBy(victim, gang.id))
         return finishOrder(w, order, 'The target is no longer available.');
-      const success = roll(rng, actors, ['stealth', 'fists', 'intimidation'], 0.35);
+      const success = rng.chance(orderChance(actors, 'kidnap', loadout, 0.35));
       const office = nearestOffice(w,gang.id,victim.pos);
       if (!office) return finishOrder(w,order,'A safe house is needed before this kidnapping.');
       stepOut(w,lead,victim.pos);
@@ -1731,7 +1749,7 @@ function resolveTarget(
     case 'smashUp': {
       if (!building) return;
       if (building.state === 'destroyed') return finishOrder(w, order, 'The site is gone.');
-      const success = roll(rng, actors, ['intelligence', 'stealth', 'fists'], 0.2 + standingGuards(w, building) * 0.15);
+      const success = rng.chance(orderChance(actors, 'smashUp', loadout, 0.2 + standingGuards(w, building) * 0.15));
       recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,
@@ -1753,7 +1771,7 @@ function resolveTarget(
 
     case 'assault': {
       if (!victim) return finishOrder(w, order, 'The target could not be found.');
-      const success = roll(rng, actors, ['intelligence', 'fists'], 0.18);
+      const success = rng.chance(orderChance(actors, 'assault', loadout, 0.18));
       // Out of the car to do it (he struck from the seat across the street).
       stepOut(w,lead,victim.pos);
       presentAttack(w,lead,victim,undefined,success);
@@ -1801,7 +1819,7 @@ function resolveTarget(
       if (!building) return;
       if (building.state === 'destroyed') return finishOrder(w, order, 'The site is gone.');
       stepOut(w,lead,here);presentThrow(w,lead,here,'molotov');
-      const success = roll(rng, actors, ['arson', 'stealth', 'intelligence'], 0.24 + standingGuards(w, building) * 0.12);
+      const success = rng.chance(orderChance(actors, 'torch', loadout, 0.24 + standingGuards(w, building) * 0.12));
       recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,
@@ -1835,7 +1853,7 @@ function resolveTarget(
       else gang.weapons.explosives--;
       stepOut(w,lead,here);presentThrow(w,lead,here,'bomb');
 
-      const success = roll(rng, actors, ['explosives', 'stealth', 'intelligence'], 0.3);
+      const success = rng.chance(orderChance(actors, 'bomb', loadout, 0.3));
       recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,
@@ -1877,14 +1895,9 @@ function resolveTarget(
     case 'kill': {
       if (!victim) return finishOrder(w, order, 'The target could not be found.');
       const guard = victim.gangId != null ? 0.18 : 0;
-      // The mission still resolves as a whole, but only an equipped actor can
-      // contribute shooting skill. Close-combat attempts are harder to execute.
-      const equippedActors = actors.map(p => {
-        const attack = attackProfile(loadout, p);
-        return { ...p, skills: { ...p.skills, firearms: attack.skill * (attack.weapon ? 1 : 0.6) } };
-      });
+      // Carrying a firearm unlocks its skill; unarmed actors rely on Knives.
       const armed = actors.some(p => loadout.has(p.id));
-      const success = roll(rng, equippedActors, ['firearms', 'stealth', 'intimidation'], 0.24 + guard);
+      const success = rng.chance(orderChance(actors, 'kill', loadout, 0.24 + guard));
       const shooter=actors.find(p=>loadout.has(p.id))??lead;
       // A gun reaches from the car; bare hands do not.
       if(!loadout.has(shooter.id))stepOut(w,shooter,victim.pos);

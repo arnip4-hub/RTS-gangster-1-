@@ -33,22 +33,32 @@ export function selectableOrderPerson(w: WorldState, gangId: ID, type: OrderType
   return !!site && buildingMapIntel(site, gangId).siteKnown;
 }
 
+/** Buying the premises does not make its former shopkeeper the gang's man
+ * there. He remains selectable by name, but a site click selects the current
+ * manager or another occupant instead of singling the seller out. */
+function sellerStayingOn(gangId: ID, b: Building): ID | null {
+  return b.ownerGangId === gangId ? b.ownerPersonId : null;
+}
+
 /** A public owner, manager, or known occupant can be selected through their site. */
 export function orderPersonAtSite(w: WorldState, gangId: ID, type: OrderType, b: Building): ID | null {
   if (!buildingMapIntel(b, gangId).siteKnown) return null;
+  const seller = sellerStayingOn(gangId, b);
   const ids = [b.ownerPersonId, b.managerId, ...peopleList(w).filter(p => p.buildingId === b.id).map(p => p.id)];
-  return ids.find(id => id != null && w.people[id] && selectableOrderPerson(w, gangId, type, w.people[id])) ?? null;
+  return ids.find(id => id != null && id !== seller && w.people[id] && selectableOrderPerson(w, gangId, type, w.people[id])) ?? null;
 }
 
 export function orderPeopleBySite(w: WorldState, gangId: ID, type: OrderType): Map<ID, ID> {
   const result = new Map<ID, ID>();
   for (const b of buildingList(w)) {
     if (!buildingMapIntel(b, gangId).siteKnown) continue;
-    const id = [b.ownerPersonId, b.managerId].find(id => id != null && w.people[id] && selectableOrderPerson(w, gangId, type, w.people[id]));
+    const seller = sellerStayingOn(gangId, b);
+    const id = [b.ownerPersonId, b.managerId].find(id => id != null && id !== seller && w.people[id] && selectableOrderPerson(w, gangId, type, w.people[id]));
     if (id != null) result.set(b.id, id);
   }
   for (const p of peopleList(w)) if (p.buildingId != null && !result.has(p.buildingId) &&
-    w.buildings[p.buildingId] && buildingMapIntel(w.buildings[p.buildingId], gangId).siteKnown && selectableOrderPerson(w, gangId, type, p)) result.set(p.buildingId, p.id);
+    w.buildings[p.buildingId] && sellerStayingOn(gangId, w.buildings[p.buildingId]) !== p.id &&
+    buildingMapIntel(w.buildings[p.buildingId], gangId).siteKnown && selectableOrderPerson(w, gangId, type, p)) result.set(p.buildingId, p.id);
   return result;
 }
 

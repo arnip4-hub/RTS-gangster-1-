@@ -1,6 +1,18 @@
 import { ORDERS } from './constants';
 import type { Order, Person, Team, WorldState } from './types';
 import { skillAvg } from './world';
+import { orderSkill } from './orderSkills';
+import { allocateWeapons, type Loadout } from './weapons';
+
+/** Explosives do not unlock firearm alternatives. */
+export function crewHasFirearm(team: Team | null | undefined): boolean {
+  return !!team && Object.entries(team.weapons).some(([weapon, count]) => weapon !== 'explosives' && count > 0);
+}
+
+/** Finite reservations, including guns already held by busy or priority hoods. */
+export function crewWeaponLoadout(w: WorldState, team: Team | null | undefined): Loadout {
+  return team ? allocateWeapons(w, crewPeople(w, team)) : new Map();
+}
 
 export function crewPeople(w: WorldState, team: Team): Person[] {
   return [...new Set([team.lieutenantId, ...team.memberIds])].map(id => w.people[id])
@@ -57,8 +69,9 @@ export function orderStaffing(w: WorldState, team: Team, order: Pick<Order, 'typ
   // Three stars is remake tuning. A capable leader competes on task skill;
   // otherwise they remain the fallback, so accepted manpower is still filled.
   const willing = dangerous && lt && skillAvg(lt, ['organization', 'intelligence']) >= 3;
+  const loadout = crewWeaponLoadout(w, team);
   const candidates = available.filter(p => p !== preferred && (p.id !== team.lieutenantId || willing))
-    .sort((a, b) => skillAvg(b, def.skills) - skillAvg(a, def.skills) ||
+    .sort((a, b) => orderSkill(b, def, loadout.has(b.id)) - orderSkill(a, def, loadout.has(a.id)) ||
       Number(a.id === team.lieutenantId) - Number(b.id ===team.lieutenantId));
   while (chosen.length < want && candidates.length) chosen.push(candidates.shift()!);
   if (chosen.length < want && lt && !chosen.includes(lt)) chosen.push(lt);

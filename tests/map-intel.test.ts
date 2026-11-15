@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defaultGameOptions } from '../src/app/newGame';
 import { issueOrder } from '../src/sim/api';
-import { buildingMapIntel, knownBlockOwners } from '../src/sim/mapIntel';
+import { buildingMapIntel, knownBlockOwners, personMapPosition } from '../src/sim/mapIntel';
 import { MINUTES_PER_SECOND, Sim } from '../src/sim/sim';
 import { allBuildings, buildingsOfBlock, territoryBlocks } from '../src/sim/world';
 
@@ -57,6 +57,24 @@ describe('gang knowledge on the map', () => {
     expect(buildingMapIntel(front, viewer).ownerGangId).toBeNull();
     expect(buildingMapIntel(hq, rival.id).isHQ).toBe(true);
     expect(buildingMapIntel(hq, null).isHQ).toBe(false);
+  });
+
+  it('does not locate an official or owner relative before that gang has found them', () => {
+    const { w, viewer, rival } = fixture();
+    const relative = Object.values(w.people).find(p => p.role === 'citizen' && p.gangId == null)!;
+    const owner = Object.values(w.people).find(p => p.role === 'owner')!;
+    for (const familyOfId of [w.mayorId, owner.id]) {
+      relative.familyOfId = familyOfId;
+      w.gangs[viewer].knownPeople = w.gangs[viewer].knownPeople.filter(id => id !== relative.id);
+      // Another gang's discovery cannot disclose the target's live position.
+      rival.knownPeople.push(relative.id);
+      expect(personMapPosition(w, viewer, relative)).toBeNull();
+      w.gangs[viewer].knownPeople.push(relative.id);
+      expect(personMapPosition(w, viewer, relative)).toEqual(relative.pos);
+    }
+    const own = w.people[w.gangs[viewer].bossId];
+    own.familyOfId = w.mayorId;
+    expect(personMapPosition(w, viewer, own)).toEqual(own.pos);
   });
 
   it('shows own holdings even if their saved knowledge is missing, including own protection', () => {
