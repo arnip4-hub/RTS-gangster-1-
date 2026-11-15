@@ -60,6 +60,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
     if (p.tram) { if (p.tram.phase === 'boarding' && p.dest) stepPerson(p, minutes, traffic); return; }
     if (meeting.has(p.id)) return;
     if (awaited.has(p.id)) {
+      if (p.tramTrip) delete p.tramTrip;
       // Someone is coming to see them (the original's meeting orders bring both
       // together): finish crossing any road, then wait on the pavement. A
       // moving beat officer could not be caught, and a walker stopped on a
@@ -68,6 +69,10 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       const midCrossing = !!p.dest && !!next?.cross && Math.hypot(next.x - p.pos.x, next.y - p.pos.y) < next.cross - 0.75;
       if (midCrossing) stepPerson(p, minutes, traffic);
       else if (p.dest) clearDestination(p);
+      return;
+    }
+    if (p.tramTrip) {
+      if (p.tramTrip.phase === 'approaching' && p.dest) stepPerson(p, minutes, traffic);
       return;
     }
     if (continuous && homeAtNight(w, p, night, minutes, traffic)) return;

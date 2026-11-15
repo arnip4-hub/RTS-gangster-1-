@@ -24,8 +24,8 @@
  * code in the shipped game sets it (the order constructor 0x566900 clears it;
  * only the loaders and copies write it), so in the original nobody rides, and
  * the remake follows it (design decision, 29 October 2026): `TRAM_RIDING` is off and
- * the game never calls `tickTramRiding`. The port is kept whole behind it. Who
- * would ride: citizens on foot about their own business (`tramRideable`).
+ * the game never calls `tickTramRiding`. The exact port stays behind that
+ * flag; RTS long-distance journeys use `tramCommute.ts` instead.
  *
  * Remake choices, should it be switched on: he is set down beside the tram and crosses to his footway,
  * then walks on to where he was going (the original re-routed him to his
@@ -72,7 +72,7 @@ const FOOTWAY_REACH = 1.7;
 /** Who rides: a citizen on foot about his own business. */
 export function tramRideable(w: WorldState, p: Person): boolean {
   return p.role === 'citizen' && p.status === 'active' && !p.inVehicle && p.orderId == null && p.streetOrder == null &&
-    p.buildingId == null && !p.fbiAssignment && !p.emergencyResponse && !p.shockReaction && p.burningEscape?.week !== w.week;
+    p.buildingId == null && !p.tramTrip && !p.fbiAssignment && !p.emergencyResponse && !p.shockReaction && p.burningEscape?.week !== w.week;
 }
 
 /** A straight line of the original city: which way it runs, where across, and its length. */

@@ -46,7 +46,7 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
         clearDestination(p);
         continue;
       }
-      if (!p.dest) setDestination(w, p, so.pos);
+      if (!p.dest && !p.tramTrip) setDestination(w, p, so.pos);
       if (stepPerson(p, minutes, trafficContext(w))) p.streetOrder = null;
       continue;
     }

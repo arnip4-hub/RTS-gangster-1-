@@ -56,7 +56,10 @@ page and the Windows build workflow.
   call, while new routine FBI investigations pause over the weekend. Actual
   visitors affect weekly venue income. An official seen inside a gang-owned
   brothel or casino gives that gang a one-week discount on a lawyer-arranged
-  bribe; the leverage is used up when the bribe is paid.
+  bribe; the leverage is used up when the bribe is paid. On long trips, people
+  on foot can now walk to a tram stop, ride a scheduled tram, and walk from the
+  stop to their destination when that is faster than walking the whole way.
+  This also works for a player crew member given a long **Move** order on foot.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.

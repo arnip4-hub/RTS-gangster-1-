@@ -59,7 +59,7 @@ export function streetPersonVisible(person:Person,selected:number|null):boolean 
   // Awaiting trial is custody, as much as a cell.
   if(OFF_STREET.has(person.status)) return false;
   // Inside a street tram: taken off the map while he rides (0x712810).
-  if(person.tram?.phase==='riding') return false;
+  if(person.tram?.phase==='riding' || person.tramTrip?.phase==='riding') return false;
   // The boss is an office resident, not a street actor exposed by lowering a roof.
   if (bossInsideOffice(person)) return false;
   if(person.id===selected || person.dest || person.streetOrder || person.inVehicle || person.status==='arrested') return true;

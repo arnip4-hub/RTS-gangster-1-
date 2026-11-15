@@ -2,7 +2,7 @@ import schema from './world-schema.json';
 import type { WorldState } from './types';
 import { yieldForInput } from '../yieldForInput';
 import { blockRect } from './cityLayout';
-import { tramCount, tramLineValid } from './trams';
+import { cityTramLines, tramCount, tramLineValid, tramRoute } from './trams';
 import { BLOCK_MODULE_BY_ID, moduleFacing, moduleRect, moduleSetback } from './blockModules';
 import { MAX_TEAM_SIZE, MINUTES_PER_WEEK, VEHICLES } from './constants';
 import { weekDuration } from './calendar';
@@ -239,6 +239,17 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       w.trams.delay.some(d => !Number.isInteger(d) || d < 0))) throw Error('Save has an invalid tram timetable.');
   for (const p of peopleList(w)) if (p.tram && (!Number.isInteger(p.tram.tram) || p.tram.tram < 0 || p.tram.tram >= trams ||
       !Number.isInteger(p.tram.since) || p.tram.since < 0 || p.inVehicle)) throw Error('Save has an invalid tram ride.');
+  const commuteLines = cityTramLines(w);
+  for (const p of peopleList(w)) if (p.tramTrip) {
+    const trip = p.tramTrip, line = commuteLines[trip.line];
+    if (!w.options.continuousTime || !line || !Number.isInteger(trip.line) || p.inVehicle || p.tram ||
+        trip.boardLoop < 0 || trip.boardLoop >= tramRoute(line).loop ||
+        trip.dropLoop < 0 || trip.dropLoop >= tramRoute(line).loop ||
+        trip.since < 0 || trip.since > (w.week + 1) * weekDuration(w) ||
+        trip.phase === 'riding' && (trip.tram == null || !Number.isInteger(trip.tram) ||
+          trip.tram < 0 || trip.tram >= tramCount(w) || trip.lastLoop == null || trip.remaining == null))
+      throw Error('Save has an invalid tram commute.');
+  }
   for (const p of peopleList(w)) for (const channel of [p.hostility, p.fear]) {
     if (channel && Object.entries(channel).some(([id, v]) => !w.gangs[Number(id)] || !Number.isInteger(v) || v < 0 || v > 255))
       throw Error('Save has invalid hostility or fear.');

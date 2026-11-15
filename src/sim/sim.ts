@@ -25,6 +25,7 @@ import { allocateWeapons } from './weapons';
 import { tickAmbient } from './systems/ambient';
 import { scanStreetSlice, tickTraffic, trafficContext } from './traffic';
 import { TRAM_RIDING, tickTramRiding } from './tramRiding';
+import { tickTramCommutes } from './tramCommute';
 import { capturePeaceFireExclusions, tickCombat } from './systems/combat';
 import { sightingCells, tickSightings } from './systems/sightings';
 import { blockClaimants } from './territory';
@@ -283,8 +284,9 @@ export class Sim {
       scanStreetSlice(w, index, AMBIENT_SLICES);
     }
     w.ambientSlicesDone = 0;
-    // Pedestrians catch, board, ride and leave the street trams. Off, as in the
-    // shipped game, where nothing sets the walk order's riding flag.
+    // Long RTS journeys can use the live tram service. The separate exact
+    // original walk-order rule remains behind its historical flag.
+    if (w.options.continuousTime) tickTramCommutes(w);
     if (TRAM_RIDING) tickTramRiding(w);
     const loadout = allocateWeapons(w);
     const peaceFireExclusions = capturePeaceFireExclusions(w, loadout);

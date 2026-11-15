@@ -197,6 +197,24 @@ export interface Person {
   /** Original city: walking to a street tram that stands for him, or riding
    * it (tramRiding.ts: 0x5DCDF0, 0x6220E0, goal 10 of 0x5D2740). */
   tram?: TramRide;
+  /** Planned long-distance trip on the city's scheduled tram service. */
+  tramTrip?: TramTrip;
+}
+
+export interface TramTrip {
+  line: number;
+  boardLoop: number;
+  dropLoop: number;
+  outbound: boolean;
+  boardPos: Vec2;
+  alightPos: Vec2;
+  finalDest: Vec2;
+  phase: 'approaching' | 'waiting' | 'riding';
+  since: number;
+  waitSince?: number;
+  tram?: number;
+  lastLoop?: number;
+  remaining?: number;
 }
 
 /** A walker's tram ride (tramRiding.ts). */

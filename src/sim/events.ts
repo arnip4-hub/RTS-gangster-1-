@@ -79,7 +79,7 @@ export function witnessesNear(w: WorldState, pos: Vec2, radius: number, exclude:
     if (p.role !== 'citizen' && p.role !== 'owner' && p.role !== 'police' && p.role !== 'clergy' && p.role !== 'reporter')
       continue;
     // A tram's riders are off the map's cell lists while they ride (0x712810).
-    if (p.tram?.phase === 'riding') continue;
+    if (p.tram?.phase === 'riding' || p.tramTrip?.phase === 'riding') continue;
     if (dist2(p.pos, pos) <= r2) out.push(p);
   }
   return out;

@@ -7,6 +7,7 @@ import { dist } from './world';
 import { blockRect, cityBlockAt, cityStreetInset, streetRouteNodes } from './cityLayout';
 import { onRoad, vehiclePathOnRoad, vehicleRoute } from './vehicleNavigation';
 import { peopleList } from './entityLists';
+import { cancelTramTrip, planTramTrip } from './tramCommute';
 
 /** The middle of the footway, from the street's centre line. */
 const K = PAVEMENT_OFFSET;
@@ -58,6 +59,7 @@ export function finishMovementTick(w: WorldState): void {
 
 /** Give a person a destination and a route to reach it. */
 export function setDestination(w: WorldState, p: Person, to: Vec2): void {
+  if (p.tramTrip) cancelTramTrip(w, p);
   const car = vehicleOf(w,p);
   if(p.inVehicle && car && car.driverId !== p.id){syncVehicle(w,car);return;}
   p.dest = { x: to.x, y: to.y };
@@ -69,7 +71,12 @@ export function setDestination(w: WorldState, p: Person, to: Vec2): void {
     p.path = route.path;
     if(car){car.destination={...to};syncVehicle(w,car);}
   } else {
-    p.path = walkRoute(p.pos, to, p.id, w);
+    const trip = planTramTrip(w, p, to);
+    if (trip) {
+      p.tramTrip = trip;
+      p.dest = { ...trip.boardPos };
+      p.path = walkRoute(p.pos, trip.boardPos, p.id, w);
+    } else p.path = walkRoute(p.pos, to, p.id, w);
   }
 }
 
@@ -300,6 +307,7 @@ function crossingHasTraffic(t: TrafficContext, at: Vec2, next: Vec2): boolean {
  * for anyone on a crossing in the road ahead.
  */
 export function stepPerson(p: Person, minutes: number, traffic?: TrafficContext, world = traffic?.world): boolean {
+  if (p.tramTrip?.phase === 'waiting' || p.tramTrip?.phase === 'riding') return false;
   if(world && p.inVehicle && vehicleDriver(world,p)!==p){
     const car=vehicleOf(world,p)!;syncVehicle(world,car);return !p.dest;
   }

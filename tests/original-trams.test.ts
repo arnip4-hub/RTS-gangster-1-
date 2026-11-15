@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { defaultGameOptions, newCampaignOptions } from '../src/app/newGame';
 import { createWorld } from '../src/sim/citygen';
-import { CELL, MINUTES_PER_WEEK } from '../src/sim/constants';
+import { CELL, MINUTES_PER_WEEK, movementScale } from '../src/sim/constants';
+import { weekDuration } from '../src/sim/calendar';
 import { validateSaveWorld } from '../src/sim/saveSchema';
 import {
   TRAMS_PER_DIRECTION, TRAM_SPEED, TRAM_STOP_DWELL, TRAM_TRACK, cityTramLines, originalTramLines, tramLineValid, tramsAt,
@@ -100,7 +101,7 @@ describe('original city trams', () => {
     expect(tramsAt(clone(original), 1234.5)).toEqual(a);
     const later = clone(original);
     later.week = (original.week ?? 1) + 1;
-    expect(tramsAt(later, 100)).toEqual(tramsAt(original, MINUTES_PER_WEEK + 100));
+    expect(tramsAt(later, 100)).toEqual(tramsAt(original, weekDuration(original) + 100));
   });
 
   it('moves at the cars’ pace and never closes the gap on the tram ahead', () => {
@@ -109,7 +110,8 @@ describe('original city trams', () => {
       const now = tramsAt(original, time), next = tramsAt(original, time + 10);
       now.forEach((t, k) => {
         const u = next[k];
-        if (u.outbound === t.outbound) expect(Math.abs(u.along - t.along)).toBeCloseTo(10 * TRAM_SPEED, 6);
+        if (u.outbound === t.outbound)
+          expect(Math.abs(u.along - t.along)).toBeCloseTo(10 * TRAM_SPEED * movementScale(!!original.options.continuousTime), 6);
       });
       lines.forEach((line, li) => {
         const length = Math.hypot(line.points[1].x - line.points[0].x, line.points[1].y - line.points[0].y);

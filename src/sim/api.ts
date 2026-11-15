@@ -1361,7 +1361,7 @@ export function clearStreetOrder(w: WorldState, personIds: ID[]): ApiResult {
   for (const id of personIds) {
     const p = w.people[id];
     if (!p?.streetOrder) continue;
-    p.streetOrder = null; clearDestination(p);
+    p.streetOrder = null; delete p.tramTrip; clearDestination(p);
     // A driver stopped: passengers still on a street order go on, on foot
     // (they had no route of their own and sat there for good).
     const car = p.inVehicle && p.vehicleKey ? w.vehicleFleet?.[p.vehicleKey] : undefined;
