@@ -63,6 +63,7 @@ import {SculptRubble,rubblePiles,type RubblePlacement} from './sculptRubble';
 import { bossInsideOffice, characterPriority, streetPersonVisible, useDetailedModels, carriesExplosives, workingInside } from './characterPresentation';
 import { characterInView, characterNeedsDetail, characterPixelHeight, DETAIL_KEEP_METRES, MAX_DETAILED_STREET_CHARACTERS } from './characterDetail';
 import { graphicsPixelRatio, LIGHT_DETAILED_STREET_CHARACTERS, readGraphicsQuality, type GraphicsQuality } from './graphicsQuality';
+import { readVisualStyle } from './visualStyle';
 import { previewActorMotion, previewStreetPosition, type PreviewActorMotion } from './previewActorMotion';
 import { kerbside, roadHeading } from '../sim/vehicleNavigation';
 import { previewVehicle } from '../sim/movement';
@@ -215,6 +216,7 @@ export class CityRenderer {
   readonly camera: THREE.OrthographicCamera;
   private renderer: THREE.WebGLRenderer;
   private graphicsQuality: GraphicsQuality = readGraphicsQuality();
+  private readonly visualStyle = readVisualStyle();
   private world: WorldState;
   private tex: CityTextures;
   private ownedTextures = new TextureOwner();
@@ -469,6 +471,7 @@ export class CityRenderer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.32;
+    if (this.visualStyle === 'illustrated') this.renderer.toneMappingExposure = 1.12;
 
     this.camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -2000, 4000);
     const cityW = world.gridW * CELL;
@@ -552,9 +555,11 @@ export class CityRenderer {
 
     // The painted city is on screen already; the photographed one replaces it
     // texture by texture as the files come in.
-    void loadCityArt().then((art) => {
-      if (!this.disposed) this.applyArt(art);
-    });
+    if (this.visualStyle === 'detailed') {
+      void loadCityArt().then((art) => {
+        if (!this.disposed) this.applyArt(art);
+      });
+    }
   }
 
   /** Swap the delivered textures into the materials that are already in use. */
@@ -976,9 +981,10 @@ export class CityRenderer {
     this.headlamps = new InstancePool(vehicleLightGeometry(), this.headlampMat, capacity, { dynamic: true });
     for (const p of [this.sedans, this.trucks, this.speedsters, this.headlamps]) this.scene.add(p.mesh);
     // Delivered models are the default. Explicit switches retain the audit/fallback views.
-    this.preferVehicleSprites = new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
+    this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
+      new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
     if (this.preferVehicleSprites) this.ensureVehicleSprites();
-    this.preferSculptModels = useDetailedModels(window.location.search);
+    this.preferSculptModels = this.visualStyle === 'detailed' && useDetailedModels(window.location.search);
     if (this.preferSculptModels) this.ensureSculptModels();
     this.syncVehiclePresentation();
   }

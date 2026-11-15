@@ -171,6 +171,12 @@ test saves remain accessible after the application is renamed.
 
 ## Getting started
 
+Game Options offers **Illustrated 1930s (preview)** under City artwork. It keeps
+the remake's painted city textures and uses its own directional car sprites
+instead of the delivered detailed models. Save and reopen the city after
+changing this setting. It is independent of Light graphics. The prototype and
+the next visual steps are described in [Art direction](docs/ART_DIRECTION.md).
+
 ```bash
 git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git
 cd RTS-gangster-1-

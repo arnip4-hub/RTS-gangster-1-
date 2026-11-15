@@ -63,6 +63,7 @@ export function OptionsTab() {
   const mouseReversal = useGame((s) => s.mouseReversal);
   const textureQuality = useGame((s) => s.textureQuality);
   const graphicsQuality = useGame((s) => s.graphicsQuality);
+  const visualStyle = useGame((s) => s.visualStyle);
   const bureauGauges = useGame((s) => s.bureauGauges);
   const setRoadNames = useGame((s) => s.setRoadNames);
   const setAutoLowerRoofs = useGame((s) => s.setAutoLowerRoofs);
@@ -197,6 +198,17 @@ export function OptionsTab() {
         </button>
         <div className="muted tiny" style={{ marginTop: 6 }}>
           Lowers drawing resolution, removes real-time shadows and uses fewer detailed people. Applies immediately; game activity stays the same.
+        </div>
+        <div className="tiny" style={{ marginTop: 12 }}>City artwork</div>
+        <div className="row" role="group" aria-label="City artwork" style={{ gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+          <button aria-pressed={visualStyle === 'detailed'} className={`btn sm${visualStyle === 'detailed' ? ' on' : ''}`}
+            onClick={() => useGame.getState().setVisualStyle('detailed')}>Detailed</button>
+          <button aria-pressed={visualStyle === 'illustrated'} className={`btn sm${visualStyle === 'illustrated' ? ' on' : ''}`}
+            onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
+        </div>
+        <div className="muted tiny" style={{ marginTop: 6 }}>
+          Illustrated keeps the game's hand-painted city textures and uses drawn cars. It is an early visual experiment,
+          not artwork from the 1998 game. Save and reopen the city to apply it; graphics quality is a separate setting.
         </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>

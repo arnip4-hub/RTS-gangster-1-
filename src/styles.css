@@ -3512,6 +3512,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   pointer-events: none;
   z-index: 5;
 }
+/* The live journal must receive clicks above the street HUD while it is open. */
+.organizer-frame.live-organizer { z-index: 7; }
 .organizer-frame > * { pointer-events: auto; }
 .organizer-frame .journal-tabs {
   position: static;
