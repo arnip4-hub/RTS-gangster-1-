@@ -1,12 +1,14 @@
 import { BLOCK_SIZE, CELL } from '../constants';
-import { hourOfDay } from '../calendar';
+import { FULL_DAY_MINUTES, hourOfDay } from '../calendar';
 import { presentPhoto } from '../presentationEvents';
 import { specialistParticipants, specialistVisitTargets } from '../specialistJobs';
 import { clearDestination, earlySteps, setDestination, stepPerson } from '../movement';
 import { trafficContext } from '../traffic';
 import { peopleSlice } from '../peopleSlices';
+import { hash32 } from '../hash';
+import { alight } from '../transport';
 import type { Rng } from '../rng';
-import type { Block, Person, WorldState } from '../types';
+import type { Block, Building, Person, PersonRole, WorldState } from '../types';
 import { allBuildings, buildingDoor, dist } from '../world';
 
 /**
@@ -49,6 +51,8 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
   {
     if (p.orderId != null || p.streetOrder != null) return; // already handled by an order system
     if (p.fbiAssignment) return;
+    const continuous = !!w.options.continuousTime;
+    const night = continuous && isNight(w.minute);
     // Walking to a street tram that stands for him, or aboard (tramRiding.ts).
     if (p.tram) { if (p.tram.phase === 'boarding' && p.dest) stepPerson(p, minutes, traffic); return; }
     if (meeting.has(p.id)) return;
@@ -63,6 +67,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       else if (p.dest) clearDestination(p);
       return;
     }
+    if (continuous && homeAtNight(w, p, night, minutes, traffic)) return;
     if (p.buildingId != null && p.role !== 'police' && p.role !== 'fbi' && p.role !== 'snitch' && p.role !== 'reporter') {
       // Owners and managers stay at their premises.
       return;
@@ -72,14 +77,16 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       case 'citizen':
       case 'snitch': {
         if (!p.dest) {
-          // The original's civilians are nearly always walking: on arrival a
-          // wait of rand & 7 ticks, then the next errand (0x5D2740 idle branch,
-          // 0x5D25A0). A brief pause here — about two real seconds.
-          const night = w.options.continuousTime && isNight(w.minute);
-          const restart = night ? p.role === 'snitch' ? 1.1 : 0.4 : CIVILIAN_RESTART;
-          if (rng.chance(Math.min(1, restart * minutes))) wanderTo(w, rng, p, 5, night);
+          // The original's civilians are nearly always walking during the day.
+          // In an RTS night most go home; only the small night-life group gets
+          // a destination in the evening.
+          const restart = night ? p.role === 'snitch' ? .18 : .1 : CIVILIAN_RESTART;
+          if (rng.chance(Math.min(1, restart * minutes))) {
+            if (night && nightOut(w, p)) goToNightVenue(w, p);
+            else if (!night) wanderTo(w, rng, p, 5);
+          }
         } else {
-          stepPerson(p, minutes, traffic);
+          if (stepPerson(p, minutes, traffic) && night) enterNightVenue(w, p);
         }
         break;
       }
@@ -90,7 +97,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
         // A field reporter works the street; he is not inside the newspaper.
         if (premises) p.buildingId = null;
         if (p.dest) stepPerson(p, minutes, traffic);
-        else if (rng.chance((w.options.continuousTime && isNight(w.minute) ? .04 : .08) * minutes)) wanderTo(w, rng, p, 2);
+        else if (!night && rng.chance(.08 * minutes)) wanderTo(w, rng, p, 2);
         // A stationary field reporter occasionally takes a photograph. This
         // visual cue uses no random draw and does not alter travel or reporting.
         if(!p.dest && (w.minute+p.id)%17===0)presentPhoto(w,p);
@@ -101,16 +108,16 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       case 'mayor':
       case 'policeChief':
       case 'fbiHead': {
-        // Visible civic visitors can leave their initial block-centre spawn.
-        // Their legal/political work still uses the existing simulation systems.
+        // Civic officials leave the street and go home overnight. Their
+        // legal/political work still uses the existing simulation systems.
         if (p.dest) stepPerson(p, minutes, traffic);
-        else if (rng.chance(.03 * minutes)) wanderTo(w, rng, p, 1);
+        else if (!night && rng.chance(.03 * minutes)) wanderTo(w, rng, p, 1);
         break;
       }
       case 'police': {
         if (!p.dest) {
-          // Officers off duty walk their beat rather than stand on the kerb.
-          if (rng.chance(Math.min(1, (w.options.continuousTime && isNight(w.minute) ? .8 : BEAT_RESTART) * minutes))) wanderTo(w, rng, p, 2);
+          // A small night patrol remains visible; most officers are at home.
+          if (rng.chance(Math.min(1, (night ? .08 : BEAT_RESTART) * minutes))) wanderTo(w, rng, p, 2);
         } else {
           stepPerson(p, minutes, traffic);
         }
@@ -119,7 +126,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       case 'fbi': {
         if (p.dest) {
           stepPerson(p, minutes, traffic);
-        } else if (rng.chance(0.04 * minutes)) {
+        } else if (!night && rng.chance(0.04 * minutes)) {
           wanderTo(w, rng, p, 4);
         }
         break;
@@ -150,6 +157,136 @@ const isNight = (minute: number) => {
   const hour = hourOfDay(minute, true);
   return hour < 6 || hour >= 20;
 };
+
+const NIGHT_HOME_ROLES = new Set<PersonRole>([
+  'citizen', 'snitch', 'police', 'policeChief', 'mayor', 'judge', 'da', 'fbiHead', 'fbi', 'reporter',
+]);
+const NIGHTLIFE_TYPES = new Set([
+  'cafe', 'restaurant', 'poolHall', 'hotelSmall', 'hotelLarge', 'danceStudio', 'speakeasy',
+  'casino', 'cardGames', 'diceGame', 'gamblingDen', 'prizeFight', 'whorehouse',
+]);
+const residentialCache = new WeakMap<WorldState, Building[]>();
+const nightlifeCache = new WeakMap<WorldState, Building[]>();
+
+function residential(b: Building): boolean {
+  return (b.cls === 'residential' || b.cls === 'tenement') && b.state !== 'destroyed';
+}
+
+/** Assigns an old save a deterministic home without changing its first-day layout. */
+function homeFor(w: WorldState, p: Person): Building | undefined {
+  const saved = p.homeBuildingId == null ? undefined : w.buildings[p.homeBuildingId];
+  if (saved && residential(saved)) return saved;
+  let homes = residentialCache.get(w);
+  if (!homes) {
+    homes = allBuildings(w).filter(residential).sort((a, b) => a.id - b.id);
+    residentialCache.set(w, homes);
+  }
+  if (!homes.length) return undefined;
+  const selected = homes[hash32(p.id * 2654435761) % homes.length];
+  const home = residential(selected) ? selected : homes.find(residential);
+  if (!home) return undefined;
+  p.homeBuildingId = home.id;
+  return home;
+}
+
+function nightOut(w: WorldState, p: Person): boolean {
+  const day = Math.floor(w.minute / FULL_DAY_MINUTES);
+  const threshold = p.role === 'snitch' ? 32 : p.role === 'police' ? 8 : 10;
+  return hash32(p.id * 2246822519 + day * 3266489917) % 100 < threshold;
+}
+
+function nightVenue(w: WorldState, p: Person): Building | undefined {
+  let venues = nightlifeCache.get(w);
+  if (!venues) {
+    venues = allBuildings(w).filter(b => NIGHTLIFE_TYPES.has(b.typeId)).sort((a, b) => a.id - b.id);
+    nightlifeCache.set(w, venues);
+  }
+  if (!venues.length) return undefined;
+  const day = Math.floor(w.minute / FULL_DAY_MINUTES);
+  const start = hash32(p.id * 668265263 + day * 374761393) % venues.length;
+  for (let i = 0; i < venues.length; i++) {
+    const venue = venues[(start + i) % venues.length];
+    if (venue.state === 'trading') return venue;
+  }
+  return undefined;
+}
+
+function enterHome(w: WorldState, p: Person, home: Building): void {
+  clearDestination(p);
+  p.buildingId = home.id;
+  p.inVehicle = false;
+  p.pos = { ...w.lots[home.lotId].center };
+}
+
+function leaveHome(w: WorldState, p: Person, home: Building): void {
+  if (p.buildingId !== home.id) return;
+  p.buildingId = null;
+  p.pos = buildingDoor(w, home);
+}
+
+function goHome(w: WorldState, p: Person, home: Building, minutes: number, traffic: ReturnType<typeof trafficContext>): boolean {
+  if (p.buildingId === home.id) return true;
+  if (p.inVehicle) alight(w, p);
+  const target = buildingDoor(w, home);
+  if (!p.dest || dist(p.dest, target) > 1) {
+    clearDestination(p);
+    setDestination(w, p, target);
+  }
+  if (stepPerson(p, minutes, traffic)) enterHome(w, p, home);
+  return true;
+}
+
+function goToNightVenue(w: WorldState, p: Person): void {
+  const venue = nightVenue(w, p);
+  if (!venue) return;
+  if (p.buildingId != null) p.buildingId = null;
+  if (p.inVehicle) alight(w, p);
+  clearDestination(p);
+  setDestination(w, p, buildingDoor(w, venue));
+}
+
+function enterNightVenue(w: WorldState, p: Person): void {
+  const venue = nightVenue(w, p);
+  if (venue && dist(p.pos, buildingDoor(w, venue)) < 5) {
+    clearDestination(p);
+    p.buildingId = venue.id;
+    p.pos = { ...w.lots[venue.lotId].center };
+  }
+}
+
+/** Returns true when the night schedule owns this person's ambient movement. */
+function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
+  traffic: ReturnType<typeof trafficContext>): boolean {
+  if (!NIGHT_HOME_ROLES.has(p.role)) return false;
+  const home = homeFor(w, p);
+  if (!home) return false;
+  if (!night) {
+    if (p.buildingId === home.id) leaveHome(w, p, home);
+    else if (p.role === 'citizen' && p.buildingId != null) {
+      // A citizen's only other indoor location is last night's venue.
+      const venue = w.buildings[p.buildingId];
+      p.buildingId = null;
+      p.pos = venue ? buildingDoor(w, venue) : buildingDoor(w, home);
+    }
+    return false;
+  }
+
+  if (p.role === 'police' && nightOut(w, p)) {
+    if (p.buildingId === home.id) leaveHome(w, p, home);
+    return false;
+  }
+  const social = p.role === 'citizen' || p.role === 'snitch';
+  if (social && nightOut(w, p)) {
+    if (p.buildingId != null && p.buildingId !== home.id) return true;
+    if (p.buildingId === home.id) leaveHome(w, p, home);
+    const venue = nightVenue(w, p);
+    if (!venue) return goHome(w, p, home, minutes, traffic);
+    if (p.buildingId == null && venue && (!p.dest || dist(p.dest, buildingDoor(w, venue)) > 1)) goToNightVenue(w, p);
+    return false;
+  }
+  if (p.buildingId != null && p.buildingId !== home.id) p.buildingId = null;
+  return goHome(w, p, home, minutes, traffic);
+}
 
 /** How strongly a block draws errands (0x606840 reads block+104). That byte is
  * the land value (0x537D70 copies it from the generator grid), so the original

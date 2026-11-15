@@ -3,10 +3,10 @@ import { defaultGameOptions } from '../src/app/newGame';
 import { issueOrder, issueStreetOrder } from '../src/sim/api';
 import { FULL_DAY_MINUTES, FULL_WEEK_MINUTES, campaignMinute, weekDuration } from '../src/sim/calendar';
 import { CELL } from '../src/sim/constants';
-import { setDestination } from '../src/sim/movement';
+import { clearDestination, setDestination } from '../src/sim/movement';
 import { Sim } from '../src/sim/sim';
 import { tickAmbient } from '../src/sim/systems/ambient';
-import { dayIndex, dayPhase, dist } from '../src/sim/world';
+import { buildingDoor, dayIndex, dayPhase, dist } from '../src/sim/world';
 import { weekTime } from '../src/ui/WeekClock';
 
 const options = () => ({ ...defaultGameOptions(), continuousTime: true, seed: 404, citySize: 10 });
@@ -138,5 +138,40 @@ describe('continuous RTS calendar', () => {
     }
     expect(dist(walker.pos, before)).toBeGreaterThan(0);
     expect(dayPhase(w.minute, true)).toBeLessThan(0.1);
+  });
+
+  it('sends most people home at night, leaves a small nightlife group out, and brings officials back by morning', () => {
+    const sim = new Sim(options());
+    sim.launchWeek();
+    const w = sim.world;
+    const mayor = w.people[w.mayorId];
+    const citizens = Object.values(w.people).filter(p => p.role === 'citizen').slice(0, 120);
+    w.minute = 20 * 60;
+
+    // Give the ambient scheduler one tick to assign deterministic homes and
+    // evening destinations, then put everyone at the door for a focused test
+    // of the indoor/outdoor transition itself.
+    tickAmbient(w, sim.rng, 1);
+    for (const p of [mayor, ...citizens]) {
+      const home = p.homeBuildingId == null ? undefined : w.buildings[p.homeBuildingId];
+      if (!home) continue;
+      p.buildingId = null;
+      p.pos = buildingDoor(w, home);
+      clearDestination(p);
+    }
+    tickAmbient(w, sim.rng, 1);
+
+    expect(mayor.homeBuildingId).toBeDefined();
+    expect(mayor.buildingId).toBe(mayor.homeBuildingId);
+    const atHome = citizens.filter(p => p.buildingId === p.homeBuildingId).length;
+    expect(atHome).toBeGreaterThan(citizens.length * 0.7);
+    const nightlife = citizens.filter(p => p.buildingId != null && p.buildingId !== p.homeBuildingId).length +
+      citizens.filter(p => p.dest != null).length;
+    expect(nightlife).toBeGreaterThan(0);
+    expect(nightlife).toBeLessThan(citizens.length * 0.3);
+
+    w.minute = 12 * 60;
+    tickAmbient(w, sim.rng, 1);
+    expect(mayor.buildingId).toBeNull();
   });
 });

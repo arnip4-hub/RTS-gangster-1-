@@ -101,6 +101,8 @@ export interface Person {
   teamId: ID | null;
   /** Building this person is the manager/owner/resident of, if any. */
   buildingId: ID | null;
+  /** Stable home used by the continuous-time city schedule. Optional for old saves. */
+  homeBuildingId?: ID;
   pay: number;
   payDemand: number;
   /** 0..100. Falls with unpaid wages, refused raises, deaths at HQ. */

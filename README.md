@@ -24,10 +24,12 @@ page and the Windows build workflow.
   now opens the same overhead map used in the Organizer, with drag and zoom
   controls; **Rooftop** and **Street** return to the 3D city at that location.
   New campaigns run through all 24 hours of Monday through Sunday, with city
-  lighting and street activity changing at night. Weekly finances still settle,
-  but the city stays open: people, cars and unfinished orders keep their
-  positions and continue into the next week. The Organizer remains available
-  on demand.
+  lighting and street activity changing at night. Most residents go home after
+  dark; a small nightlife crowd heads for cafes, pool halls, hotels, clubs and
+  gambling rooms, while officials and most police go home. Weekly finances
+  still settle, but the city stays open: people, cars and unfinished orders
+  keep their positions and continue into the next week. The Organizer remains
+  available on demand.
 - **Still to build:** simpler group selection and move orders, better live reports,
   and a deeper redesign of weekly orders and accounting so the game can become
   a full RTS. Automatic week rollover does not remove weekly rules yet.
