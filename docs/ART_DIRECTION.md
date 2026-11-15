@@ -14,6 +14,8 @@ its simpler character presentation. The perspective, simulation, selection
 and day/night cycle stay intact. This option applies when the city next opens.
 It is a visual experiment, not a finished replacement art set.
 
+![First illustrated street preview](images/illustrated-street-preview.png)
+
 ## What the prototype reveals
 
 The illustrated textures make the street less photographic. The repeated
