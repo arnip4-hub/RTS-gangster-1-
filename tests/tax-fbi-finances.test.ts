@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultGameOptions, newCampaignOptions } from '../src/app/newGame';
 import { buyVehicle, hireRecruit, sackPerson, sellBuilding, sellVehicle } from '../src/sim/api';
-import { MINUTES_PER_WEEK } from '../src/sim/constants';
+import { minuteRate } from '../src/sim/constants';
+import { weekDuration } from '../src/sim/calendar';
 import { openFinances, payCash, receiveCash } from '../src/sim/finances';
-import { Sim, MINUTES_PER_SECOND } from '../src/sim/sim';
+import { Sim } from '../src/sim/sim';
 import { weeklyFbi } from '../src/sim/systems/fbi';
 import { weeklyLaw } from '../src/sim/systems/law';
 import { accountantSkillByte, exposeTaxRecords, originalLevy, weeklyTaxes } from '../src/sim/systems/taxes';
@@ -25,8 +26,8 @@ function fixture(accountant = false) {
   return { sim, w, g, acct };
 }
 function settle(sim: Sim) {
-  sim.launchWeek(); sim.world.minute = MINUTES_PER_WEEK - 1;
-  sim.advance(1 / MINUTES_PER_SECOND, 1);
+  sim.launchWeek(); sim.world.minute = weekDuration(sim.world) - 1;
+  sim.advance(1 / minuteRate(!!sim.world.options.continuousTime), 1);
 }
 function previousLegal(s: ReturnType<typeof fixture>, legal: number) {
   s.w.week = 2; s.g.finances!.week = 2;

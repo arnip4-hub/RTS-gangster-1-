@@ -3,7 +3,7 @@ import { defaultGameOptions, newCampaignOptions } from '../src/app/newGame';
 import { streetPersonVisible } from '../src/render/characterPresentation';
 import { createWorld } from '../src/sim/citygen';
 import { cityStreetInset } from '../src/sim/cityLayout';
-import { CELL, PAVEMENT_OFFSET } from '../src/sim/constants';
+import { CELL, PAVEMENT_OFFSET, movementScale } from '../src/sim/constants';
 import { peopleList } from '../src/sim/entityLists';
 import { witnessesNear } from '../src/sim/events';
 import { stepPerson } from '../src/sim/movement';
@@ -157,7 +157,7 @@ describe('riding a tram', () => {
       const half = tramsAt(w, w.minute + .5), now = tramsAt(w, w.minute);
       expect([half[k].x, half[k].y]).toEqual([stood.x, stood.y]);
       expect(half[k].halted).toBe(true);
-      expect(Math.abs(half[other].along - now[other].along)).toBeCloseTo(TRAM_SPEED / 2, 9);
+      expect(Math.abs(half[other].along - now[other].along)).toBeCloseTo(TRAM_SPEED * movementScale(!!w.options.continuousTime) / 2, 9);
       minute(w, p);
       minutes++;
     }
@@ -172,7 +172,7 @@ describe('riding a tram', () => {
       minute(w, p);
       const t = tramsAt(w, w.minute)[k];
       expect(p.pos).toEqual({ x: t.x, y: t.y });
-      expect(t.along - stood.along).toBeCloseTo((i + 1) * TRAM_SPEED, 6);
+      expect(t.along - stood.along).toBeCloseTo((i + 1) * TRAM_SPEED * movementScale(!!w.options.continuousTime), 6);
     }
     expect(p.dest).toBeNull();
     expect(streetPersonVisible(p, null)).toBe(false);
@@ -222,7 +222,7 @@ describe('riding a tram', () => {
     // The tram behind it round the loop, brought up to 10 m short of it.
     const behind = trams.map((t, i) => ({ i, gap: ((trams[k].loop - t.loop) % loop + loop) % loop }))
       .filter(({ i }) => i !== k && trams[i].line === 0).sort((a, b) => a.gap - b.gap)[0];
-    w.trams!.delay[behind.i] = -(behind.gap - 10) / TRAM_SPEED;
+    w.trams!.delay[behind.i] = -(behind.gap - 10) / (TRAM_SPEED * movementScale(!!w.options.continuousTime));
     w.minute++;
     tickTramRiding(w);
     expect(w.trams!.halted[k]).toBe(true);
