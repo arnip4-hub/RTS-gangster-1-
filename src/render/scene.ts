@@ -2713,19 +2713,20 @@ export class CityRenderer {
 
   /** Day/night colouring across the working week. */
   private applyTimeOfDay(): number {
-    const phase = this.world.phase === 'week' ? dayPhase(this.world.minute) : 0.36;
-    // The working day runs 8am to 4pm, so every minute of it is daylight: the
-    // sun only climbs from a low morning angle to midday and back down again.
-    const noon = Math.sin(Math.PI * clamp(0.28 + 0.44 * phase, 0, 1));
-    // The last hour of business goes golden and then flat.
-    const dusk = smoothstep(0.74, 1.0, phase);
+    const continuous = this.world.phase === 'week' && !!this.world.options.continuousTime;
+    const phase = this.world.phase === 'week' ? dayPhase(this.world.minute, continuous) : 0.36;
+    const hour = phase * 24;
+    const noon = continuous ? Math.max(0, Math.sin(Math.PI * (hour - 6) / 14))
+      : Math.sin(Math.PI * clamp(0.28 + 0.44 * phase, 0, 1));
+    const dusk = continuous ? 1 - smoothstep(5.5, 7, hour) * (1 - smoothstep(18, 20, hour))
+      : smoothstep(0.74, 1.0, phase);
 
     // As in the original's pre-lit street view, the sun comes from the
     // viewer's upper left whichever way the camera faces: the wall on the left
     // of the screen in full sun, the right one a little less, far faces in
     // shadow. Only its height follows the day.
     const side = this.flipped ? -1 : 1;
-    const elev = 0.35 + noon * 0.95;
+    const elev = (continuous ? 0.18 : 0.35) + noon * 0.95;
     const across = new THREE.Vector2(side * 0.35, side * 1.0).normalize().multiplyScalar(280);
     this.sun.position
       .copy(this.target)
@@ -2736,23 +2737,25 @@ export class CityRenderer {
     // The original's street view sits in strong, warm sunlight all day with
     // deep shadow on the far faces (playtest, 28 September: warmer, higher
     // contrast). A strong warm sun with less fill; the day still swings.
-    this.sun.intensity = 2.2 + noon * 1.0;
+    // Moonlight and street bounce leave people and roads readable after dark.
+    this.sun.intensity = continuous ? 0.25 + noon * 2.95 : 2.2 + noon * 1.0;
     this.sun.color.setRGB(1, lerp(0.8, 0.9, noon), lerp(0.58, 0.72, noon));
-    this.hemi.intensity = 0.5 + noon * 0.4;
+    this.hemi.intensity = continuous ? 0.45 + noon * 0.45 : 0.5 + noon * 0.4;
     this.hemi.color.setRGB(lerp(0.55, 0.62, noon), lerp(0.6, 0.7, noon), lerp(0.78, 0.85, noon));
     // Match the gain-four horizontal direction; I * direction.y is unchanged.
-    this.bounce.intensity = (0.15 + noon * 0.2) * (Math.hypot(720, 120, 560) / Math.hypot(180, 120, 140));
+    this.bounce.intensity = (continuous ? 0.12 + noon * 0.23 : 0.15 + noon * 0.2) *
+      (Math.hypot(720, 120, 560) / Math.hypot(180, 120, 140));
 
     const sky = new THREE.Color().setRGB(
-      lerp(0.1, 0.42, noon) + dusk * 0.16,
-      lerp(0.1, 0.48, noon) - dusk * 0.03,
-      lerp(0.15, 0.56, noon) - dusk * 0.08,
+      continuous ? lerp(0.025, 0.42, noon) : lerp(0.1, 0.42, noon) + dusk * 0.16,
+      continuous ? lerp(0.035, 0.48, noon) : lerp(0.1, 0.48, noon) - dusk * 0.03,
+      continuous ? lerp(0.065, 0.56, noon) : lerp(0.15, 0.56, noon) - dusk * 0.08,
     );
     (this.scene.background as THREE.Color).copy(sky);
     if (this.scene.fog) (this.scene.fog as THREE.Fog).color.copy(sky);
 
-    // Windows come on as the afternoon light goes.
-    const lightUp = smoothstep(0.66, 1.0, phase);
+    // In the continuous city, windows and lamps stay on through the night.
+    const lightUp = continuous ? dusk : smoothstep(0.66, 1.0, phase);
     for (const m of this.facadeMats) m.emissiveIntensity = lightUp * 1.1;
     this.shopMat.emissiveIntensity = lightUp * 0.9;
     this.glowMat.opacity = dusk * 0.95;

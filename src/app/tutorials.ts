@@ -120,5 +120,6 @@ export function captureTutorialProgress(w: WorldState): number[] {
 
 /** The player's identity kept, the lesson's quiet city set. */
 export function applyTutorial(base: GameOptions, tutorial: Tutorial): GameOptions {
-  return { ...base, ...tutorial.options, cityHeight: tutorial.options.cityHeight, tutorialId: tutorial.id, scenarioId: undefined };
+  return { ...base, ...tutorial.options, continuousTime: false, cityHeight: tutorial.options.cityHeight,
+    tutorialId: tutorial.id, scenarioId: undefined };
 }

@@ -140,7 +140,9 @@ export function AccountantTab() {
           <button className="btn sm" aria-pressed={report === gang.finances} onClick={() => setPeriod('current')}>This week</button>
           <button className="btn sm" disabled={!gang.lastFinanceReport} aria-pressed={report === gang.lastFinanceReport} onClick={() => setPeriod('last')}>Last week</button>
         </div>
-        <Hint>{report.partial ? 'Partial report: some details from this older save are unavailable.' : 'Includes Monday planning purchases through Friday settlement.'}</Hint>
+        <Hint>{report.partial ? 'Partial report: some details from this older save are unavailable.' : w.options.continuousTime
+          ? 'Includes purchases and income through Sunday night settlement.'
+          : 'Includes Monday planning purchases through Friday settlement.'}</Hint>
         <div className="kv"><span>Opening cash</span><b>{money(report.openingCash)}</b></div>
         <div className="kv">
           <span>Legal income</span>

@@ -227,6 +227,9 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
 
 export function settleSpecialistJobs(w: WorldState): void {
   for (const j of Object.values(w.specialistJobs ?? {})) if (j.week === w.week && specialistJobActive(j)) {
+    // Visits already in progress continue into the next RTS week. An audit is
+    // still tied to this week's books and must close with its report.
+    if (w.options.continuousTime && j.type !== 'audit') continue;
     if (j.type === 'employPolice' && j.completed > 0) finish(w, j, 'done', `${j.completed} officers employed before the end of the week.`);
     else finish(w, j, 'failed', 'The visit was not completed before the end of the week.');
   }

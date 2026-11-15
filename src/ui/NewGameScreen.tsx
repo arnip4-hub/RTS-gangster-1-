@@ -71,7 +71,8 @@ export function NewGameScreen() {
   };
   const beginGame = () => {
     try {
-      startGame({ ...options, cityLayout: 'varied', playerPortrait: options.playerPortrait || portraitFromName(options.playerName) });
+      startGame({ ...options, continuousTime: options.tutorialId == null && options.scenarioId == null,
+        cityLayout: 'varied', playerPortrait: options.playerPortrait || portraitFromName(options.playerName) });
     } catch (error) {
       if (error instanceof TerritoryTargetError) {
         setCapacity({ key: capacityKey(options), maximum: error.maximum });

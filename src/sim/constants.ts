@@ -1,10 +1,10 @@
 import type { OrderType, VehicleId, WeaponId } from './types';
 
-/** Working week runs Monday..Friday, 8 working hours a day, one tick = one minute. */
+/** Classic save clock: Monday..Friday, eight working hours each day. */
 export const DAYS_PER_WEEK = 5;
 export const MINUTES_PER_DAY = 480;
 export const MINUTES_PER_WEEK = DAYS_PER_WEEK * MINUTES_PER_DAY;
-export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+export const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 /** Working day starts at 8am. */
 export const DAY_START_HOUR = 8;
 

@@ -455,6 +455,19 @@
             "type": "number"
           }
         },
+        "continuousTime": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
         "playerName": {
           "optional": false,
           "shape": {

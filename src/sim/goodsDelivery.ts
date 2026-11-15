@@ -1,4 +1,5 @@
 import { DRIVE_SPEED, MINUTES_PER_WEEK, VEHICLES } from './constants';
+import { FULL_DAY_MINUTES } from './calendar';
 import { BUILDING_BY_ID } from './data/buildings';
 import { goodsRetailer, goodsRoom } from './goodsStorage';
 import { roadAheadBlocked, roadAheadRoom, trafficContext } from './traffic';
@@ -12,7 +13,6 @@ const KINDS: GoodsKind[] = ['counterfeit', 'stolen', 'liquor'];
 /** Game minutes a delivery truck stays at the shop while its cases go in (playtest, 1 October). */
 export const UNLOAD_MINUTES = 8;
 export const DELIVERY_SPEED = DRIVE_SPEED * VEHICLES.truck.speed;
-const dayLength = MINUTES_PER_WEEK / 5;
 const owns = (b: Building | undefined, gangId: number): b is Building => !!b && b.ownerGangId === gangId && b.state === 'trading';
 
 /** Business employees automatically handle distribution. Their service trucks
@@ -21,7 +21,9 @@ const owns = (b: Building | undefined, gangId: number): b is Building => !!b && 
 function produce(w: WorldState, b: Building): void {
   const t = BUILDING_BY_ID[b.typeId];
   if (!t?.produces || b.state !== 'trading' || b.ownerGangId == null) return;
-  const day = Math.min(4, Math.floor(Math.max(0, w.minute - 1) / dayLength));
+  const dayLength = w.options.continuousTime ? FULL_DAY_MINUTES : MINUTES_PER_WEEK / 5;
+  const day = Math.floor(Math.max(0, w.minute - 1) / dayLength);
+  if (day >= 5) return; // production rests on Saturday and Sunday
   if (b.goodsProduction?.week === w.week && b.goodsProduction.day >= day) return;
   const mgr = b.managerId == null ? null : w.people[b.managerId];
   const rate = mgr?.status === 'active' ? .5 + mgr.skills.business * .14 : .6;

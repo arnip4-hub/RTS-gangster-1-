@@ -7,7 +7,7 @@ import { addMessage, recordCrime } from '../events';
 import { completeAmbush, killPerson } from '../execution';
 import { dismount, stepOut } from '../transport';
 import { onRoad, pavementBeside } from '../vehicleNavigation';
-import { MINUTES_PER_WEEK } from '../constants';
+import { stampedMinute } from '../calendar';
 import { fireRate, originalFireRoll } from '../fireRoll';
 import { presentAttack } from '../presentationEvents';
 import type { Rng } from '../rng';
@@ -65,7 +65,7 @@ export function combatants(w: WorldState): Person[] {
 
 /** How long a man shot at counts as under fire, in minutes. */
 export const UNDER_FIRE_MINUTES = 30;
-export const absoluteMinute = (w: WorldState) => w.week * MINUTES_PER_WEEK + w.minute;
+export const absoluteMinute = stampedMinute;
 
 function gangHostile(w: WorldState, a: Person, b: Person, territory: TerritoryIndex | undefined): boolean {
   if (a.gangId == null || b.gangId == null || a.gangId === b.gangId) return false;

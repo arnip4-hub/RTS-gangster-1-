@@ -28,7 +28,7 @@ export function defaultGameOptions(): GameOptions {
 /** What the New Game screen offers first: the original 40 × 32 city. The
  * compact square default above remains the baseline for tests and tools. */
 export function newCampaignOptions(): GameOptions {
-  return { ...defaultGameOptions(), citySize: ORIGINAL_CITY.w, cityHeight: ORIGINAL_CITY.h };
+  return { ...defaultGameOptions(), continuousTime: true, citySize: ORIGINAL_CITY.w, cityHeight: ORIGINAL_CITY.h };
 }
 
 export const MODE_LABELS: Record<GameOptions['mode'], string> = {

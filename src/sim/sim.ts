@@ -1,4 +1,4 @@
-import {settleBurningEscapes, tickBuildingEmergencies} from './systems/buildingEmergency';
+import {carryBuildingEmergencies, settleBurningEscapes, tickBuildingEmergencies} from './systems/buildingEmergency';
 import { driveFrom, earlySteps, finishMovementTick, repairVehicleRoutes } from './movement';
 import { reconcileTransport, resetWeekTransport, restoreLegacyTransport } from './transport';
 import { recoverExportGoods } from './exportGoods';
@@ -16,7 +16,8 @@ import { finalScore, recordScorePeaks, scoreMeasures } from './scoring';
 import { observeTargetRace, tieRank } from './targetRace';
 import { weeklyTaxes } from './systems/taxes';
 import { buildingValue, releaseGangHoldings, standingBlocks } from './execution';
-import { MINUTES_PER_SECOND, MINUTES_PER_WEEK, ORDERS } from './constants';
+import { MINUTES_PER_SECOND, ORDERS } from './constants';
+import { weekDuration } from './calendar';
 import { addMessage, addNews } from './events';
 import { beginWeekOrders, disbandTeam, promoteToLieutenant, replaceLieutenant, tickOrders } from './execution';
 import { Rng } from './rng';
@@ -132,7 +133,7 @@ export class Sim {
     if (this.resolveImmediateOutcome()) return;
     recordScorePeaks(w);
     w.phase = 'week';
-    w.minute = 0;
+    w.minute = w.options.continuousTime ? 8 * 60 : 0;
     w.messages = [];
     w.weekLog = [];
     this.accumulator = 0;
@@ -305,7 +306,7 @@ export class Sim {
     this.peaksDue = true;
     if (this.resolveImmediateOutcome()) return;
 
-    if (w.minute >= MINUTES_PER_WEEK) {
+    if (w.minute >= weekDuration(w)) {
       w.settlementStage = 0;
       if (!deferSettlement) this.endWeek();
     }
@@ -315,8 +316,9 @@ export class Sim {
   finishWeek(): void {
     const w = this.world;
     if (w.phase !== 'week') return;
+    const week = w.week;
     let guard = 0;
-    while (w.phase === 'week' && guard++ < MINUTES_PER_WEEK + 10) this.tickOnce();
+    while (w.phase === 'week' && (w.week === week || w.settlementStage != null) && guard++ < weekDuration(w) + 30) this.tickOnce();
     w.rngState = this.rng.state;
   }
 
@@ -324,9 +326,10 @@ export class Sim {
   finishWeekSlice(budgetMs = 8): void {
     const deadline = performance.now() + budgetMs;
     if (this.world.phase !== 'week') return;
+    const week = this.world.week;
     do {
       this.tickOnce(true);
-    } while (this.world.phase === 'week' && this.world.settlementStage == null && performance.now() < deadline);
+    } while (this.world.phase === 'week' && this.world.week === week && this.world.settlementStage == null && performance.now() < deadline);
     this.world.rngState = this.rng.state;
   }
 
@@ -344,7 +347,11 @@ export class Sim {
     const stage = w.settlementStage ?? 0;
     w.settlementStage = stage + 1;
     switch (stage) {
-      case 0: this.failUnfinishedOrders(); settleSpecialistJobs(w); settleBurningEscapes(w, this.rng); break;
+      case 0:
+        if (!w.options.continuousTime) this.failUnfinishedOrders();
+        settleSpecialistJobs(w);
+        if (!w.options.continuousTime) settleBurningEscapes(w, this.rng);
+        break;
       case 1: weeklyEconomy(w, this.rng); break;
       case 2: weeklyTaxes(w, this.rng); break;
       case 3: this.settleAudits(); break;
@@ -373,8 +380,10 @@ export class Sim {
         break;
       }
       case 16:
-        resetWeekTransport(w);
+        if (!w.options.continuousTime) resetWeekTransport(w);
+        const oldWeek = w.week;
         w.week++;
+        if (w.options.continuousTime) carryBuildingEmergencies(w, oldWeek, weekDuration(w));
         finishBuildingRepairs(w);
         finishTradingRestarts(w);
         replenishOriginalRecruits(w, this.rng);
@@ -383,6 +392,14 @@ export class Sim {
         w.minute = 0;
         for (const gang of Object.values(w.gangs)) openFinances(w, gang);
         rolloverOrders(w);
+        if (w.options.continuousTime) {
+          for (const job of Object.values(w.specialistJobs ?? {}))
+            if (job.week === w.week - 1 && ['queued', 'travelling', 'working'].includes(job.state)) job.week = w.week;
+          // The weekly newspaper has already copied the finished log.
+          w.weekLog = [];
+          w.messages = [];
+          beginSpecialistJobs(w);
+        }
         break;
       default: {
         const gang = Object.values(w.gangs)[stage - 17];
@@ -390,8 +407,13 @@ export class Sim {
           if (!gang.isPlayer && !gang.eliminated) planGang(w, this.rng, gang);
         } else {
           w.minute = 0;
-          w.phase = 'planning';
-          this.accumulator = 0;
+          if (w.options.continuousTime) {
+            dispatchFbi(w, this.rng);
+            addMessage(w, 'waiting', `Week ${w.week} begins. The city's people and their orders remain in motion.`);
+          } else {
+            w.phase = 'planning';
+            this.accumulator = 0;
+          }
           delete w.settlementStage;
         }
       }

@@ -461,7 +461,7 @@ export function cancelOrder(w: WorldState, orderId: ID): ApiResult {
   return ok('Order cancelled.');
 }
 
-/** Clear finished orders at the end of a week, keeping repeat orders alive. */
+/** Archive finished orders. In continuous time, an active crew stays on its job. */
 export function rolloverOrders(w: WorldState): void {
   // Keep a copy of everything that ran so the player can read the outcome.
   w.lastWeekOrders = Object.values(w.orders)
@@ -475,6 +475,11 @@ export function rolloverOrders(w: WorldState): void {
       const order = w.orders[oid];
       if (!order) continue;
       const def = ORDERS[order.type];
+      if (w.options.continuousTime && ['queued', 'travelling', 'executing', 'waiting'].includes(order.state)) {
+        team.timeUsed += weekCharge(w, team, order);
+        keep.push(oid);
+        continue;
+      }
       if (order.opts.repeat && def.supportsRepeat && order.state !== 'cancelled') {
         order.state = 'queued';
         order.cursor = 0;

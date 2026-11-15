@@ -605,7 +605,7 @@ export interface FleetVehicle {
     destinationId: ID | null;
   };
   /** Parked at a warehouse while the crew carry returned goods in, until this
-   * absolute minute (week × MINUTES_PER_WEEK + minute). */
+   * absolute minute (week × current week duration + minute). */
   unloading?: { buildingId: ID; until: number };
   /** Absolute minute before which nobody gets back in (a man out for a throw). */
   boardAfter?: number;
@@ -686,7 +686,7 @@ export interface Gang {
   scorePeaks?: ScoreMeasures;
   lastWeekIncome: { legal: number; illegal: number; protection: number; other: number };
   lastWeekCosts: { wages: number; purchases: number; upkeep: number };
-  /** Monday planning through Friday settlement; optional for older saves. */
+  /** Weekly accounts; optional for older saves. */
   finances?: FinanceReport;
   lastFinanceReport?: FinanceReport;
 }
@@ -820,6 +820,8 @@ export interface SimMessage {
 
 export interface GameOptions {
   seed: number;
+  /** RTS calendar: seven full days and live settlement without a street reset. */
+  continuousTime?: boolean;
   playerName: string;
   /** The original's third name field: the boss is known as First "Nick" Last. */
   playerNickname?: string;
@@ -865,13 +867,13 @@ export interface WorldState {
   };
   rngState: number;
   week: number;
-  minute: number; // 0 .. MINUTES_PER_WEEK
+  minute: number; // 0 .. current week duration
   /** How many of the coming minute's ambient walking slices have already run
    * (sim.ts AMBIENT_SLICES), so a save part way through a minute steps nobody twice. */
   ambientSlicesDone?: number;
   /** People charged only part of the coming minute's walk for a command given part way through it (movement.ts). */
   commandFractionIds?: ID[];
-  /** Resumable Friday settlement, also retained by a mid-settlement save. */
+  /** Resumable weekly settlement, also retained by a mid-settlement save. */
   settlementStage?: number;
   phase: 'planning' | 'week' | 'gameOver';
   /** First completed event to reach a short-game target; persists even if the

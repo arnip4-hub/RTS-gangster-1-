@@ -27,6 +27,7 @@ import type {
 } from './types';
 import { buildingList } from './entityLists';
 import { rint } from './hash';
+import { dayDuration, hourOfDay } from './calendar';
 
 // ---------------------------------------------------------------- geometry
 
@@ -382,14 +383,14 @@ export function bestWeapon(team: Team): WeaponId | null {
 
 // ---------------------------------------------------------------- time
 
-export function dayIndex(minute: number): number {
-  return Math.min(DAY_NAMES.length - 1, Math.floor(minute / MINUTES_PER_DAY));
+export function dayIndex(minute: number, continuous = false): number {
+  return Math.min(continuous ? 6 : 4, Math.floor(minute / dayDuration(continuous)));
 }
 
-export function clockLabel(minute: number): string {
-  const d = dayIndex(minute);
-  const within = minute - d * MINUTES_PER_DAY;
-  const hour = DAY_START_HOUR + Math.floor(within / 60);
+export function clockLabel(minute: number, continuous = false): string {
+  const d = dayIndex(minute, continuous);
+  const within = minute - d * dayDuration(continuous);
+  const hour = ((continuous ? 0 : DAY_START_HOUR) + Math.floor(within / 60)) % 24;
   const min = Math.floor(within % 60);
   const ampm = hour >= 12 ? 'pm' : 'am';
   const h12 = hour % 12 === 0 ? 12 : hour % 12;
@@ -397,7 +398,8 @@ export function clockLabel(minute: number): string {
 }
 
 /** 0..1 through the working day, for the day/night lighting cycle. */
-export function dayPhase(minute: number): number {
+export function dayPhase(minute: number, continuous = false): number {
+  if (continuous) return hourOfDay(minute, true) / 24;
   const within = minute % MINUTES_PER_DAY;
   return within / MINUTES_PER_DAY;
 }

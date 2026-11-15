@@ -10,6 +10,7 @@ import { claimedTerritoryBlocks, distanceToTerritory } from './territory';
 import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
+import { stampedMinute } from './calendar';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
   DRIVE_MIN_DISTANCE,
@@ -1934,7 +1935,7 @@ export function knockDown(w: WorldState, victim: Person): void {
   victim.orderId = null;
   victim.streetOrder = null;
   clearDestination(victim);
-  victim.beatenUntil = w.week * MINUTES_PER_WEEK + w.minute + BEATEN_MINUTES;
+  victim.beatenUntil = stampedMinute(w) + BEATEN_MINUTES;
 }
 
 /**

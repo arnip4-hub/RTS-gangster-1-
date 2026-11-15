@@ -465,10 +465,11 @@ export function CityView() {
     />
     {showStreetLoading ? <StreetLoading
       message={sim?.world.phase === 'planning' ? 'Saving your orders and getting the week ready…' : openingMessage}
+      continuous={!!sim?.world.options.continuousTime}
       // Only once the week has opened: before that the orders are still being saved.
       failed={cityStatus === 'failed' && !!week}
       resolving={finishingWeek && !!week}
-      progress={week && sim ? `${WEEK_DAYS[dayIndex(sim.world.minute)] ?? 'Fri'} · ${weekTime(sim.world.minute)}` : undefined}
+      progress={week && sim ? `${WEEK_DAYS[dayIndex(sim.world.minute,!!sim.world.options.continuousTime)] ?? 'Fri'} · ${weekTime(sim.world.minute,!!sim.world.options.continuousTime)}` : undefined}
       detail={cityError} attempts={renderAttempt}
       onRetry={() => setRenderAttempt(n => n + 1)}
       onSkip={() => { void useGame.getState().runWeekUnseen(); }}

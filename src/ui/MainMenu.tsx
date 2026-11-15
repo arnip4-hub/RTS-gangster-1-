@@ -161,7 +161,7 @@ export function MainMenu() {
         <Modal title="Load Game" kicker={`Saved games · ${saves.length}`} onClose={() => setSheet(null)}>
           {savesError && <p role="alert">{savesError} <button className="btn" onClick={() => void refreshSaves()}>Retry</button></p>}
           {saves.length === 0 && !savesError ? (
-            <p className="muted">No saved games yet. The game saves itself every Monday morning.</p>
+            <p className="muted">No saved games yet. The game saves itself after each weekly settlement.</p>
           ) : (
             saves.map((s) => {
               const info = describeSlot(s);

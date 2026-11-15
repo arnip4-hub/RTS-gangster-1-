@@ -69,5 +69,6 @@ export function scenarioById(id: string | undefined): Scenario | null {
 /** The player's identity kept, everything else set by the scenario. */
 export function applyScenario(base: GameOptions, scenario: Scenario): GameOptions {
   // Authored scenarios are square compact cities unless they say otherwise.
-  return { ...base, ...scenario.options, cityHeight: scenario.options.cityHeight, scenarioId: scenario.id, tutorialId: undefined };
+  return { ...base, ...scenario.options, continuousTime: false, cityHeight: scenario.options.cityHeight,
+    scenarioId: scenario.id, tutorialId: undefined };
 }

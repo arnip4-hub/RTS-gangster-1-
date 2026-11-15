@@ -9,7 +9,8 @@ import { MINUTES_PER_SECOND } from './constants';
  * the timetable and the delays, so they agree on where every car is.
  */
 
-import { CELL, LANE_OFFSET, MINUTES_PER_WEEK, STREET_WIDTH } from './constants';
+import { CELL, LANE_OFFSET, STREET_WIDTH } from './constants';
+import { campaignMinute } from './calendar';
 import { h2, r01, rint } from './hash';
 import { C as OC } from './originalCityGen';
 import type { Vec2, WorldState } from './types';
@@ -436,7 +437,7 @@ export function carsAt(w: WorldState, time: number): Car[] {
   const { specs } = carSpecs(w);
   const g = streetGraph(w);
   // The clock runs on from week to week: a car's drive does not restart.
-  const weekStart = Math.max(0, (w.week ?? 1) - 1) * MINUTES_PER_WEEK;
+  const weekStart = campaignMinute(w, 0);
   const minute = Math.floor(time);
   const cars: Car[] = [];
   for (let k = 0; k < specs.length; k++) {

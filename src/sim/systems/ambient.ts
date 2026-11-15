@@ -1,4 +1,5 @@
 import { BLOCK_SIZE, CELL } from '../constants';
+import { hourOfDay } from '../calendar';
 import { presentPhoto } from '../presentationEvents';
 import { specialistParticipants, specialistVisitTargets } from '../specialistJobs';
 import { clearDestination, earlySteps, setDestination, stepPerson } from '../movement';
@@ -74,7 +75,9 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
           // The original's civilians are nearly always walking: on arrival a
           // wait of rand & 7 ticks, then the next errand (0x5D2740 idle branch,
           // 0x5D25A0). A brief pause here — about two real seconds.
-          if (rng.chance(Math.min(1, CIVILIAN_RESTART * minutes))) wanderTo(w, rng, p, 5);
+          const night = w.options.continuousTime && isNight(w.minute);
+          const restart = night ? p.role === 'snitch' ? 1.1 : 0.4 : CIVILIAN_RESTART;
+          if (rng.chance(Math.min(1, restart * minutes))) wanderTo(w, rng, p, 5, night);
         } else {
           stepPerson(p, minutes, traffic);
         }
@@ -87,7 +90,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
         // A field reporter works the street; he is not inside the newspaper.
         if (premises) p.buildingId = null;
         if (p.dest) stepPerson(p, minutes, traffic);
-        else if (rng.chance(.08 * minutes)) wanderTo(w, rng, p, 2);
+        else if (rng.chance((w.options.continuousTime && isNight(w.minute) ? .04 : .08) * minutes)) wanderTo(w, rng, p, 2);
         // A stationary field reporter occasionally takes a photograph. This
         // visual cue uses no random draw and does not alter travel or reporting.
         if(!p.dest && (w.minute+p.id)%17===0)presentPhoto(w,p);
@@ -107,7 +110,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       case 'police': {
         if (!p.dest) {
           // Officers off duty walk their beat rather than stand on the kerb.
-          if (rng.chance(Math.min(1, BEAT_RESTART * minutes))) wanderTo(w, rng, p, 2);
+          if (rng.chance(Math.min(1, (w.options.continuousTime && isNight(w.minute) ? .8 : BEAT_RESTART) * minutes))) wanderTo(w, rng, p, 2);
         } else {
           stepPerson(p, minutes, traffic);
         }
@@ -143,6 +146,10 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
 /** Restart chances per simulated minute: civilians ~0.33 min (≈2 s real),
  * officers ~1 min. */
 const CIVILIAN_RESTART = 3, BEAT_RESTART = 1;
+const isNight = (minute: number) => {
+  const hour = hourOfDay(minute, true);
+  return hour < 6 || hour >= 20;
+};
 
 /** How strongly a block draws errands (0x606840 reads block+104). That byte is
  * the land value (0x537D70 copies it from the generator grid), so the original
@@ -154,7 +161,7 @@ function tradingOn(w: WorldState, blk: Block): number {
   return n;
 }
 
-function wanderTo(w: WorldState, rng: Rng, p: Person, radiusBlocks: number): void {
+function wanderTo(w: WorldState, rng: Rng, p: Person, radiusBlocks: number, night = false): void {
   const gx = Math.floor(p.pos.x / CELL);
   const gy = Math.floor(p.pos.y / CELL);
   // Up to four tries for a block with a pavement (a failed pick used to cost a
@@ -166,7 +173,19 @@ function wanderTo(w: WorldState, rng: Rng, p: Person, radiusBlocks: number): voi
     const candidate = cityBlockAt(w, nx, ny);
     if (!candidate || !hasFootway(candidate)) continue;
     found++;
-    if (!blk || tradingOn(w, candidate) > tradingOn(w, blk)) blk = candidate;
+    const appeal = (block: Block) => {
+      if (!night) return tradingOn(w, block);
+      // Evening traffic gathers around bars, hotels and protected businesses.
+      let value = block.original ? block.original.landValue / 4 : 0;
+      for (const lotId of block.lotIds) {
+        const site = w.buildings[w.lots[lotId].buildingId];
+        if (!site || site.state !== 'trading') continue;
+        if (['poolHall', 'cafe', 'hotelSmall', 'hotelLarge', 'restaurant', 'speakeasy', 'casino'].includes(site.typeId)) value += 40;
+        else if (site.cls === 'tenement') value += 4;
+      }
+      return value;
+    };
+    if (!blk || appeal(candidate) > appeal(blk)) blk = candidate;
   }
   if (!blk) return;
   if (w.cityLayout) { setDestination(w, p, blockPavement(blk, rng.int(0, 100000))); return; }

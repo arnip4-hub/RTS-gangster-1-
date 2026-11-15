@@ -32,7 +32,8 @@
  * short dwell.
  */
 
-import { CELL, MINUTES_PER_SECOND, MINUTES_PER_WEEK } from './constants';
+import { CELL, MINUTES_PER_SECOND } from './constants';
+import { campaignMinute } from './calendar';
 import { streetEdgeOpen, streetName } from './cityLayout';
 import type { Vec2, WorldState } from './types';
 
@@ -198,7 +199,7 @@ function pointAt(r: Route, s: number): Vec2 {
 
 /** Minutes since the campaign began: the trams run on from week to week. */
 export function campaignMinutes(w: WorldState, time: number): number {
-  return Math.max(0, (w.week ?? 1) - 1) * MINUTES_PER_WEEK + time;
+  return campaignMinute(w, time);
 }
 
 /** How many trams the city runs: eight a line. */

@@ -6,7 +6,7 @@ export function HelpSheet({ onClose, onStartLesson }: { onClose: () => void; onS
   return (
     <Modal title="How to Play" kicker="A short briefing · four pages" onClose={onClose} width={900}>
       <p style={{ fontSize: 15, margin: '0 0 16px', lineHeight: 1.5 }}>
-        You run one of four gangs in New Temperance. The game alternates between two phases.
+        You run one of four gangs in New Temperance. New campaigns begin at the planning desk, then continue in the live city.
       </p>
       <p>Use Tab and Shift+Tab to move between controls, Enter or Space to activate them,
         and the arrow keys to change Organizer tabs. Choose on map lets you search for
@@ -16,15 +16,16 @@ export function HelpSheet({ onClose, onStartLesson }: { onClose: () => void; onS
         <div>
           <h4>The Gang Organizer</h4>
           <p>
-            Turn-based, with all the time you want. Organise your crews, buy weapons and premises, bribe officials,
-            and give each lieutenant their orders for the coming week. Each order consumes part of that
-            lieutenant's week — watch the dial beside their name.
+            Open the Organizer whenever you need it. Organise crews, buy weapons and premises, bribe officials,
+            and give each lieutenant orders. Each planned order consumes part of that lieutenant's weekly
+            budget — watch the dial beside their name.
           </p>
         </div>
         <div>
           <h4>The Working Week</h4>
           <p>
-            Monday to Friday plays out in real time. Your hoods carry out their orders while the police, the FBI
+            New campaigns play through Monday to Sunday, including the night. Weekly accounts settle while
+            people, vehicles and active orders stay in the city. Your hoods carry out their orders while the police, the FBI
             and three rival gangs go about their business. You can speed time up, follow anyone, and give live
             orders on the street — kill, assault, tail or go to. Select a person to open a Tagged Window:
             it follows them while you explore elsewhere. Its Street/Rooftop toggle is independent of the main
@@ -32,7 +33,7 @@ export function HelpSheet({ onClose, onStartLesson }: { onClose: () => void; onS
             Use Remove buildings (B) to expose all the pavements. The top icon bar opens Tagged Characters;
             People and Orders switch the list, and Clear Tagged Windows closes the character view.
             The clock and its speed controls are at the bottom right. Use &lt; and &gt; to change speed.
-            P pauses the week. Message buttons (F5–F8) open reports;
+            P pauses time. W/A/S/D or the arrow keys pan the map. Message buttons (F5–F8) open reports;
             the separate filters inside the Message Box control which reports slow accelerated time.
           </p>
         </div>
@@ -72,7 +73,7 @@ export function HelpSheet({ onClose, onStartLesson }: { onClose: () => void; onS
           Enter confirms a job card · Esc cancels · Ctrl+S save · Ctrl+L load · Ctrl+Q quit · ? this sheet
         </p>
         <p>
-          <b>Working week:</b> P pause · Insert / Home / Page Up for City Plan, Rooftop, Street · Space toggles Street
+          <b>City:</b> P pause · W/A/S/D or arrows pan · Insert / Home / Page Up for City Plan, Rooftop, Street · Space toggles Street
           and Rooftop · 1–8 cycle a crew's people · &lt; &gt; time · B hide/show buildings · F flip the view · F1–F4 street orders
           (Kill, Assault, Tail, Go To) · F5–F8 message boxes · Esc cancel · Ctrl+Q quit
         </p>

@@ -15,6 +15,33 @@ const secs=(seconds:number)=>seconds*MINUTES_PER_SECOND;
 import type {Building,Person,Vec2,WorldState} from '../types';
 import { peopleList, buildingList } from '../entityLists';
 
+/** Keep an incident's elapsed time and its people in place at an RTS week
+ * boundary. Its local minute stamps may become negative if it began Sunday
+ * night; those stamps still describe the same journey after Monday midnight. */
+export function carryBuildingEmergencies(w: WorldState, oldWeek: number, minutes: number): void {
+  for (const p of peopleList(w)) {
+    if (p.status !== 'active') continue;
+    const escape = p.burningEscape;
+    if (escape?.week === oldWeek) {
+      escape.week = w.week;
+      escape.startMinute -= minutes;
+    }
+    const response = p.emergencyResponse;
+    if (response?.week === oldWeek) {
+      response.week = w.week;
+      response.startMinute -= minutes;
+      response.untilMinute -= minutes;
+      if (response.arrivedMinute != null) response.arrivedMinute -= minutes;
+    }
+    const shock = p.shockReaction;
+    if (shock?.week === oldWeek) {
+      shock.week = w.week;
+      shock.startMinute -= minutes;
+      shock.untilMinute -= minutes;
+    }
+  }
+}
+
 /** Called before damage releases managers and destroys resident associations. */
 export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fire'|'explosion',delay=0,
   culprit?:Person,forceFatal?:boolean):Person[]{

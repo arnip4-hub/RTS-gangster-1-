@@ -157,12 +157,11 @@ interface GameState {
   save: (name: string) => Promise<void>;
   bump: () => void;
   launchWeek: () => Promise<void>;
-  /** Skip to Friday: finish the week and put the city away for Monday. */
+  /** Skip to the next weekly settlement. */
   /** `sliceMs`: how long each slice of the week may hold the page (longer when nothing is being drawn). */
   finishWeek: (sliceMs?: number) => Promise<void>;
   cancelFinishWeek: () => void;
-  /** The street view could not be opened: run the working week to its end
-   *  without it, and come back to the desk with the reports. */
+  /** The street view could not be opened: run to weekly settlement without it. */
   runWeekUnseen: () => Promise<void>;
   advance: (seconds: number) => void;
 
@@ -381,7 +380,7 @@ export const useGame = create<GameState>((set, get) => ({
   startAttract: () => {
     if (get().screen !== 'menu' || get().loadingSave != null) return;
     const names = ['Sal Benedetto', 'Frankie Doyle', 'Mo Kaplan', 'Vito Russo', 'Eddie Malone'];
-    const options: GameOptions = { ...newCampaignOptions(), seed: defaultGameOptions().seed,
+    const options: GameOptions = { ...newCampaignOptions(), continuousTime: false, seed: defaultGameOptions().seed,
       playerName: names[Math.floor(Math.random() * names.length)], playerPortrait: Math.floor(Math.random() * 8) };
     const sim = new Sim(options);
     set({
@@ -777,9 +776,14 @@ export const useGame = create<GameState>((set, get) => ({
       for (let i = messages.length - 1; i >= 0 && messages[i].id > seen; i--) if (state.messageFilter[messages[i].category]) return true;
       return false;
     };
+    const wasSettling = sim.world.settlementStage != null;
     if (isFlatOut(state.speed)) sim.runFlatOut(FLAT_OUT_BUDGET_MS, reported);
     else sim.advance(seconds, state.speed, 8);
     if (reported()) get().setSpeed(1);
+    if (sim.world.options.continuousTime && wasSettling && sim.world.settlementStage == null && sim.world.phase === 'week') {
+      get().bump();
+      void get().autosave(true);
+    }
     if (sim.world.phase !== 'week') {
       if (get().attract) {
         if (sim.world.phase === 'gameOver') get().endAttract();
@@ -810,21 +814,23 @@ export const useGame = create<GameState>((set, get) => ({
     if (sim?.world.phase === 'gameOver' && get().screen === 'game') { get().bump(); return; }
     if (!sim || sim.world.phase !== 'week' || get().streetLoading || get().finishingWeek || get().savingToQuit || get().savingSnapshot || get().loadingSave != null) return;
     const run = ++finishRun;
+    const weekBefore = sim.world.week;
     set({ finishingWeek: true, paused: true });
     let lastUi = performance.now();
     // Yield even the first batch so the busy/cancel control can paint.
-    while (sim.world.phase === 'week') {
+    while (sim.world.phase === 'week' && (sim.world.week === weekBefore || sim.world.settlementStage != null)) {
       await yieldForInput();
       if (run !== finishRun || get().sim !== sim || !get().finishingWeek || get().screen !== 'game') return;
       if (get().loadingSave != null) continue;
       sim.finishWeekSlice(sliceMs);
-      if (performance.now() - lastUi >= 200 || sim.world.phase !== 'week') {
+      if (performance.now() - lastUi >= 200 || sim.world.phase !== 'week' || sim.world.week !== weekBefore && sim.world.settlementStage == null) {
         get().bump();
         lastUi = performance.now();
       }
     }
-    if (sim.world.phase === 'planning') get().setTab('newspaper');
-    set({ finishingWeek: false, paused: false, screen: sim.world.phase === 'gameOver' ? 'gameOver' : 'game' });
+    const phaseAfter = sim.world.phase as Sim['world']['phase'];
+    if (phaseAfter === 'planning') get().setTab('newspaper');
+    set({ finishingWeek: false, paused: false, screen: phaseAfter === 'gameOver' ? 'gameOver' : 'game' });
     await get().autosave(true);
   },
 
@@ -833,7 +839,7 @@ export const useGame = create<GameState>((set, get) => ({
   // The clock is normally released by the street view's first prepared frame
   // (CityView). Where the city cannot be drawn at all (no WebGL 2, a lost
   // graphics context) that frame never comes, so the week is run here instead:
-  // the same simulation, to Friday's settlement, the newspaper and the reports.
+  // the same simulation, to weekly settlement and its reports.
   runWeekUnseen: async () => {
     const sim = get().sim;
     if (!sim || sim.world.phase !== 'week' || get().screen !== 'game' || get().finishingWeek ||

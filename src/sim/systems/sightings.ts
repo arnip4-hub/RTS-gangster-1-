@@ -47,6 +47,7 @@
 import { BUILDING_BY_ID } from '../data/buildings';
 import { blockRect, cityBlockAt, lotRect, streetLocation } from '../cityLayout';
 import { CELL, MINUTES_PER_WEEK } from '../constants';
+import { campaignMinute } from '../calendar';
 import { addMessage } from '../events';
 import { peopleList, buildingList } from '../entityLists';
 import { ORIGINAL_CELL_METRES } from '../fireRoll';
@@ -187,7 +188,7 @@ export function inView(w: WorldState, from: Vec2, to: Vec2): boolean {
  * his 32-tick beat. His tick counter's phase is the remake's, from his id. */
 export function looksThisMinute(w: WorldState, p: Person): boolean {
   const phase = ((p.id * 11) & 31) + (walking(p) ? 16 : 0);
-  const t0 = ((w.week - 1) * MINUTES_PER_WEEK + w.minute) * ORIGINAL_TICKS_PER_MINUTE + phase;
+  const t0 = campaignMinute(w) * ORIGINAL_TICKS_PER_MINUTE + phase;
   return Math.floor((t0 + ORIGINAL_TICKS_PER_MINUTE - 1) / LOOK_PERIOD_TICKS) > Math.floor((t0 - 1) / LOOK_PERIOD_TICKS);
 }
 
@@ -212,7 +213,7 @@ export function spotterLooksThisMinute(w: WorldState, p: Person): boolean {
   if (!w.cityLayout?.original) return looksThisMinute(w, p);
   if (p.inVehicle) return false;
   if (walking(p) || !chasing(w, p)) return looksThisMinute(w, p);
-  const t0 = ((w.week - 1) * MINUTES_PER_WEEK + w.minute) * ORIGINAL_TICKS_PER_MINUTE + ((p.id * 11) & 31);
+  const t0 = campaignMinute(w) * ORIGINAL_TICKS_PER_MINUTE + ((p.id * 11) & 31);
   for (let k = 0; k < ORIGINAL_TICKS_PER_MINUTE; k++) if (((t0 + k) & 255) % CHASE_LOOK_TICKS === 0) return true;
   return false;
 }

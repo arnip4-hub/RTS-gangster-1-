@@ -5,6 +5,7 @@ import { blockRect } from './cityLayout';
 import { tramCount, tramLineValid } from './trams';
 import { BLOCK_MODULE_BY_ID, moduleFacing, moduleRect, moduleSetback } from './blockModules';
 import { MAX_TEAM_SIZE, MINUTES_PER_WEEK, VEHICLES } from './constants';
+import { weekDuration } from './calendar';
 import { onRoad, vehiclePathOnRoad } from './vehicleNavigation';
 import { peopleList, buildingList } from './entityLists';
 
@@ -108,7 +109,7 @@ function assertStructure(error: Failure | null): void {
 }
 
 function validateReferences(w: WorldState, candidate: WorldState): void {
-  if (!Number.isInteger(w.week) || w.week < 1 || !Number.isInteger(w.minute) || w.minute < 0 || w.minute > 2400 ||
+  if (!Number.isInteger(w.week) || w.week < 1 || !Number.isInteger(w.minute) || w.minute < 0 || w.minute > weekDuration(w) ||
     !Number.isInteger(w.gridW) || !Number.isInteger(w.gridH) || w.gridW < 1 || w.gridH < 1 || w.blocks.length !== w.gridW * w.gridH) throw Error('Save has invalid world dimensions or clock.');
   const ids = (xs: number[]) => xs.every(id => Number.isSafeInteger(id) && id >= 0);
   const mayorTerm = w.election.mayorTerm;
@@ -121,7 +122,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       race.target < 1 || race.value < race.target ||
       race.mode === 'territory' && (!Number.isSafeInteger(race.target) || !Number.isSafeInteger(race.value)) ||
       !Number.isInteger(race.week) || race.week < 1 || race.week > w.week ||
-      !Number.isInteger(race.minute) || race.minute < 0 || race.minute > MINUTES_PER_WEEK ||
+      !Number.isInteger(race.minute) || race.minute < 0 || race.minute > weekDuration(w) ||
       race.week === w.week && race.minute > w.minute || !ids(race.tiedGangIds) ||
       !race.tiedGangIds.includes(race.gangId) || new Set(race.tiedGangIds).size !== race.tiedGangIds.length ||
       race.tiedGangIds.some(id => !w.gangs[id]) ||
@@ -297,9 +298,10 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if (p.retainerShort != null && (typeof p.retainerShort !== 'boolean' || p.role !== 'police' || p.employedBy == null))
       throw Error('Save has an invalid retainer flag.');
     const e=p.burningEscape,r=p.emergencyResponse,s=p.shockReaction;
-    if(e&&(!Number.isInteger(e.week)||e.week<1||e.week>w.week||!w.buildings[e.buildingId]||e.startMinute<0))throw Error('Save has an invalid burning escape.');
-    if(r&&(!Number.isInteger(r.week)||r.week<1||r.week>w.week||!w.buildings[r.buildingId]||r.startMinute<0||r.untilMinute<=r.startMinute))throw Error('Save has an invalid emergency response.');
-    if(s&&(!Number.isInteger(s.week)||s.week<1||s.week>w.week||!w.people[s.victimId]||s.startMinute<0||s.untilMinute<=s.startMinute))throw Error('Save has an invalid shock reaction.');
+    const earliest = (week: number) => w.options.continuousTime && week === w.week ? -weekDuration(w) : 0;
+    if(e&&(!Number.isInteger(e.week)||e.week<1||e.week>w.week||!w.buildings[e.buildingId]||e.startMinute<earliest(e.week)))throw Error('Save has an invalid burning escape.');
+    if(r&&(!Number.isInteger(r.week)||r.week<1||r.week>w.week||!w.buildings[r.buildingId]||r.startMinute<earliest(r.week)||r.untilMinute<=r.startMinute))throw Error('Save has an invalid emergency response.');
+    if(s&&(!Number.isInteger(s.week)||s.week<1||s.week>w.week||!w.people[s.victimId]||s.startMinute<earliest(s.week)||s.untilMinute<=s.startMinute))throw Error('Save has an invalid shock reaction.');
   }
   for (const o of [...Object.values(w.orders), ...w.lastWeekOrders]) {
     if (o.workedMinutes != null && (o.workedMinutes < 0 || o.workedMinutes > MINUTES_PER_WEEK))

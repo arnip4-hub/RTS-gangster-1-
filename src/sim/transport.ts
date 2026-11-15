@@ -1,4 +1,5 @@
-import { DRIVE_MIN_DISTANCE, DRIVE_SPEED, MINUTES_PER_WEEK, ORDERS, VEHICLES, WALK_SPEED } from './constants';
+import { DRIVE_MIN_DISTANCE, DRIVE_SPEED, ORDERS, VEHICLES, WALK_SPEED } from './constants';
+import { stampedMinute } from './calendar';
 import { hash32 } from './hash';
 import { cargoWarehouse, routeCargoReturn, unloadCargo } from './cargo';
 import { clearDestination, setDestination } from './movement';
@@ -20,7 +21,7 @@ export function vehicleDriver(w: WorldState, p: Person): Person {
 }
 /** Game minutes a returning truck stays at the warehouse while its goods go in. */
 export const RETURN_UNLOAD_MINUTES = 8;
-const absoluteMinute = (w: WorldState) => w.week * MINUTES_PER_WEEK + w.minute;
+const absoluteMinute = stampedMinute;
 /** A pursuer on foot moves this much faster than a walker. */
 export const PURSUIT_PACE = 1.5;
 /** The original runs 1 in 64 civilian errand legs (POP §4.1, rand 0x281 → run

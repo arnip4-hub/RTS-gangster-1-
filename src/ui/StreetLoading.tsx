@@ -27,6 +27,7 @@ export const LOADING_TIPS = [
 export interface StreetLoadingProps {
   message: string;
   failed: boolean;
+  continuous?: boolean;
   /** The week is being run without the street view. */
   resolving?: boolean;
   /** Where the unseen week has got to ("Wed · 2:10 pm"). */
@@ -43,7 +44,7 @@ export interface StreetLoadingProps {
   onStop?: () => void;
 }
 
-export function StreetLoading({ message, failed, resolving = false, progress, detail, attempts = 0, onRetry, onExit, onSkip, onStop }: StreetLoadingProps) {
+export function StreetLoading({ message, failed, continuous = false, resolving = false, progress, detail, attempts = 0, onRetry, onExit, onSkip, onStop }: StreetLoadingProps) {
   const [tip] = useState(() => LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)]);
   if (resolving) {
     return <DialogFrame title="Running the week" onClose={() => {}} width={460} className="street-loading">
@@ -53,7 +54,7 @@ export function StreetLoading({ message, failed, resolving = false, progress, de
         <h2>Running the week</h2>
         <div className="street-loading-spinner" aria-hidden="true" />
         <p role="status" aria-live="polite">Your crews are at work without the street view{progress ? ` · ${progress}` : ''}</p>
-        <p className="street-loading-note">The newspaper and your lieutenants' reports follow on Friday.</p>
+        <p className="street-loading-note">The newspaper and your lieutenants' reports follow at {continuous ? 'Sunday night settlement' : 'Friday settlement'}.</p>
         {onStop && <div className="row"><button className="btn" onClick={onStop}>Stop</button></div>}
       </div>
     </DialogFrame>;
@@ -66,7 +67,7 @@ export function StreetLoading({ message, failed, resolving = false, progress, de
       {!failed && <div className="street-loading-spinner" aria-hidden="true" />}
       <p role={failed ? 'alert' : 'status'} aria-live="polite">
         {failed
-          ? 'The street view needs 3D graphics (WebGL 2), and this browser or graphics driver would not open it. You can run the week without it: your orders are carried out just the same, and the newspaper and your lieutenants\' reports are waiting at the end.'
+          ? `The street view needs 3D graphics (WebGL 2), and this browser or graphics driver would not open it. You can run to ${continuous ? 'the next weekly settlement' : 'Friday'} without it; your orders keep running.`
           : message}
       </p>
       <p className="street-loading-note">
@@ -77,7 +78,7 @@ export function StreetLoading({ message, failed, resolving = false, progress, de
       {failed && detail && <p className="street-loading-detail">Reported: {detail}</p>}
       {!failed && <p className="street-loading-tip"><b>Consigliere's advice.</b> {tip}</p>}
       {failed && <div className="row wrap" style={{ gap: 6 }}>
-        {onSkip && <button className="btn brass" data-autofocus onClick={onSkip}>Run the week without the street view</button>}
+        {onSkip && <button className="btn brass" data-autofocus onClick={onSkip}>Run to weekly settlement without the street view</button>}
         <button className={onSkip ? 'btn' : 'btn brass'} onClick={onRetry}>Try again</button>
         <button className="btn" onClick={onExit}>Back to menu</button>
       </div>}

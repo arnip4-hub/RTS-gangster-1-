@@ -23,7 +23,7 @@ export function SpecialistJobCard() {
   };
   return <div className="job-card-inline" aria-label="Specialist job card">
     <Panel title={SPECIALIST_JOB_NAMES[card.type]}>
-      <Hint>{card.type === 'audit' ? 'Audit reserves the accountant for the whole week. They visit your lieutenant or business manager, then prepare the report of money taken and handed over for Friday.'
+      <Hint>{card.type === 'audit' ? `Audit reserves the accountant for the whole week. They visit your lieutenant or business manager, then prepare the report of money taken and handed over for ${w.options.continuousTime ? 'Sunday night' : 'Friday'}.`
         : card.type === 'bribeOfficials' ? 'The lawyer visits this official during the Working Week. The quoted bribe is paid when they meet.'
         : 'The lawyer tours the marked blocks during the Working Week and approaches the police he finds there.'}</Hint>
       <p role="status">{area ? `${s.policeAreaBlockIds.length} blocks selected` : person ? person.name : 'Choose a highlighted person or premises, or use the Clipboard.'}</p>
@@ -48,7 +48,7 @@ export function SpecialistJobList({ role }: { role: 'accountant' | 'lawyer' }) {
   const jobs = Object.values(w.specialistJobs ?? {}).filter(j => j.gangId === gang.id && (j.type === 'audit' ? 'accountant' : 'lawyer') === role && j.week >= w.week - 1);
   if (!jobs.length) return null;
   return <Panel title="Jobs and reports">{jobs.map(j => <div className="panel" key={j.id}>
-    <div className="row between tiny"><b>{SPECIALIST_JOB_NAMES[j.type]}</b><span>Week {j.week} · {j.type === 'audit' && j.state === 'done' && j.week === w.week ? 'Report due Friday' : j.state}</span></div>
+    <div className="row between tiny"><b>{SPECIALIST_JOB_NAMES[j.type]}</b><span>Week {j.week} · {j.type === 'audit' && j.state === 'done' && j.week === w.week ? `Report due ${w.options.continuousTime ? 'Sunday night' : 'Friday'}` : j.state}</span></div>
     <p className="tiny">{j.blockIds.length ? `${j.blockIds.length} blocks` : w.people[j.targetPersonId ?? -1]?.name}{j.result && ` · ${j.result}`}</p>
     {specialistJobActive(j) && <button className="btn sm" onClick={() => notify(act(s => cancelSpecialistJob(s.world, gang.id, j.id)))}>Cancel order</button>}
   </div>)}</Panel>;
