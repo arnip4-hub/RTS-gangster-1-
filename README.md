@@ -1,20 +1,45 @@
-# Original Gangster
+# Gangsters RTS
 
-An HD reimagining of *Gangsters: Organized Crime* (1998): a Prohibition-era crime
-strategy game set in the fictional city of New Temperance. Plan your gang's week at
-the desk, then watch it play out on the streets of a fully 3D city.
+An experimental real-time strategy fork of [Original Gangster](https://github.com/daleeb/original-gangster-release),
+the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal is
+to run your gang from the city itself: move crews, issue orders while time passes,
+and open the Organizer whenever you need it.
 
-Original Gangster is a fan project. It is not affiliated with or endorsed by
-Hothouse Creations, Eidos Interactive or the rights holders of the original game.
-All art, models, music and sound were made for this project.
+This is a **work in progress**, not a finished RTS conversion. The remake's weekly
+economy, order deadlines and other simulation rules still run underneath the live
+city. We are changing those systems incrementally and testing each step.
 
-## Play
+## Where the project stands
 
-- **In your browser:** https://daleeb.github.io/original-gangster-release/
-- **Desktop (Windows, Linux, macOS):** download from the
-  [Releases](https://github.com/daleeb/original-gangster-release/releases) page.
+Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
+branch. The default `main` branch is kept as the remake baseline, with this project
+page and the Windows build workflow.
 
-Browser saves are kept in that browser; the desktop app saves to disk.
+- **In the latest published Windows test build:** watch the 3D city, click the
+  minimap to jump across town, open the Organizer during a working week with `O`
+  or **Book**, and use **Move crew** in the People roster to choose a destination
+  for a deployed team.
+- **Implemented on `rts-development`, awaiting the next Windows build:** pan the
+  city with `W/A/S/D` or the arrow keys in plan, rooftop and street zoom during
+  the working week. After weekly settlement, the next working week starts
+  automatically; the Organizer is still available on demand.
+- **Still to build:** simpler group selection and move orders, better live reports,
+  and a deeper redesign of weekly orders and accounting so the game can become
+  a full RTS. Automatic week rollover does not remove weekly rules yet.
+
+New games currently start at the planning desk. Press **Hit the Streets!** to enter
+the live city. The original GOG installation is separate from this remake fork.
+
+## Download a test build
+
+The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-test-20261115.3)
+contains an installer (`Original.Gangster.Setup.1.0.6.exe`) and a portable executable
+(`Original.Gangster.1.0.6.exe`). The filenames still use the remake's product name.
+This published build predates the `W/A/S/D` and automatic week rollover changes
+listed above. Check each release's notes for what is included before downloading.
+
+To run the newest source code locally, use the `rts-development` branch and the
+commands below. Browser saves stay in that browser; the desktop app saves to disk.
 
 ## Requirements
 
@@ -24,6 +49,8 @@ Browser saves are kept in that browser; the desktop app saves to disk.
 ## Getting started
 
 ```bash
+git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git
+cd RTS-gangster-1-
 npm install
 npm run dev
 ```
@@ -73,11 +100,18 @@ tests/      Vitest suites
 
 ## Credits
 
+This fork builds on [Original Gangster by daleeb](https://github.com/daleeb/original-gangster-release),
+licensed under [MIT](LICENSE). The remake supplies the original code and its own
+art, models, music and sound. No files from the 1998 GOG game are included here.
+
 *Gangsters: Organized Crime* was designed by Martin Capel, developed by Hothouse
 Creations and published by Eidos Interactive in 1998.
 
 Built with Three.js, React, Vite, Zustand, Electron and Vitest. Fonts are Barlow,
 Barlow Condensed, Special Elite and Cinzel from Google Fonts (SIL Open Font License).
+
+This fan project is not affiliated with or endorsed by Hothouse Creations, Eidos
+Interactive or the rights holders of the 1998 game.
 
 ## License
 
