@@ -9,16 +9,27 @@ The original game's images are not part of this project.
 
 **Game Options → City artwork → Illustrated 1930s (preview)** keeps the
 remake's own canvas-painted facades, storefronts, pavement, roof and road.
-It requests eight-direction car art, twelve four-direction people silhouettes,
-and forty-eight new illustrated portraits. Police wear navy uniforms; federal
-agents wear civilian suits and fedoras. Special character actions still use
-the existing animated 3D figures. The perspective, simulation, selection and
-day/night cycle stay intact. The city style applies when the city next opens.
-It is a visual experiment, not a finished replacement art set.
+It requests eight-direction car art, 32 four-direction people silhouettes,
+48 painted portraits, and a layered portrait drawing for everyday citizens
+and rank-and-file police/FBI. The drawing has 1,536 deterministic identity
+seeds, with face shape, skin, hair, hat, clothing, glasses and details; these
+are composed variants, **not** 1,536 hand-painted files. The person's saved
+ID fixes the same look on reload, including old saves. Skin palette and gender
+are shared with the street-sprite selector. Senior officers and crews retain
+the painted portraits; their street skin palette follows that painting.
+
+The new street rows include formal evening wear, fur coats, shop staff, work
+clothes, the mayor, a judge, a journalist, Black officers, federal investigators,
+and more varied everyday pedestrians. A nightclub worker costume is drawn but reserved until
+there is an actual worker occupation and schedule in the simulation; regular
+venue customers are not silently treated as workers. Special character
+actions still use the existing animated 3D figures. The city style applies
+when the city next opens. This is a visual preview.
 
 The original illustration sheets are in `art-source/illustrated`; run
-`npm run art:people` to rebuild the portrait tiles and street atlas. These
-are original assets for this remake, with no graphics from the 1998 game.
+`npm run art:people` to rebuild the portrait tiles and street atlas. The
+32-row atlas is 512 × 4096 pixels, at the common 4096-pixel texture limit.
+These are original assets for this remake, with no graphics from the 1998 game.
 
 Examples: [gang portraits](../art-source/illustrated/portraits-04.png) ·
 [police and federal portraits](../art-source/illustrated/portraits-02.png) ·
@@ -39,10 +50,12 @@ new art and composition, not only a colour filter.
    corner buildings and industrial buildings with varied silhouettes. First
    test one residential block and one commercial block at street and rooftop
    zoom. Keep walls and roofs readable at the camera's actual pixel scale.
-2. **People:** add drawn walking and action frames to the new directional
-   sprites. The first pass holds still images and a slight walking bob; complex
-   actions deliberately fall back to the working 3D animation. Keep expanding
-   silhouettes and clothing without obscuring faction and role cues.
+2. **People:** three common street silhouettes now have four drawn gait frames
+   in each of four directions: the brown-coat man, green-coat woman and patrol
+   officer. Other figures still have a slight walking bob, and complex actions
+   fall back to the working 3D animation. Extend gait coverage to the other
+   common costumes, then draw role-specific actions. The layered portraits
+   also need a visual quality pass at large UI sizes.
 3. **Street:** redraw the road, pavement, tram and street furniture as a
    coherent palette, with clear separation between walkable space and buildings.
 4. **Lighting and overlays:** tune day and night colours around that art; soften

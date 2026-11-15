@@ -35,8 +35,9 @@ for (const [kind, n] of Object.entries(expected)) if (counts.get(kind) !== n)
 
 // The generator cut the far-right figure at the sheet edge. Mirror the
 // complete left-facing profile instead; direction cells are front/back/left/right.
-const CELL = 256, atlasCells = [];
-for (let sheetIndex = 0; sheetIndex < 3; sheetIndex++) {
+// 32 rows at 128px fit the 4096px texture limit on older GPUs.
+const CELL = 128, SHEETS = 8, atlasCells = [];
+for (let sheetIndex = 0; sheetIndex < SHEETS; sheetIndex++) {
   const file = join(source, `people-0${sheetIndex + 1}.png`);
   const { width, height } = await sharp(file).metadata();
   if (!width || !height) throw Error(`Missing ${file}`);
@@ -50,13 +51,37 @@ for (let sheetIndex = 0; sheetIndex < 3; sheetIndex++) {
     if (column === 3) tile = tile.flop();
     // Keep uniform cell size and foot level; the transparent source may have
     // small fringe pixels, but no old-game asset is present in these sheets.
-    const sprite = await tile.resize(CELL - 24, CELL - 12, { fit: 'contain', background: '#00000000' })
+    const sprite = await tile.resize(CELL - 16, CELL - 8, { fit: 'contain', background: '#00000000' })
       .png().toBuffer();
-    atlasCells.push({ input: sprite, left: column * CELL + 12,
-      top: (sheetIndex * 4 + row) * CELL + 12 });
+    atlasCells.push({ input: sprite, left: column * CELL + 8,
+      top: (sheetIndex * 4 + row) * CELL + 8 });
   }
 }
-await sharp({ create: { width: 4 * CELL, height: 12 * CELL, channels: 4, background: '#00000000' } })
+await sharp({ create: { width: 4 * CELL, height: SHEETS * 4 * CELL, channels: 4, background: '#00000000' } })
   .composite(atlasCells).png({ compressionLevel: 9 })
   .toFile('public/art/city/illustrated-people-atlas.png');
-console.log(`Illustrated people: ${[...counts.values()].reduce((a, b) => a + b, 0)} portraits, 12 directional sprite rows`);
+
+// Four gait frames in each direction for the first common silhouettes.
+// The generated right-side view is cropped at the edge; mirror the complete
+// left side just as the static atlas does.
+const walkKinds = ['man', 'woman', 'police'], walkCells = [];
+for (let kind = 0; kind < walkKinds.length; kind++) {
+  const file = join(source, `walk-${walkKinds[kind]}-01.png`);
+  const { width, height } = await sharp(file).metadata();
+  if (!width || !height) throw Error(`Missing ${file}`);
+  for (let direction = 0; direction < 4; direction++) for (let frame = 0; frame < 4; frame++) {
+    const sourceRow = direction === 3 ? 2 : direction;
+    const left = Math.round(frame * width / 4) + 3;
+    const top = Math.round(sourceRow * height / 4) + 3;
+    const right = Math.round((frame + 1) * width / 4) - 3;
+    const bottom = Math.round((sourceRow + 1) * height / 4) - 3;
+    let tile = sharp(file).extract({ left, top, width: right - left, height: bottom - top });
+    if (direction === 3) tile = tile.flop();
+    const sprite = await tile.resize(CELL - 16, CELL - 8, { fit: 'contain', background: '#00000000' }).png().toBuffer();
+    walkCells.push({ input: sprite, left: frame * CELL + 8, top: (kind * 4 + direction) * CELL + 8 });
+  }
+}
+await sharp({ create: { width: 4 * CELL, height: walkKinds.length * 4 * CELL, channels: 4, background: '#00000000' } })
+  .composite(walkCells).png({ compressionLevel: 9 })
+  .toFile('public/art/city/illustrated-people-walk-atlas.png');
+console.log(`Illustrated people: ${[...counts.values()].reduce((a, b) => a + b, 0)} painted portraits, ${SHEETS * 4} directional sprite rows, ${walkKinds.length} walk cycles`);

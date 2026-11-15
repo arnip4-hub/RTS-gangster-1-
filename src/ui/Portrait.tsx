@@ -4,29 +4,32 @@ import type { Gang, Person } from '../sim/types';
 import { bossPortraitUrl, portraitUrl } from './art';
 import { useArtStatus } from './useArtStatus';
 import { readVisualStyle } from '../render/visualStyle';
+import { appearanceIndex, personSkinGroup } from '../render/personAppearance';
 
 /**
- * A studio portrait for everybody in the city. The painted library in
- * public/art/portraits is used when it is there — with a separate illustrated
- * set for the illustrated city, keyed by the person's portrait number so a hood
- * always has the same face — and the drawn portrait below stands in if a file
- * cannot be loaded. The gang strip along the bottom and the greyscale of the
- * dead are applied here, not baked into the paintings.
+ * Studio portrait for everybody in the city. Illustrated civilians and
+ * rank-and-file officers use a layered drawing derived from their stable ID;
+ * crew and senior officers keep the commissioned painted pool. Detailed mode
+ * uses the existing portrait library. The gang strip and death tint are UI.
  */
 export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
+  // Citizens and rank-and-file officers use a stable layered drawing. The
+  // commissioned paintings remain for the crew and agency leadership.
+  const illustrated = readVisualStyle() === 'illustrated';
+  const composed = illustrated && !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
   // A boss's own painting when it has been delivered; the pool face otherwise.
-  const boss = readVisualStyle() === 'illustrated' ? undefined : bossPortraitUrl(person.face);
+  const boss = illustrated ? undefined : bossPortraitUrl(person.face);
   const bossStatus = useArtStatus(boss);
-  const pool = portraitUrl(person);
+  const pool = composed ? undefined : portraitUrl(person);
   const poolStatus = useArtStatus(pool);
   const useBoss = !!boss && bossStatus !== 'failed';
   const src = useBoss ? boss! : pool;
   const status = useBoss ? bossStatus : poolStatus;
   // Keep the last painting up while the next one loads. Even a cached file
-  // reports 'loading' for one paint, and the drawn stand-in (keyed to the
-  // name's number, not the face being chosen) flashed between every step.
+  // reports 'loading' for one paint, and the drawn stand-in flashed between
+  // every step while the player chose a leader.
   const [shown, setShown] = useState<string>();
-  if (status === 'loaded' && shown !== src) setShown(src);
+  if (src && status === 'loaded' && shown !== src) setShown(src);
   const painting = status === 'loaded' ? src : status === 'loading' ? shown : undefined;
   const gone = person.status === 'dead';
   return (
@@ -44,7 +47,7 @@ export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: G
   );
 }
 
-/** A stable 0..1 from a portrait number and a salt. */
+/** A stable 0..1 from the composed identity index and a salt. */
 function r(seed: number, salt: number): number {
   let h = (seed * 2654435761 + salt * 40503) >>> 0;
   h ^= h >>> 15;
@@ -63,14 +66,15 @@ const COAT = ['#2e2a25', '#38312a', '#25282d', '#3e362e', '#332b2b'] as const;
 const CARD = ['#cfc3a4', '#c8bb9c', '#d4c8aa', '#c2b696'] as const;
 
 /**
- * The drawn mugshot: face, hair, hat and collar all out of the portrait
- * number, built from large shapes so it still reads at thirty pixels.
+ * The drawn mugshot: face, hair, hat and collar follow the stable identity
+ * index, built from large shapes so it still reads at thirty pixels.
  */
 export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
-  const p = person.portrait;
-  const skin = pick(SKIN, p, 1);
+  const p = appearanceIndex(person);
+  const tone = personSkinGroup(person);
+  const skin = SKIN[tone * 2 + Math.floor(r(p, 1) * 2)];
   const hair = pick(HAIR, p, 2);
-  const coat = pick(COAT, p, 3);
+  const coat = person.role === 'police' ? '#252e42' : person.role === 'fbi' ? '#34332f' : pick(COAT, p, 3);
   const card = pick(CARD, p, 4);
   const jaw = person.female ? 8.6 : 9.2 + r(p, 5) * 0.9;
   const wide = person.female ? 7.6 : 7.9 + r(p, 6) * 0.8;
@@ -78,11 +82,14 @@ export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gan
   // Hats were near-universal out of doors, but a portrait is taken indoors, so
   // rather more than half the city is bare-headed here.
   const hatRoll = r(p, 7);
-  const hatKind = hatRoll < 0.42 ? (person.female ? 'cloche' : hatRoll < 0.24 ? 'fedora' : 'cap') : 'none';
+  const hatKind = person.role === 'police' ? 'cap' : person.role === 'fbi' ? 'fedora'
+    : hatRoll < 0.42 ? (person.female ? 'cloche' : hatRoll < 0.24 ? 'fedora' : 'cap') : 'none';
   const hatColor = pick(HAT, p, 8);
   const balding = !person.female && r(p, 9) > 0.86;
   const moustache = !person.female && r(p, 10) > 0.72;
   const glasses = r(p, 11) > 0.85;
+  const wrinkles = r(p, 14) > 0.72;
+  const freckles = r(p, 15) > 0.76;
   const eyeY = 19.4;
   const smile = (r(p, 12) - 0.5) * 2.4;
   const gone = person.status === 'dead';
@@ -102,9 +109,16 @@ export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gan
 
       {/* Shoulders and overcoat. */}
       <path d={`M 1 40 L 1 34 Q 8 29 14 28 L 26 28 Q 32 29 39 34 L 39 40 Z`} fill={coat} />
-      {/* Shirt front and necktie. */}
+      {/* Collars, period tie or blouse. */}
       <path d="M 15.6 28.4 L 20 34 L 24.4 28.4 L 22.6 27.6 L 17.4 27.6 Z" fill="#ddd6c4" />
-      <path d="M 20 31 L 22.2 33.4 L 21 40 L 19 40 L 17.8 33.4 Z" fill={pick(['#7a2f2a', '#2f3f5e', '#4a4030', '#3d2f42'], p, 13)} />
+      {person.female ? (
+        <g fill="none" stroke="#bca886" strokeWidth="0.6">
+          <path d="M 15 29 Q 20 36 25 29" />
+          {r(p, 16) > .5 && <path d="M 17.6 30.6 Q 20 33.8 22.4 30.6" />}
+        </g>
+      ) : (
+        <path d="M 20 31 L 22.2 33.4 L 21 40 L 19 40 L 17.8 33.4 Z" fill={pick(['#7a2f2a', '#2f3f5e', '#4a4030', '#3d2f42'], p, 13)} />
+      )}
 
       {/* Neck and head. */}
       <rect x="16.6" y="23" width="6.8" height="7" rx="2.4" fill={skin} />
@@ -151,6 +165,13 @@ export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gan
 
       {/* Nose and mouth. */}
       <path d="M 20 20.2 L 19.1 23.2 L 20.9 23.2 Z" fill="#000" opacity="0.16" />
+      {freckles && <g fill="#7c513c" opacity=".55">
+        <circle cx="14.4" cy="22.5" r=".42" /><circle cx="16" cy="22.9" r=".36" />
+        <circle cx="24.2" cy="22.4" r=".42" /><circle cx="25.5" cy="22.8" r=".33" />
+      </g>}
+      {wrinkles && <g fill="none" stroke="#634a3c" strokeWidth=".5" opacity=".45">
+        <path d="M 13 21.9 L 15.2 21.5 M 24.8 21.5 L 27 21.9 M 17.8 26.5 Q 20 27 22.2 26.5" />
+      </g>}
       {moustache ? (
         <rect x="17.2" y="24.1" width="5.6" height="1.5" rx="0.75" fill={hair} />
       ) : (
@@ -175,6 +196,7 @@ export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gan
         <g fill={hatColor}>
           <path d="M 11.8 11.4 C 11.8 5.2 28.2 5.2 28.2 11.4 Z" />
           <path d="M 10.4 11.2 L 29.2 11.2 L 29.2 12.8 Q 20 14.2 10.4 12.6 Z" />
+          {person.role === 'police' && <circle cx="20" cy="9.2" r="1" fill="#b89a52" />}
         </g>
       )}
       {hatKind === 'cloche' && (
