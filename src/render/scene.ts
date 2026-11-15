@@ -23,6 +23,7 @@ import { recentEventCounts } from '../sim/events';
 import { drawTerritoryOutline } from './territoryOutline';
 import type { Block, Building, ID, Person, Vec2, VehicleId, WorldState } from '../sim/types';
 import { MAX_CARS, carsAt } from '../sim/traffic';
+import { CORONER_VEHICLE_PAINT, trafficPaint, vehiclePaintFor } from './vehicleLivery';
 import { streetSound } from '../audio/streetSound';
 import { previewGoodsDelivery } from '../sim/goodsDelivery';
 import { CENTRE_LOT, LOT_SIZE, dayPhase } from '../sim/world';
@@ -2233,13 +2234,15 @@ export class CityRenderer {
         this.dummy.updateMatrix();
         (p.status === 'arrested' ? this.arrestMarks : this.waitMarks).push(this.dummy.matrix);
       }
-      if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) this.drivers.push({ x: pos.x, z: pos.y, facing, hex, kind: vehicle, moving: !(this.pulledIn.get(p.vehicleKey ?? `p${p.id}`) ?? 0) });
+      const carPaint = (driving || shuttle) && this.visualStyle === 'illustrated3d'
+        ? vehiclePaintFor(p.vehicleKey ?? `p${p.id}`, p.vehicleKey ? undefined : p.role) : hex;
+      if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) this.drivers.push({ x: pos.x, z: pos.y, facing, hex: carPaint, kind: vehicle, moving: !(this.pulledIn.get(p.vehicleKey ?? `p${p.id}`) ?? 0) });
       // The driver is out loading: his truck stays parked where it is.
       else if (shuttle && p.vehicleKey && w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id) {
         const car = w.vehicleFleet[p.vehicleKey];
         const at = previewVehicle(car, car.pos, this.subMinute, { x: 0, y: 0 });
         this.pullIn(p.vehicleKey, at, true);
-        this.drivers.push({ x: at.x, z: at.y, facing: roadHeading(w, car.pos), hex, kind: car.kind });
+        this.drivers.push({ x: at.x, z: at.y, facing: roadHeading(w, car.pos), hex: carPaint, kind: car.kind });
       }
       i++;
     }
@@ -2247,7 +2250,7 @@ export class CityRenderer {
     for(const [key,car] of Object.entries(w.vehicleFleet??{}))if(!car.occupantIds.length||car.boarding){
       const at=previewVehicle(car,car.pos,this.subMinute,{x:0,y:0});
       this.pullIn(key,at,true);
-      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:0x252525,kind:car.kind});
+      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(key) : 0x252525,kind:car.kind});
     }
     for (const driver of deliveryDrivers) {
       const motion = this.actorMotion.sample(driver.id, driver.pos.x, driver.pos.y, driver.walking, driver.facing);
@@ -2269,7 +2272,7 @@ export class CityRenderer {
       const ahead=previewGoodsDelivery(delivery,this.subMinute+.0001),dx=ahead.x-pos.x,dy=ahead.y-pos.y;
       // Unloading, or waiting for somewhere to go: in to the kerb.
       this.pullIn(`delivery:${delivery.sourceId}`,pos,!delivery.path.length);
-      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:0x4e5647,kind:'truck'});
+      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(`delivery:${delivery.sourceId}`) : 0x4e5647,kind:'truck'});
     }
     const bodyTime = campaignMinute(w, w.minute + this.subMinute);
     for (const p of Object.values(w.people)) {
@@ -2277,7 +2280,7 @@ export class CityRenderer {
       const hearse = hearseAt(p, bodyTime);
       if (!hearse || Math.abs(hearse.pos.x - cx) > reach || Math.abs(hearse.pos.y - cz) > reach) continue;
       this.drivers.push({ x: hearse.pos.x, z: hearse.pos.y, facing: hearse.facing,
-        hex: 0x1c1e23, kind: 'truck', moving: true, coroner: true });
+        hex: CORONER_VEHICLE_PAINT, kind: 'truck', moving: true, coroner: true });
     }
     this.burningPeople?.commit();
     this.emergencyHoses?.commit();
@@ -2375,9 +2378,10 @@ export class CityRenderer {
       this.dummy.rotation.set(0, yaw, 0);
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
-      this.colorScratch.setHex(CAR_COLORS[c.color % CAR_COLORS.length]);
+      const paint = this.visualStyle === 'illustrated3d' ? trafficPaint(c.color) : CAR_COLORS[c.color % CAR_COLORS.length];
+      this.colorScratch.setHex(paint);
       if (spriteMode) this.vehicleSprites!.push(truck ? 'truck' : 'coupe', x, z, yaw);
-      else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(truck ? 'truck' : 'coupe', this.dummy.matrix)) { /* Detailed vehicle */ }
+      else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(truck ? 'truck' : 'coupe', this.dummy.matrix, paint)) { /* Detailed vehicle */ }
       else (truck ? this.trucks : this.sedans).push(this.dummy.matrix, this.colorScratch);
 
       if (dusk > 0.02) {
@@ -2388,7 +2392,7 @@ export class CityRenderer {
       }
     }
 
-    // The sim's own drivers, in their gang's colours, on top of the traffic.
+    // Simulation vehicles keep their own paint when the driver changes.
     for (const d of this.drivers) {
       // A moving gang car edges out round a car at the kerb, as the traffic does.
       if (d.moving && this.standingCars.length) {
@@ -2405,7 +2409,7 @@ export class CityRenderer {
       if (d.coroner) this.hearses.push(this.dummy.matrix, this.colorScratch);
       else if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
         this.vehicleSprites!.push(d.kind, d.x, d.z, d.facing - Math.PI / 2);
-      else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix)) { /* Detailed vehicle */ }
+      else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix, d.hex)) { /* Detailed vehicle */ }
       else (d.kind === 'truck' ? this.trucks : d.kind === 'speedster' ? this.speedsters : this.sedans).push(this.dummy.matrix, this.colorScratch);
       if (dusk > .02) {
         const { nose, lampY } = this.vehicleProfile(d.kind);

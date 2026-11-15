@@ -5,6 +5,40 @@ The remake's detailed city relies on photographed facade and road textures,
 legible but does not have the compact, hand-drawn feeling of the 1998 game.
 The original game's images are not part of this project.
 
+## Painted 3D buildings and vehicles
+
+**Illustrated 3D** applies the painted brick, limestone, stucco and shopfront
+sheets directly to the existing 3D building geometry. The roofs and church
+still retain procedural materials. These are shared wall textures; no flat
+building sprite replaces the model.
+
+The coupe, covered delivery truck and raised-top sports car now also use
+painted UV sheets on their real 3D meshes. The original eight-direction car
+images remain part of the separate **Illustrated 1930s** sprite mode.
+
+![Three 3D vehicle families in twelve period enamel colours](images/illustrated-vehicle-fleet.png)
+
+![The same 3D coupe in different paint colours](images/illustrated-coupe-paints.png)
+
+The twelve civilian paints range from black, forest/bottle green, bordeaux
+and navy to slate, cream, sand, olive, maroon, charcoal and steel grey. Each
+fleet vehicle keeps its paint when its driver changes, parks or reloads.
+Service cars use restrained police/federal colours; the coroner keeps its
+black vehicle. Tyres, glass, chrome, fabric roofs and the truck's canvas/wood
+are excluded from body repainting.
+
+Traffic already calculated a colour, but the 3D vehicle path previously
+discarded it. Per-instance paint now reaches the model through a selective
+coachwork mask. Three 1024-pixel maps and the existing instanced meshes are
+shared across the fleet, without a separate texture or material per colour.
+Some small UV seams and the original model silhouettes remain visible at
+close zoom; this pass paints the existing three vehicle families.
+
+Run `npm run art:vehicles` to rebuild the vehicle maps. Capture the actual
+models with `node scripts/capture-vehicle-review.mjs /tmp/fleet.png --page=all`;
+the same script accepts `--page=coupe`, `truck` or `speedster` for a closer
+comparison.
+
 ## Illustrated 3D wardrobe
 
 Choose **Game Options → City artwork → Illustrated 3D**, then save and reopen

@@ -209,7 +209,7 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated 3D pairs painted buildings with animated people, varied clothing, body builds and skin tones.
+          Illustrated 3D pairs painted buildings and cars with animated people, varied clothing, body builds and skin tones.
           Illustrated 1930s uses drawn street figures. Both use original illustrated portraits.
           Save and reopen the city to apply the street style; graphics quality is separate.
         </div>

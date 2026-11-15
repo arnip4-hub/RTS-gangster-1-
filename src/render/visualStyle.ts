@@ -6,7 +6,7 @@ const KEY = 'og.visualStyle';
 export function readVisualStyle(): VisualStyle {
   try {
     const saved = localStorage.getItem(KEY);
-    return saved === 'illustrated' || saved === 'illustrated3d' ? saved : 'detailed';
+    return saved === 'illustrated' || saved === 'illustrated3d' || saved === 'detailed' ? saved : 'illustrated3d';
   }
   catch { return 'detailed'; }
 }

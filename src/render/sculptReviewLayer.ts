@@ -63,6 +63,7 @@ export class SculptReviewLayer {
   private sourceTextures = new Set<THREE.Texture>();
   private equipmentLibrary = new EquipmentModels();
   private morphology = new CharacterMorphologyCache(256);
+  private vehiclePaint = new THREE.Color();
   private visible = true;
   private disposed = false;
 
@@ -98,7 +99,7 @@ export class SculptReviewLayer {
       // and geometry parameters, never an additional texture per citizen.
       if (this.options.painted) {
         const paintedStyles = ['fedora', 'woman', 'worker', 'police', 'fbi'] as const;
-        const maps = await Promise.all(paintedStyles.map(async style => {
+        const maps = await Promise.all([...paintedStyles, ...SCULPT_VEHICLE_KINDS].map(async style => {
           const texture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}art/city/illustrated-${style}-albedo.jpg`);
           texture.flipY = false;
           texture.colorSpace = THREE.SRGBColorSpace;
@@ -117,6 +118,19 @@ export class SculptReviewLayer {
               if (!(material instanceof THREE.MeshStandardMaterial)) continue;
               if (material.map) this.sourceTextures.add(material.map);
               material.map = maps[index];
+            }
+          });
+        });
+        cars.forEach((asset, index) => {
+          asset.scene.traverse(child => {
+            if (!(child instanceof THREE.Mesh)) return;
+            for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+              if (!(material instanceof THREE.MeshStandardMaterial) || !material.map) continue;
+              // The original UV image remains the exact material mask; the
+              // painted sheet supplies the visible brushwork and detail.
+              material.userData.vehiclePaintReferenceMap = material.map;
+              this.sourceTextures.add(material.map);
+              material.map = maps[paintedStyles.length + index];
             }
           });
         });
@@ -150,7 +164,7 @@ export class SculptReviewLayer {
         }
       });
       SCULPT_VEHICLE_KINDS.forEach((kind, index) => {
-        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity);
+        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity, { painted: this.options.painted });
         this.vehicles.set(kind, { parts: vehicle.parts, count: 0 });
         this.vehicleMaterials.push(...vehicle.ownedMaterials);
         for (const part of vehicle.parts) { part.visible = this.visible; this.scene.add(part); }
@@ -387,18 +401,23 @@ export class SculptReviewLayer {
   }
 
   resetVehicles(): void { for (const vehicle of this.vehicles.values()) vehicle.count = 0; }
-  pushVehicle(kind: VehicleId, matrix: THREE.Matrix4): boolean {
+  pushVehicle(kind: VehicleId, matrix: THREE.Matrix4, paint = 0x25282b): boolean {
     const vehicle = this.vehicles.get(kind);
     if (!this.ready || !this.visible || !vehicle || vehicle.count >= this.carCapacity) return false;
-    for (const part of vehicle.parts) part.setMatrixAt(vehicle.count, matrix);
+    this.vehiclePaint.setHex(paint);
+    for (const part of vehicle.parts) {
+      part.setMatrixAt(vehicle.count, matrix);
+      if (this.options.painted) part.setColorAt(vehicle.count, this.vehiclePaint);
+    }
     vehicle.count++;
     return true;
   }
-  pushCoupe(matrix: THREE.Matrix4): boolean { return this.pushVehicle('coupe', matrix); }
+  pushCoupe(matrix: THREE.Matrix4, paint?: number): boolean { return this.pushVehicle('coupe', matrix, paint); }
   commitVehicles(): void {
     for (const vehicle of this.vehicles.values()) for (const part of vehicle.parts) {
       part.count = vehicle.count;
       if (vehicle.count) part.instanceMatrix.needsUpdate = true;
+      if (vehicle.count && part.instanceColor) part.instanceColor.needsUpdate = true;
     }
   }
   setVisible(visible: boolean): void {

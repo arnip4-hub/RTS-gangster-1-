@@ -17,6 +17,8 @@ import type { Vec2, WorldState } from './types';
 import { peopleSlice } from './peopleSlices';
 
 export const MAX_CARS = 320;
+/** Stable paint slots; the renderer chooses the enamel associated with each. */
+export const TRAFFIC_PAINT_SLOTS = 12;
 
 /** A walker waits for a car that would reach the crossing within this many
  *  minutes (about the time it takes him to reach its lane), plus a margin in
@@ -206,7 +208,7 @@ function carSpecs(w: WorldState): { specs: CarSpec[]; drives: (Drive | null)[] }
     const lane = lanes[k % lanes.length];
     const round = Math.floor(k / lanes.length);
     specs.push({ node: lane >> 2, dir: lane & 3, phase: (0.15 + 0.7 * r01(k, 98) + round * 0.37) % 1,
-      truck: r01(k, 94) < 0.3, color: rint(k, 97, 8) });
+      truck: r01(k, 94) < 0.3, color: rint(k, 97, TRAFFIC_PAINT_SLOTS) });
   }
   const out = { graph, specs, drives: new Array<Drive | null>(specs.length).fill(null) };
   specCache.set(w, out);

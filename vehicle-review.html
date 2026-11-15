@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Illustrated 3D vehicle paint review</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #e6ddc8; color: #302a23; font-family: Georgia, serif; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      header { position: absolute; top: 22px; left: 36px; right: 36px; pointer-events: none; }
+      h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: .03em; }
+      p { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+      .label { position: absolute; width: 300px; transform: translateX(-50%); text-align: center; pointer-events: none; }
+      .label strong { display: block; font-size: 16px; }
+      .label span { display: block; margin-top: 4px; font: 11px/1.3 system-ui, sans-serif; color: #645748; }
+    </style>
+  </head>
+  <body>
+    <header><h1 id="title">Illustrated 3D vehicle colours</h1><p id="description">Loading actual vehicle models…</p></header>
+    <canvas id="review"></canvas><div id="labels"></div>
+    <script type="module">
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+      import { createSculptVehicle } from './src/render/sculptVehicles.ts';
+      import { VEHICLE_PAINTS } from './src/render/vehicleLivery.ts';
+
+      // Development contact sheet: the same instanced vehicle geometry and
+      // paint materials used by the city, with protected tyres/glass/chrome.
+      const query = new URLSearchParams(location.search);
+      const page = query.get('page') ?? 'all';
+      const painted = query.get('painted') !== '0';
+      if (!['all', 'coupe', 'truck', 'speedster'].includes(page)) throw Error(`Unknown vehicle page: ${page}`);
+      const palette = VEHICLE_PAINTS.map(paint => ({ name: paint.label, color: paint.color }));
+      const kinds = page === 'all' ? ['coupe', 'truck', 'speedster'] : [page];
+      const scene = new THREE.Scene(); scene.background = new THREE.Color(0xe6ddc8);
+      const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('review'), antialias: true });
+      renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(1);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+      renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      scene.add(new THREE.HemisphereLight(0xfff0d8, 0x706858, 2.0));
+      const sun = new THREE.DirectionalLight(0xffe4c4, 3.0); sun.position.set(-10, 30, 16);
+      sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -24; sun.shadow.camera.right = 24;
+      sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -5; sun.shadow.bias = -.0002;
+      scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xc4d3df, .9); fill.position.set(15, 12, 8); scene.add(fill);
+      const columns = page === 'all' ? 6 : 4;
+      const entries = kinds.flatMap(kind => palette.map((paint, index) => ({ kind, paint, index })));
+      const rows = Math.ceil(entries.length / columns), stepX = 5.8, stepY = 5.6;
+      const gridW = columns * stepX, gridH = rows * stepY;
+      const viewHeight = Math.max(gridH + 2.6, (gridW + 1.4) * innerHeight / innerWidth);
+      const centerY = (gridH - stepY) / 2 + .9;
+      const camera = new THREE.OrthographicCamera(-viewHeight * innerWidth / innerHeight / 2,
+        viewHeight * innerWidth / innerHeight / 2, viewHeight / 2, -viewHeight / 2, .1, 150);
+      camera.position.set(0, centerY + 17, 34); camera.lookAt(0, centerY, 0); camera.updateMatrixWorld(true);
+      const loader = new GLTFLoader(), textureLoader = new THREE.TextureLoader();
+      const sourceRoots = [], sourceTextures = new Set(), vehicles = new Map();
+      for (const kind of kinds) {
+        const asset = await loader.loadAsync(`./art/city/sculpt/${kind}.glb`);
+        sourceRoots.push(asset.scene);
+        let texture = null;
+        if (painted) {
+          texture = await textureLoader.loadAsync(`./art/city/illustrated-${kind}-albedo.jpg`);
+          texture.colorSpace = THREE.SRGBColorSpace; texture.flipY = false;
+          texture.minFilter = THREE.LinearFilter; texture.generateMipmaps = false;
+          sourceTextures.add(texture);
+        }
+        asset.scene.traverse(child => {
+          if (!(child instanceof THREE.Mesh)) return;
+          for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+            for (const value of Object.values(material)) if (value instanceof THREE.Texture) sourceTextures.add(value);
+            if (texture && material instanceof THREE.MeshStandardMaterial && material.map) {
+              material.userData.vehiclePaintReferenceMap = material.map;
+              material.map = texture;
+            }
+          }
+        });
+        const model = createSculptVehicle(asset.scene, kind, palette.length, { painted: true });
+        for (const part of model.parts) scene.add(part);
+        vehicles.set(kind, model);
+      }
+      const padGeometry = new THREE.PlaneGeometry(5.2, 2.8).rotateX(-Math.PI / 2);
+      const padMaterial = new THREE.MeshStandardMaterial({ color: 0xcfc3a8, roughness: 1 });
+      const labels = document.getElementById('labels'), point = new THREE.Vector3();
+      for (const [i, item] of entries.entries()) {
+        const x = (i % columns - (columns - 1) / 2) * stepX;
+        const y = (rows - 1 - Math.floor(i / columns)) * stepY;
+        const matrix = new THREE.Matrix4().compose(new THREE.Vector3(x, y, 0),
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -.60, 0)), new THREE.Vector3(1, 1, 1));
+        const color = new THREE.Color(item.paint.color);
+        for (const part of vehicles.get(item.kind).parts) {
+          part.setMatrixAt(item.index, matrix); part.setColorAt(item.index, color);
+          part.count = palette.length; part.instanceMatrix.needsUpdate = true;
+          if (part.instanceColor) part.instanceColor.needsUpdate = true;
+        }
+        const pad = new THREE.Mesh(padGeometry, padMaterial); pad.position.set(x, y - .02, 0);
+        pad.receiveShadow = true; scene.add(pad);
+        const label = document.createElement('div'); label.className = 'label';
+        const name = document.createElement('strong'); name.textContent = `${item.kind} · ${item.paint.name}`;
+        const details = document.createElement('span'); details.textContent = `#${item.paint.color.toString(16).padStart(6, '0')} · protected tyres, glass and trim`;
+        label.append(name, details); labels.append(label);
+        point.set(x, y - .40, 1.3).project(camera);
+        label.style.width = `${Math.min(320, innerWidth / columns - 16)}px`;
+        label.style.left = `${(point.x + 1) * innerWidth / 2}px`; label.style.top = `${(1 - point.y) * innerHeight / 2}px`;
+      }
+      renderer.render(scene, camera);
+      const stats = () => ({ page, painted, kinds, paints: palette.length, entries: entries.length,
+        parts: [...vehicles].map(([kind, vehicle]) => ({ kind, parts: vehicle.parts.length,
+          instanceCounts: vehicle.parts.map(part => part.count),
+          instanceColorCounts: vehicle.parts.map(part => part.instanceColor?.count ?? 0),
+          paintAttributes: vehicle.parts.map(part => part.geometry.hasAttribute('aBodyPaint')),
+          paintedVertices: vehicle.parts.map(part => {
+            const weights = part.geometry.getAttribute('aBodyPaint');
+            return weights ? Array.from(weights.array).filter(value => value > .5).length : 0;
+          }),
+          protectedVertices: vehicle.parts.map(part => {
+            const weights = part.geometry.getAttribute('aBodyPaint');
+            return weights ? Array.from(weights.array).filter(value => value <= .5).length : 0;
+          }),
+          mapSources: vehicle.parts.flatMap(part => (Array.isArray(part.material) ? part.material : [part.material])
+            .map(material => material.map?.image?.src ?? null)),
+        })), render: { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles } });
+      document.getElementById('title').textContent = page === 'all' ? 'Three 3D vehicle families · twelve paint colours' : `${page} · twelve paint colours`;
+      document.getElementById('description').textContent = `${painted ? 'Painted' : 'Source'} albedos on actual instanced 3D models · tyres, glass and trim keep their materials`;
+      window.__vehicleReview = { ready: true, stats, render() { renderer.render(scene, camera); },
+        pick(x, y) {
+          const ray = new THREE.Raycaster();
+          ray.setFromCamera(new THREE.Vector2(x / innerWidth * 2 - 1, 1 - y / innerHeight * 2), camera);
+          const hits = [];
+          for (const [kind, vehicle] of vehicles) for (const part of vehicle.parts) {
+            const intersections = [];
+            THREE.InstancedMesh.prototype.raycast.call(part, ray, intersections);
+            for (const hit of intersections) {
+              const matrix = new THREE.Matrix4(); part.getMatrixAt(hit.instanceId, matrix);
+              matrix.premultiply(part.matrixWorld);
+              const local = hit.point.clone().applyMatrix4(matrix.invert());
+              const position = part.geometry.getAttribute('position'), weights = part.geometry.getAttribute('aBodyPaint');
+              const corners = [hit.face.a, hit.face.b, hit.face.c].map(i => new THREE.Vector3().fromBufferAttribute(position, i));
+              const bary = new THREE.Triangle(...corners).getBarycoord(local, new THREE.Vector3());
+              const weight = bary ? [bary.x, bary.y, bary.z].reduce((sum, value, i) => sum + value * weights.getX([hit.face.a, hit.face.b, hit.face.c][i]), 0) : null;
+              const material = Array.isArray(part.material) ? part.material[hit.face.materialIndex] : part.material;
+              hits.push({ distance: hit.distance, kind, instance: hit.instanceId, paint: palette[hit.instanceId],
+                point: local.toArray(), normal: hit.face.normal.toArray(), uv: hit.uv?.toArray(),
+                bodyPaint: weight, material: material.name });
+            }
+          }
+          return hits.sort((a, b) => a.distance - b.distance).slice(0, 3);
+        },
+        dispose() {
+          const materials = new Set(), geometries = new Set();
+          for (const vehicle of vehicles.values()) {
+            vehicle.parts.forEach(part => { part.removeFromParent(); part.geometry.dispose(); part.dispose(); });
+            vehicle.ownedMaterials.forEach(material => material.dispose());
+          }
+          for (const root of sourceRoots) root.traverse(child => {
+            if (!(child instanceof THREE.Mesh)) return; geometries.add(child.geometry);
+            for (const material of Array.isArray(child.material) ? child.material : [child.material]) materials.add(material);
+          });
+          geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
+          sourceTextures.forEach(texture => texture.dispose()); padGeometry.dispose(); padMaterial.dispose(); renderer.dispose();
+        } };
+    </script>
+  </body>
+</html>

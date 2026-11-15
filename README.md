@@ -8,6 +8,17 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial and court
 reports still close weekly; crews, vehicles, deliveries and live orders carry on.
 
+## Windows download — 0.2.0-beta.2
+
+[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261115.6/RTS-gangster-beta-Setup.exe)
+
+This installer includes the illustrated 3D buildings, 50 civilian clothing
+combinations, eight uniforms, varied body builds and skin tones, and painted
+3D cars in twelve colours. New profiles start with **Illustrated 3D**.
+For an existing profile, choose **Book → Options → City artwork → Illustrated 3D**,
+then save and reopen the city. The existing save folder is retained.
+[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.6).
+
 ## Where the project stands
 
 Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
@@ -186,6 +197,9 @@ uniforms, eight body builds, three heights and ten skin shades, with varied
 faces, hair and hats. Save and reopen the city after selecting this artwork
 option. [See the actual wardrobe and city captures](docs/ART_DIRECTION.md#illustrated-3d-wardrobe).
 Coat/skirt extensions and fur are still beta art and need further tailoring.
+The same mode now includes painted 3D coupe, delivery-truck and sports-car
+textures with twelve civilian body paints. Vehicle paint stays with the car;
+tyres, glass, chrome and fabric keep their own materials.
 
 ```bash
 git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git
