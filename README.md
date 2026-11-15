@@ -1,4 +1,4 @@
-# Gangsters RTS
+# RTS-Gangsters v. beta
 
 An experimental real-time strategy fork of [Original Gangster](https://github.com/daleeb/original-gangster-release),
 the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal is
@@ -34,12 +34,15 @@ the live city. The original GOG installation is separate from this remake fork.
 
 The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-test-20261115.3)
 contains an installer (`Original.Gangster.Setup.1.0.6.exe`) and a portable executable
-(`Original.Gangster.1.0.6.exe`). The filenames still use the remake's product name.
+(`Original.Gangster.1.0.6.exe`). Those files still carry the remake's old name;
+the next build will use **RTS-Gangsters v. beta**.
 This published build predates the `W/A/S/D` and automatic week rollover changes
 listed above. Check each release's notes for what is included before downloading.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.
+The desktop save folder keeps its existing `Original Gangster` path so earlier
+test saves remain accessible after the application is renamed.
 
 ## Requirements
 

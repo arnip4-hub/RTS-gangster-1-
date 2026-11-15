@@ -1,9 +1,7 @@
-import { ArtImage } from './ArtImage';
 import { useEffect, useState } from 'react';
 import { useGame } from '../app/store';
 import { deleteSave, loadHallOfFame, slotLoadable, type HallEntry, type SaveSlot } from '../app/save';
 import { gangManpower, money, territoryCount } from '../sim/world';
-import { art } from './art';
 import { CityPlan } from './desk/CityPlan';
 import { ConfirmDialog, Modal } from './common';
 import { Plaque } from './Plaque';
@@ -140,7 +138,7 @@ export function MainMenu() {
     <div className="scene scene-casino">
       <div className="scene-light" aria-hidden="true" />
       <h1 className="scene-title">
-        <ArtImage src={art('brand/wordmark.png')} alt="Original Gangster" draggable={false} />
+        <span className="rts-wordmark">RTS-Gangsters <small>v. beta</small></span>
       </h1>
 
       <nav className="plaque-stack" aria-label="Main menu">
@@ -267,7 +265,7 @@ export function MainMenu() {
         />
       )}
       {sheet === 'credits' && (
-        <Modal title="Credits" kicker="Original Gangster · an HD reimagining" onClose={() => setSheet(null)} width={640}>
+        <Modal title="Credits" kicker="RTS-Gangsters v. beta" onClose={() => setSheet(null)} width={640}>
           <div className="credits">
             <h4>The original</h4>
             <p>
@@ -275,14 +273,15 @@ export function MainMenu() {
               published by Eidos Interactive. This is a fan reimagining; the original game and its manual are
               the reference for every rule here.
             </p>
-            <h4>This reimagining</h4>
+            <h4>Original Gangster remake</h4>
             <p>
-              Design, simulation, renderer, interface and art made for this project: desk materials, crests,
-              icons, portraits, city facades, mastheads, cursors, and the people, vehicles, trees and rubble of
-              the streets.
+              The independent remake by daleeb provides the base simulation, renderer, interface,
+              original remake artwork, models, music and sound. This fork uses it under the MIT license.
             </p>
+            <h4>This RTS fork</h4>
+            <p>Live crew movement, an Organizer available during the working week, map navigation and the ongoing RTS conversion.</p>
             <h4>Music and sound</h4>
-            <p>The score and the city's sounds were made for this game; synthesised Web Audio stands in until they load.</p>
+            <p>The remake's score and city sounds were made for that project; synthesised Web Audio stands in until they load.</p>
             <h4>Type and tools</h4>
             <p>Barlow, Barlow Condensed, Special Elite and Cinzel from Google Fonts (Open Font License) · Three.js · React · Vite · Zustand · Electron · Vitest.</p>
             <p className="muted">New Temperance is fictional. Any resemblance to a Chicago of the 1920s is entirely the point.</p>

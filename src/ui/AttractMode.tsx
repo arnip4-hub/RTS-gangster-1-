@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 import { useGame } from '../app/store';
-import { ArtImage } from './ArtImage';
-import { art } from './art';
 
 const SHOT_MS = 9000;
 
@@ -37,7 +35,7 @@ export function AttractMode() {
 
   return (
     <div className="attract" role="presentation">
-      <ArtImage className="attract-plate" src={art('brand/wordmark.png')} alt="Original Gangster" draggable={false} />
+      <div className="rts-wordmark attract-wordmark">RTS-Gangsters <small>v. beta</small></div>
       <div className="attract-banner">Demonstration</div>
       <div className="title-skip attract-skip">Press any key</div>
     </div>

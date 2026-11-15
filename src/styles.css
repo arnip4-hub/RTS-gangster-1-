@@ -3834,10 +3834,24 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   justify-content: center;
   padding-top: clamp(14px, 3.2vh, 40px);
 }
-.scene-title img {
-  height: clamp(110px, 19vh, 230px);
-  width: auto;
-  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.7)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+.rts-wordmark {
+  display: block;
+  font-family: 'Cinzel', serif;
+  font-weight: 800;
+  line-height: 1;
+  color: #f0d489;
+  text-align: center;
+  text-shadow: 0 3px 1px #3a1b11, 0 10px 20px #000, 0 1px 2px #000;
+}
+.rts-wordmark small {
+  display: block;
+  margin-top: .35em;
+  font-size: .3em;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.scene-title .rts-wordmark {
+  font-size: clamp(38px, 6.2vw, 88px);
 }
 
 /* ---- The plaque ---- */
@@ -3921,7 +3935,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 @media (max-width: 720px) {
   .plaque { --plaque-w: min(86vw, 360px); }
-  .scene-title img { height: clamp(80px, 14vh, 140px); }
+  .scene-title .rts-wordmark { font-size: clamp(30px, 8vw, 58px); }
 }
 
 /* ---- Scene type ---- */
@@ -4416,9 +4430,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   color: rgba(240, 212, 137, .85); text-shadow: 0 2px 4px #000;
   animation: title-rise 1.2s .5s ease-out both;
 }
-.title-plate {
-  display: block; margin: clamp(12px, 2.4vh, 26px) auto; height: clamp(140px, 26vh, 300px); width: auto;
-  filter: drop-shadow(0 18px 30px rgba(0,0,0,.8));
+.title-wordmark {
+  margin: clamp(18px, 3vh, 34px) auto;
+  font-size: clamp(44px, 8vw, 108px);
   animation: title-rise 1.4s .9s ease-out both;
 }
 .title-line {
@@ -4436,14 +4450,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 @keyframes title-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes title-pulse { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) {
-  .title-city, .title-year, .title-plate, .title-line, .title-skip { animation: title-in .8s ease-out both; transform: none; }
+  .title-city, .title-year, .title-wordmark, .title-line, .title-skip { animation: title-in .8s ease-out both; transform: none; }
 }
 
 /* Attract mode: the demonstration over the autopilot city. */
 .attract { position: fixed; inset: 0; z-index: 60; pointer-events: none;
   background: radial-gradient(ellipse 80% 70% at 50% 50%, transparent 55%, rgba(5,4,3,.55) 100%); }
-.attract-plate { position: absolute; top: 22px; left: 26px; height: clamp(70px, 12vh, 130px); width: auto;
-  filter: drop-shadow(0 10px 18px rgba(0,0,0,.8)); animation: title-in 1.2s ease-out both; }
+.attract-wordmark { position: absolute; top: 22px; left: 26px; font-size: clamp(22px, 3.4vw, 44px);
+  animation: title-in 1.2s ease-out both; }
 .attract-banner { position: absolute; top: 34px; right: 30px; padding: 8px 18px;
   font: 700 clamp(12px, 1.5vh, 15px)/1 'Cinzel', serif; letter-spacing: .38em; text-transform: uppercase;
   color: #f0d489; background: linear-gradient(#3a2a17, #1c140b); border: 1px solid rgba(240,212,137,.55);

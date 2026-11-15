@@ -7,7 +7,7 @@
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
   },
   "packageManager": "npm@11.6.2",
-  "description": "An HD reimagining of Gangsters: Organized Crime (1998)",
+  "description": "RTS-Gangsters v. beta: an experimental real-time strategy fork of Original Gangster",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -58,7 +58,7 @@
   "main": "electron/main.cjs",
   "build": {
     "appId": "com.originalgangster.game",
-    "productName": "Original Gangster",
+    "productName": "RTS-Gangsters v. beta",
     "directories": {
       "output": "release"
     },

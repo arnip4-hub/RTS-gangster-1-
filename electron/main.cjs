@@ -11,9 +11,9 @@ const DIST = path.join(__dirname, '..', 'dist');
 const DEV_URL = process.env.OG_DEV_URL;
 const savesDir = () => path.join(app.getPath('userData'), 'saves');
 
-// One profile folder for the packaged app and `electron .` alike (Electron
-// would otherwise name it after package.json in one and productName in the
-// other). Tests and portable setups can point it elsewhere.
+// Keep the original profile folder so existing test saves remain available
+// when the visible app and installer are renamed. Tests and portable setups
+// can still point it elsewhere.
 app.setPath('userData', process.env.OG_USER_DATA || path.join(app.getPath('appData'), 'Original Gangster'));
 
 // Laptops with two GPUs: render on the discrete one.
@@ -37,7 +37,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1600, height: 960, minWidth: 1024, minHeight: 640,
     backgroundColor: '#0b0b0d', show: false, autoHideMenuBar: true,
-    title: 'Original Gangster',
+    title: 'RTS-Gangsters v. beta',
     // The packaged exe carries the icon; this covers `electron .` runs.
     icon: path.join(DIST, 'art', 'brand', 'favicon-512.png'),
     webPreferences: {
@@ -71,7 +71,7 @@ function createWindow() {
   win.webContents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit' || win.isDestroyed()) return;
     if (++crashes <= 2) { win.webContents.reload(); return; }
-    dialog.showMessageBox(win, { type: 'error', title: 'Original Gangster',
+    dialog.showMessageBox(win, { type: 'error', title: 'RTS-Gangsters v. beta',
       message: 'The game stopped unexpectedly. Your saved games are safe on disk.', buttons: ['Restart', 'Quit'] })
       .then(({ response }) => { if (response === 0) { crashes = 0; win.webContents.reload(); } else app.quit(); })
       .catch(() => app.quit());
@@ -120,8 +120,8 @@ else {
     createWindow();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
   }).catch(e => {
-    console.error('Original Gangster could not start:', e);
-    dialog.showErrorBox('Original Gangster', `The game could not start.\n\n${e instanceof Error ? e.message : e}`);
+    console.error('RTS-Gangsters v. beta could not start:', e);
+    dialog.showErrorBox('RTS-Gangsters v. beta', `The game could not start.\n\n${e instanceof Error ? e.message : e}`);
     app.quit();
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
