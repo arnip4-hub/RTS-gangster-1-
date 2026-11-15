@@ -115,6 +115,16 @@ branch. The `main` branch keeps the earlier remake baseline.
   Every hit remains an ordinary risky crime. The **Squealers** panel now shows
   actual police informants rather than everyone hostile to the gang, with
   actions to add them to the hit list or prepare a Kill order.
+- **Prison, witnesses and freight (development branch):** convicted gang members
+  are assigned to County Jail or the State Penitentiary. An inmate can ask
+  around for a limited name, buy protection, or arrange an attack on a known
+  rival in the same prison. Each action waits for morning roll call; an attack
+  can fail, extend a sentence and raise police evidence. Rival inmates have
+  the same limited chance to learn names and attack. A crew can now **Pressure
+  Witness** after learning a witness's name; refusal strengthens the case and
+  alerts police. **Hijack Truck** holds a roadside point until a rival freight
+  truck passes. A successful crew diverts that actual truck and manifest to
+  storage it owns; a failed attempt is reported to police.
 - **Daily paper:** in RTS mode a new edition appears at 6 a.m. each day in the
   Organizer. It carries the previous day's reported crimes, deaths, business
   moves, politics, charity appeals and period stories. Events after printing
@@ -125,9 +135,8 @@ branch. The `main` branch keeps the earlier remake baseline.
   redesign of weekly orders and accounting so the game can become a full RTS.
   Automatic week rollover does not remove all weekly rules yet. Freight trucks
   are owned by businesses, not assigned to individual drivers; rival gangs do
-  not yet intercept cargo, and there is no manual route editor. Prison remains
-  a sentence timer: inmates do not yet meet, exchange limited information,
-  request protection or arrange attacks inside a prison.
+  have no manual route editor. Prison is represented through two named
+  facilities and daily actions rather than a walkable prison map.
 
 The [RTS time audit](docs/RTS_TIME_AUDIT.md) records which systems use game
 minutes, daily boundaries and the weekly settlement.
