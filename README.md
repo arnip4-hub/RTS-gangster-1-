@@ -148,10 +148,12 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The previous [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.2)
+The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.4)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
-`RTS-gangster-beta-Portable.exe`. The latest source changes are on
-`rts-development`; a new Windows build will follow. Existing saves
+`RTS-gangster-beta-Portable.exe`. This patch corrects WASD and arrow-key
+camera movement in the 3D city and prevents simultaneous Extort orders on
+the same business, with an explanation when the target is already assigned.
+Existing saves
 keep their original five-day clock; start a new campaign to try the continuous
 calendar. The classic mode keeps its original pacing.
 
