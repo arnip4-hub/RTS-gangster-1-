@@ -511,6 +511,7 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
               'active'
             )}
           </Kicker>
+          {person.familyOfId != null && <div className="muted tiny">{person.familyRelation} of {sim.world.people[person.familyOfId]?.name ?? 'an official'}</div>}
           <div className="row between" style={{ marginTop: 6 }}>
             <span className={`tag ${person.loyalty > 60 ? 'good' : person.loyalty > 30 ? 'warn' : 'bad'}`}>Loyalty {Math.round(person.loyalty)}</span>
             <span className="tag">Wanted {Math.round(person.wanted)}</span>
@@ -695,6 +696,7 @@ function ClipboardSheet() {
   const mayor = byRole('mayor'), das = byRole('da'), judges = byRole('judge');
   const chief = byRole('policeChief'), officers = byRole('police');
   const bureau = byRole('fbiHead'), press = byRole('reporter'), clergy = byRole('clergy');
+  const relatives = alive.filter(p => p.familyOfId != null && eligiblePerson(p));
   // With a card looking for a target, the categories that hold one start open.
   const want = (n: number, kind: 'person' | 'site') => n > 0 && n <= 12 && (kind === 'person' ? pickingPerson : pickingSite);
 
@@ -719,6 +721,9 @@ function ClipboardSheet() {
         </ClipSection>
         <ClipSection id="bureau" title="The Bureau" count={bureau.length}>
           {bureau.map((p) => official(p, 'Bureau chief'))}
+        </ClipSection>
+        <ClipSection id="families" title="Officials’ families" count={relatives.length} forceOpen={want(relatives.length,'person')}>
+          {relatives.map(p => personRow(p, `${p.familyRelation} of ${w.people[p.familyOfId!]?.name ?? 'an official'} · whereabouts must be found`))}
         </ClipSection>
         <ClipSection id="press" title="Journalists" count={press.length}>
           {press.map((p) => official(p, 'Reporter'))}

@@ -69,6 +69,20 @@ branch. The `main` branch keeps the earlier remake baseline.
   saves get the included truck and empty legal stock. Profitable businesses
   pay a conservative daily advance in RTS mode; the weekly ledger reconciles
   those advances, wages, upkeep and taxes.
+- **Kidnapping and rescue:** crews can kidnap ordinary civilians, business
+  owners and rival gang members. Each mayor, police chief, FBI chief, judge and
+  district attorney has a named adult civilian relative in the city. Relatives
+  appear in the Organizer, but the crew must locate them before acting. A
+  successful crew escorts its captive to an owned office; only then does the
+  captive appear under **Prisoners**. There you can demand a ransom, press an
+  official through a held relative, or release the captive. Demands may be
+  refused and draw attention; pressure can fail and the leverage expires.
+  Captives can escape, especially from an unguarded office. Reported crimes,
+  missing people and ransom demands advance investigations. Police dispatch a
+  car after tracing the office; a rival whose member is held must discover the
+  address separately before trying a rescue. A player can also raid a known
+  rival safe house to recover a captured gang member. Losing the office frees
+  its captives.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.
@@ -84,7 +98,7 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.2)
+The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.3)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
 `RTS-gangster-beta-Portable.exe`. It includes the features above. Existing saves
 keep their original five-day clock; start a new campaign to try the continuous

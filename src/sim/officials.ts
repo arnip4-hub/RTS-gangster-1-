@@ -18,7 +18,9 @@ export function isBribableOfficial(p: Person): boolean {
 export function bribePrice(w: WorldState, p: Person, gangId: ID): number {
   const base = p.role === 'mayor' ? 9000 : p.role === 'policeChief' ? 6000 : p.role === 'judge' ? 5000 : p.role === 'da' ? 4000 : 900;
   const leverage = officialLeverage(w, p, gangId);
-  const discount = leverage ? w.buildings[leverage.venueId]?.typeId === 'whorehouse' ? .4 : .65 : 1;
+  const familyPressure = p.familyPressure?.[gangId];
+  const discount = leverage ? w.buildings[leverage.venueId]?.typeId === 'whorehouse' ? .4 : .65
+    : familyPressure && familyPressure.untilMinute > campaignMinute(w) ? .75 : 1;
   return Math.round(base * (1 + p.skills.intelligence * .12 + Math.max(0, -(p.opinion[gangId] ?? 0)) / 120) * discount);
 }
 
@@ -34,6 +36,7 @@ export function completeOfficialBribe(w: WorldState, gangId: ID, p: Person, pric
   if (gang.cash < price) return { ok: false, error: 'There is no longer enough cash for the agreed bribe.' };
   payCash(w, gang, 'purchases', price);
   if (p.leverage) delete p.leverage[gangId];
+  if (p.familyPressure) delete p.familyPressure[gangId];
   p.bribedBy = gangId;
   opinionSet(p, gangId, Math.min(100, (p.opinion[gangId] ?? 0) + 34), NO_ORIGINAL_CHANNEL);
   for (const c of Object.values(w.cases)) {

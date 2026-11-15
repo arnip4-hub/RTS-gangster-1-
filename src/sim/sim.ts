@@ -10,6 +10,8 @@ import { validateSaveWorld, validateSaveWorldResponsive } from './saveSchema';
 import { canGoStraight, rolloverOrders } from './api';
 import { liveAiDue, planGang, planIdleCrews } from './ai';
 import { createWorld } from './citygen';
+import { ensureOfficialFamilies } from './officialFamilies';
+import { tickCaptivity } from './captivity';
 import { repairLegacyStreetSpawns } from './streetPlacement';
 import { closeFinances, currentFinances, openFinances } from './finances';
 import { finalScore, recordScorePeaks, scoreMeasures } from './scoring';
@@ -62,6 +64,7 @@ export class Sim {
     earlySteps.clear(); driveFrom.clear();
     const { world, rng } = createWorld(options);
     this.world = world;
+    ensureOfficialFamilies(world);
     this.rng = rng;
     for (const gang of Object.values(world.gangs)) openFinances(world, gang);
     for (const b of buildingList(world)) if (b.ownerGangId != null) b.acquisitionCost = buildingValue(world, b);
@@ -88,6 +91,7 @@ export class Sim {
     earlySteps.clear(); driveFrom.clear();
     const sim = Object.create(Sim.prototype) as Sim;
     sim.world = state;
+    ensureOfficialFamilies(state);
     sim.rng = new Rng(state.options.seed);
     sim.rng.state = state.rngState;
     sim.accumulator = 0;
@@ -305,6 +309,7 @@ export class Sim {
     if (this.resolveImmediateOutcome()) return;
     tickFbi(w, this.rng, 1);
     tickLaw(w, this.rng);
+    tickCaptivity(w, this.rng);
     tickSpecialistJobs(w, 1);
     finishMovementTick(w);
     reconcileTransport(w);

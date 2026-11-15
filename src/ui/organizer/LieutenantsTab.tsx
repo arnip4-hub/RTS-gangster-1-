@@ -14,6 +14,7 @@ import {
 } from '../../sim/api';
 import { ORDERS, ORDER_GROUPS } from '../../sim/constants';
 import { weekDuration } from '../../sim/calendar';
+import { demandRansom, pressureOfficial, ransomQuote } from '../../sim/captivity';
 import type { ID, Order, Team, WorldState } from '../../sim/types';
 import { buildingName, money, placeName } from '../../sim/world';
 import { buildingMapIntel } from '../../sim/mapIntel';
@@ -556,12 +557,23 @@ function ReportsPanel({ teamId }: { teamId: ID }) {
             <div key={p.id} className="report-item">
               <div className="row between">
                 <b>{p.name}</b>
-                <span className="muted">will talk: {Math.round(p.interrogationValue)}%</span>
+                <span className="muted">{p.gangId == null ? 'Civilian' : `will talk: ${Math.round(p.interrogationValue)}%`}</span>
               </div>
+              {p.familyOfId != null && <div className="muted tiny">{p.familyRelation} of {w.people[p.familyOfId]?.name ?? 'an official'}</div>}
               <div className="row wrap" style={{ gap: 4, marginTop: 4 }}>
-                <button className="btn sm" onClick={() => notify(act((s) => interrogatePrisoner(s.world, s.rng, gang.id, p.id))!)}>
+                <button className="btn sm" disabled={p.gangId == null} onClick={() => notify(act((s) => interrogatePrisoner(s.world, s.rng, gang.id, p.id))!)}>
                   Interrogate
                 </button>
+                {p.captivity?.stage==='held' && <>
+                  <button className="btn sm" onClick={() => notify(act(s => demandRansom(s.world,s.rng,gang.id,p.id,Math.ceil(ransomQuote(s.world,p)/2)))!)}>
+                    Ask {money(Math.ceil(ransomQuote(w,p)/2))}
+                  </button>
+                  <button className="btn sm" onClick={() => notify(act(s => demandRansom(s.world,s.rng,gang.id,p.id,ransomQuote(s.world,p)))!)}>
+                    Demand {money(ransomQuote(w,p))}
+                  </button>
+                  {p.familyOfId != null && <button className="btn sm" disabled={!!p.captivity.pressured}
+                    onClick={() => notify(act(s => pressureOfficial(s.world,s.rng,gang.id,p.id))!)}>Pressure official</button>}
+                </>}
                 <button className="btn sm" onClick={() => notify(act((s) => assaultPrisoner(s.world, s.rng, gang.id, p.id))!)}>
                   Assault
                 </button>

@@ -65,6 +65,8 @@ import type {
   WorldState,
 } from './types';
 import { CELL, GO_STRAIGHT_ASSETS } from './constants';
+import { kidnappableBy } from './officialFamilies';
+import { freeCaptive } from './captivity';
 import { weekDuration } from './calendar';
 
 import { clearDestination, setDestination } from './movement';
@@ -267,7 +269,7 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
   if (def.target === 'person') {
     const target = input.personId != null ? w.people[input.personId] : null;
     if (!target || ['dead', 'jailed', 'kidnapped'].includes(target.status)) return fail('Choose an available target.');
-    if (input.type === 'kidnap' && (target.gangId == null || target.gangId === gangId)) return fail('Only rival gang members can be taken.');
+    if (input.type === 'kidnap' && !kidnappableBy(target, gangId)) return fail('Choose an active rival or civilian.');
   }
   if (def.target === 'point' && !validPoint(w, input.pos)) return fail('Choose a place inside the city.');
 
@@ -466,6 +468,10 @@ export function cancelOrder(w: WorldState, orderId: ID): ApiResult {
   const order = w.orders[orderId];
   if (!order) return fail('No such order.');
   recoverExportGoods(w, order);
+  if (order.kidnapDelivery) {
+    const captive=w.people[order.kidnapDelivery.victimId];
+    if (captive?.capturedBy===order.gangId) freeCaptive(w,captive,`${captive.name} escaped during transport.`);
+  }
   releaseTransportOrder(w,order.id);
   const team = w.teams[order.teamId];
   if (team) {
@@ -1124,6 +1130,7 @@ export function interrogatePrisoner(w: WorldState, rng: Rng, gangId: ID, personI
   const gang = w.gangs[gangId];
   const p = w.people[personId];
   if (!gang || !p || p.capturedBy !== gangId) return fail('You hold no such prisoner.');
+  if (p.gangId == null) return fail('This civilian has no rival gang secrets to disclose.');
   if (p.interrogationValue <= 0) return fail('He has nothing left to tell you.');
 
   const talked = rng.chance(0.35 + (p.interrogationValue / 100) * 0.3);
@@ -1138,6 +1145,8 @@ export function assaultPrisoner(w: WorldState, rng: Rng, gangId: ID, personId: I
   const gang = w.gangs[gangId];
   const p = w.people[personId];
   if (!gang || !p || p.capturedBy !== gangId) return fail('You hold no such prisoner.');
+  gang.evidence = Math.min(100, gang.evidence + (p.familyOfId != null ? 8 : 3));
+  if (p.captivity) p.captivity.searchProgress += 15;
   p.hp -= rng.int(20, 45);
   if (p.hp <= 0) {
     killPerson(w, p, 'died under interrogation');
@@ -1153,6 +1162,7 @@ export function killPrisoner(w: WorldState, gangId: ID, personId: ID): ApiResult
   const gang = w.gangs[gangId];
   const p = w.people[personId];
   if (!gang || !p || p.capturedBy !== gangId) return fail('You hold no such prisoner.');
+  gang.evidence = Math.min(100, gang.evidence + (p.familyOfId != null ? 30 : 12));
   const rivalId = p.gangId;
   killPerson(w, p, `killed in custody by ${gang.name}`);
   gang.prisonerIds = gang.prisonerIds.filter((id) => id !== personId);
@@ -1165,6 +1175,8 @@ export function releasePrisoner(w: WorldState, gangId: ID, personId: ID): ApiRes
   const gang = w.gangs[gangId];
   const p = w.people[personId];
   if (!gang || !p || p.capturedBy !== gangId) return fail('You hold no such prisoner.');
+  if (p.captivity?.stage === 'transport') return fail('The captive has not reached the safe house.');
+  if (p.captivity) {freeCaptive(w,p);return ok(`${p.name} has been thrown out onto the street.`);}
   p.status = 'active';
   p.capturedBy = null;
   p.interrogationValue = 0;

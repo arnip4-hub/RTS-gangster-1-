@@ -189,6 +189,14 @@ export function planIdleCrews(w: WorldState, gang: Gang): void {
     if (order.type === 'explore') for (const id of order.targetBlockIds) explored.add(id);
   }
   const jobs: LiveJob[] = [];
+  for (const captive of peopleList(w)) {
+    if (captive.gangId!==gang.id || captive.status!=='kidnapped' || !captive.captivity?.rivalDiscovered) continue;
+    const office=w.buildings[captive.captivity.officeId];
+    if (office && office.ownerGangId!==gang.id && (office.knowledge[gang.id]??0)>=3 &&
+      !ordered.get('raid')?.has(office.id))
+      jobs.push({input:{teamId:-1,type:'raid',buildingIds:[office.id],opts:{manpower:2}},
+        siteId:office.id,blockId:office.blockId,base:240});
+  }
   for (const b of sites) {
     if (b.state !== 'trading') continue;
     if (b.protection?.gangId === gang.id && b.protection.collectedWeek !== w.week &&

@@ -5,6 +5,7 @@ import { buildingMapIntel } from '../sim/mapIntel';
 import type { Building, ID, OrderType, Person, WorldState } from '../sim/types';
 import type { JobCard } from './store';
 import { peopleList, buildingList } from '../sim/entityLists';
+import { kidnappableBy } from '../sim/officialFamilies';
 
 /** Map/clipboard candidates share the order rules without spending time or IDs. */
 export function selectableOrderSite(w: WorldState, gangId: ID, card: Pick<JobCard, 'type' | 'opts'> & { editingOrderId?: ID }, b: Building): boolean {
@@ -21,7 +22,7 @@ export function selectableOrderSite(w: WorldState, gangId: ID, card: Pick<JobCar
 
 export function selectableOrderPerson(w: WorldState, gangId: ID, type: OrderType, p: Person): boolean {
   if (ORDERS[type].target !== 'person' || ['dead', 'jailed', 'kidnapped'].includes(p.status)) return false;
-  if (type === 'kidnap' && (p.gangId == null || p.gangId === gangId)) return false;
+  if (type === 'kidnap' && !kidnappableBy(p, gangId)) return false;
   if (p.gangId == null || p.gangId === gangId || w.gangs[gangId].knownPeople.includes(p.id)) return true;
   // A stranger at a site you know can be named as a target: the crew has to
   // hunt for him first (previewOrder marks the order as hunting).

@@ -103,6 +103,12 @@ export interface Person {
   buildingId: ID | null;
   /** Stable home used by the continuous-time city schedule. Optional for old saves. */
   homeBuildingId?: ID;
+  /** A public family tie; the resident is a spouse or adult sibling of this official. */
+  familyOfId?: ID;
+  familyRelation?: 'spouse' | 'sibling';
+  /** Household funds available for a ransom; absent in old saves. */
+  householdCash?: number;
+  familyPressure?: Record<ID, {victimId: ID; untilMinute: number}>;
   /** Stable leisure preference and today's planned visit (RTS schedule). */
   leisureProfile?: 'social' | 'culture' | 'games' | 'vice' | 'quiet';
   leisureVisit?: { day: number; venueId: ID; startMinute: number; endMinute: number };
@@ -179,6 +185,26 @@ export interface Person {
   /** Set for kidnapped prisoners: how much they will still divulge. */
   interrogationValue: number;
   capturedBy: ID | null;
+  captivity?: {
+    /** The victim remains with the moving crew until delivered to this office. */
+    stage: 'transport' | 'held';
+    officeId: ID;
+    startedAt: number;
+    /** Only a discovered address permits a police or rival rescue. */
+    reported: boolean;
+    discovered: boolean;
+    searchProgress: number;
+    rivalDiscovered?: boolean;
+    rivalSearchProgress?: number;
+    lastDemandAt?: number;
+    demandCount?: number;
+    pressured?: boolean;
+    rescuerId?: ID;
+    nextRescueAt?: number;
+    policeDispatched?: boolean;
+    nextPoliceAt?: number;
+    nextEscapeAt: number;
+  };
   /** Live order given directly on the street during the working week. */
   streetOrder: {
     type: 'kill' | 'assault' | 'tail' | 'goTo';
@@ -260,6 +286,7 @@ export interface EmergencyResponse {
   /** The officer's home to re-enter after the call, if he was dispatched at night. */
   homeBuildingId?: ID;
   crimeId?: ID;
+  rescueCaptiveId?: ID;
 }
 
 export type BuildingClass =
@@ -573,6 +600,7 @@ export interface Order {
   };
   /** A successful raid is delivering its goods before proceeding to the next site. */
   raidDelivery?: { warehouseId: ID };
+  kidnapDelivery?: { officeId: ID; victimId: ID };
   /** Unloaded part of the stock accepted for this Export; later deposits wait for another order. */
   exportPending?: {warehouseId: ID; goods: Record<GoodsKind,number>};
   /** Hunting: the target's whereabouts are unknown, so the crew asks around at these places first. */

@@ -389,7 +389,7 @@ export const ORDERS: Record<OrderType, OrderDef> = {
     maxManpower: 4,
     group: 'minor',
     name: 'Kidnap',
-    desc: 'Abduct a rival gang member. Dangerous, but they arrive at your office with money and secrets.',
+    desc: 'Abduct a rival or civilian, carry them to your office, then seek information, ransom or leverage. Witnesses can bring the police.',
     minutesPerTarget: 500,
     target: 'person',
     skills: ['stealth', 'fists', 'intimidation'],

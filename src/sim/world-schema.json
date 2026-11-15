@@ -171,43 +171,43 @@
         "gangs": {
           "optional": false,
           "shape": {
-            "ref": "T54"
+            "ref": "T57"
           }
         },
         "teams": {
           "optional": false,
           "shape": {
-            "ref": "T69"
+            "ref": "T72"
           }
         },
         "orders": {
           "optional": false,
           "shape": {
-            "ref": "T71"
+            "ref": "T74"
           }
         },
         "lastWeekOrders": {
           "optional": false,
           "shape": {
-            "ref": "T79"
+            "ref": "T83"
           }
         },
         "crimes": {
           "optional": false,
           "shape": {
-            "ref": "T80"
+            "ref": "T84"
           }
         },
         "cases": {
           "optional": false,
           "shape": {
-            "ref": "T82"
+            "ref": "T86"
           }
         },
         "election": {
           "optional": false,
           "shape": {
-            "ref": "T84"
+            "ref": "T88"
           }
         },
         "electionWinnerGangId": {
@@ -226,13 +226,13 @@
         "news": {
           "optional": false,
           "shape": {
-            "ref": "T91"
+            "ref": "T95"
           }
         },
         "messages": {
           "optional": false,
           "shape": {
-            "ref": "T93"
+            "ref": "T97"
           }
         },
         "traffic": {
@@ -240,7 +240,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T95"
+                "ref": "T99"
               }
             ]
           }
@@ -250,7 +250,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T97"
+                "ref": "T101"
               }
             ]
           }
@@ -355,7 +355,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T98"
+                "ref": "T102"
               }
             ]
           }
@@ -365,7 +365,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T100"
+                "ref": "T104"
               }
             ]
           }
@@ -375,7 +375,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T104"
+                "ref": "T108"
               }
             ]
           }
@@ -385,7 +385,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T106"
+                "ref": "T110"
               }
             ]
           }
@@ -393,7 +393,7 @@
         "auditResults": {
           "optional": false,
           "shape": {
-            "ref": "T108"
+            "ref": "T112"
           }
         },
         "weekLog": {
@@ -2181,6 +2181,49 @@
             ]
           }
         },
+        "familyOfId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "familyRelation": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": "spouse"
+              },
+              {
+                "literal": "sibling"
+              }
+            ]
+          }
+        },
+        "householdCash": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "familyPressure": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T40"
+              }
+            ]
+          }
+        },
         "leisureProfile": {
           "optional": true,
           "shape": {
@@ -2208,7 +2251,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T40"
+                "ref": "T42"
               }
             ]
           }
@@ -2218,7 +2261,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T41"
+                "ref": "T43"
               }
             ]
           }
@@ -2333,7 +2376,7 @@
         "path": {
           "optional": false,
           "shape": {
-            "ref": "T43"
+            "ref": "T45"
           }
         },
         "halted": {
@@ -2497,7 +2540,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T45"
+                "ref": "T47"
               }
             ]
           }
@@ -2519,7 +2562,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T46"
+                "ref": "T48"
               }
             ]
           }
@@ -2535,7 +2578,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T48"
+                "ref": "T50"
               }
             ]
           }
@@ -2545,7 +2588,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T49"
+                "ref": "T51"
               }
             ]
           }
@@ -2555,7 +2598,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T50"
+                "ref": "T52"
               }
             ]
           }
@@ -2579,6 +2622,16 @@
             ]
           }
         },
+        "captivity": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T53"
+              }
+            ]
+          }
+        },
         "streetOrder": {
           "optional": false,
           "shape": {
@@ -2587,7 +2640,7 @@
                 "literal": null
               },
               {
-                "ref": "T51"
+                "ref": "T54"
               }
             ]
           }
@@ -2627,7 +2680,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T52"
+                "ref": "T55"
               }
             ]
           }
@@ -2637,7 +2690,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T53"
+                "ref": "T56"
               }
             ]
           }
@@ -2715,6 +2768,28 @@
       }
     },
     "T40": {
+      "object": {},
+      "values": {
+        "ref": "T41"
+      }
+    },
+    "T41": {
+      "object": {
+        "victimId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "untilMinute": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T42": {
       "object": {
         "day": {
           "optional": false,
@@ -2742,13 +2817,13 @@
         }
       }
     },
-    "T41": {
+    "T43": {
       "object": {},
       "values": {
-        "ref": "T42"
+        "ref": "T44"
       }
     },
-    "T42": {
+    "T44": {
       "object": {
         "venueId": {
           "optional": false,
@@ -2764,12 +2839,12 @@
         }
       }
     },
-    "T43": {
+    "T45": {
       "array": {
-        "ref": "T44"
+        "ref": "T46"
       }
     },
-    "T44": {
+    "T46": {
       "object": {
         "cross": {
           "optional": true,
@@ -2795,7 +2870,7 @@
         }
       }
     },
-    "T45": {
+    "T47": {
       "object": {
         "buildingId": {
           "optional": false,
@@ -2852,7 +2927,7 @@
         }
       }
     },
-    "T46": {
+    "T48": {
       "object": {
         "posture": {
           "optional": false,
@@ -2891,14 +2966,14 @@
           "shape": {
             "union": [
               {
-                "ref": "T47"
+                "ref": "T49"
               }
             ]
           }
         }
       }
     },
-    "T47": {
+    "T49": {
       "object": {
         "attack": {
           "optional": false,
@@ -2932,7 +3007,7 @@
         }
       }
     },
-    "T48": {
+    "T50": {
       "object": {
         "week": {
           "optional": false,
@@ -3014,7 +3089,7 @@
         }
       }
     },
-    "T49": {
+    "T51": {
       "object": {
         "week": {
           "optional": false,
@@ -3139,10 +3214,20 @@
               }
             ]
           }
+        },
+        "rescueCaptiveId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
         }
       }
     },
-    "T50": {
+    "T52": {
       "object": {
         "week": {
           "optional": false,
@@ -3195,7 +3280,159 @@
         }
       }
     },
-    "T51": {
+    "T53": {
+      "object": {
+        "stage": {
+          "optional": false,
+          "shape": {
+            "union": [
+              {
+                "literal": "transport"
+              },
+              {
+                "literal": "held"
+              }
+            ]
+          }
+        },
+        "officeId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "startedAt": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "reported": {
+          "optional": false,
+          "shape": {
+            "type": "boolean"
+          }
+        },
+        "discovered": {
+          "optional": false,
+          "shape": {
+            "type": "boolean"
+          }
+        },
+        "searchProgress": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "rivalDiscovered": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
+        "rivalSearchProgress": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "lastDemandAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "demandCount": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "pressured": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
+        "rescuerId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "nextRescueAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "policeDispatched": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
+        "nextPoliceAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "nextEscapeAt": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T54": {
       "object": {
         "type": {
           "optional": false,
@@ -3257,7 +3494,7 @@
         }
       }
     },
-    "T52": {
+    "T55": {
       "object": {
         "tram": {
           "optional": false,
@@ -3304,7 +3541,7 @@
         }
       }
     },
-    "T53": {
+    "T56": {
       "object": {
         "line": {
           "optional": false,
@@ -3412,13 +3649,13 @@
         }
       }
     },
-    "T54": {
+    "T57": {
       "object": {},
       "values": {
-        "ref": "T55"
+        "ref": "T58"
       }
     },
-    "T55": {
+    "T58": {
       "object": {
         "id": {
           "optional": false,
@@ -3524,7 +3761,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T56"
+                "ref": "T59"
               }
             ]
           }
@@ -3586,13 +3823,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T57"
+            "ref": "T60"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T58"
+            "ref": "T61"
           }
         },
         "staffVehicles": {
@@ -3600,7 +3837,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T59"
+                "ref": "T62"
               }
             ]
           }
@@ -3608,13 +3845,13 @@
         "offered": {
           "optional": false,
           "shape": {
-            "ref": "T60"
+            "ref": "T63"
           }
         },
         "known": {
           "optional": false,
           "shape": {
-            "ref": "T60"
+            "ref": "T63"
           }
         },
         "evadingTax": {
@@ -3772,7 +4009,7 @@
         "history": {
           "optional": false,
           "shape": {
-            "ref": "T61"
+            "ref": "T64"
           }
         },
         "scorePeaks": {
@@ -3780,7 +4017,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T63"
+                "ref": "T66"
               }
             ]
           }
@@ -3788,13 +4025,13 @@
         "lastWeekIncome": {
           "optional": false,
           "shape": {
-            "ref": "T64"
+            "ref": "T67"
           }
         },
         "lastWeekCosts": {
           "optional": false,
           "shape": {
-            "ref": "T65"
+            "ref": "T68"
           }
         },
         "finances": {
@@ -3802,7 +4039,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T66"
+                "ref": "T69"
               }
             ]
           }
@@ -3812,14 +4049,14 @@
           "shape": {
             "union": [
               {
-                "ref": "T66"
+                "ref": "T69"
               }
             ]
           }
         }
       }
     },
-    "T56": {
+    "T59": {
       "object": {
         "kind": {
           "optional": false,
@@ -3890,7 +4127,7 @@
         }
       }
     },
-    "T57": {
+    "T60": {
       "object": {
         "explosives": {
           "optional": false,
@@ -3930,7 +4167,7 @@
         }
       }
     },
-    "T58": {
+    "T61": {
       "object": {
         "coupe": {
           "optional": false,
@@ -3952,7 +4189,7 @@
         }
       }
     },
-    "T59": {
+    "T62": {
       "object": {
         "accountant": {
           "optional": false,
@@ -3994,7 +4231,7 @@
         }
       }
     },
-    "T60": {
+    "T63": {
       "object": {},
       "values": {
         "union": [
@@ -4016,12 +4253,12 @@
         ]
       }
     },
-    "T61": {
+    "T64": {
       "array": {
-        "ref": "T62"
+        "ref": "T65"
       }
     },
-    "T62": {
+    "T65": {
       "object": {
         "week": {
           "optional": false,
@@ -4083,7 +4320,7 @@
         }
       }
     },
-    "T63": {
+    "T66": {
       "object": {
         "cash": {
           "optional": false,
@@ -4101,136 +4338,6 @@
           "optional": false,
           "shape": {
             "type": "number"
-          }
-        }
-      }
-    },
-    "T64": {
-      "object": {
-        "legal": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "illegal": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "protection": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "other": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T65": {
-      "object": {
-        "wages": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "purchases": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "upkeep": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T66": {
-      "object": {
-        "week": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "openingCash": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "closingCash": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "income": {
-          "optional": false,
-          "shape": {
-            "ref": "T67"
-          }
-        },
-        "costs": {
-          "optional": false,
-          "shape": {
-            "ref": "T68"
-          }
-        },
-        "partial": {
-          "optional": false,
-          "shape": {
-            "type": "boolean"
-          }
-        },
-        "taxableProfit": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "riskyIncome": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "closedSiteUpkeep": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "campaignCost": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
           }
         }
       }
@@ -4282,6 +4389,136 @@
           "shape": {
             "type": "number"
           }
+        }
+      }
+    },
+    "T69": {
+      "object": {
+        "week": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "openingCash": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "closingCash": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "income": {
+          "optional": false,
+          "shape": {
+            "ref": "T70"
+          }
+        },
+        "costs": {
+          "optional": false,
+          "shape": {
+            "ref": "T71"
+          }
+        },
+        "partial": {
+          "optional": false,
+          "shape": {
+            "type": "boolean"
+          }
+        },
+        "taxableProfit": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "riskyIncome": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "closedSiteUpkeep": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "campaignCost": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "T70": {
+      "object": {
+        "legal": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "illegal": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "protection": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "other": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T71": {
+      "object": {
+        "wages": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "purchases": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "upkeep": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
         },
         "tax": {
           "optional": false,
@@ -4291,13 +4528,13 @@
         }
       }
     },
-    "T69": {
+    "T72": {
       "object": {},
       "values": {
-        "ref": "T70"
+        "ref": "T73"
       }
     },
-    "T70": {
+    "T73": {
       "object": {
         "id": {
           "optional": false,
@@ -4332,13 +4569,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T57"
+            "ref": "T60"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T58"
+            "ref": "T61"
           }
         },
         "allocatedBlockIds": {
@@ -4361,13 +4598,13 @@
         }
       }
     },
-    "T71": {
+    "T74": {
       "object": {},
       "values": {
-        "ref": "T72"
+        "ref": "T75"
       }
     },
-    "T72": {
+    "T75": {
       "object": {
         "id": {
           "optional": false,
@@ -4504,7 +4741,7 @@
         "opts": {
           "optional": false,
           "shape": {
-            "ref": "T73"
+            "ref": "T76"
           }
         },
         "assignedIds": {
@@ -4570,7 +4807,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T74"
+                "ref": "T77"
               }
             ]
           }
@@ -4681,7 +4918,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T76"
+                "ref": "T79"
               }
             ]
           }
@@ -4691,7 +4928,17 @@
           "shape": {
             "union": [
               {
-                "ref": "T77"
+                "ref": "T80"
+              }
+            ]
+          }
+        },
+        "kidnapDelivery": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T81"
               }
             ]
           }
@@ -4701,7 +4948,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T78"
+                "ref": "T82"
               }
             ]
           }
@@ -4823,7 +5070,7 @@
         }
       }
     },
-    "T73": {
+    "T76": {
       "object": {
         "repeat": {
           "optional": false,
@@ -4926,12 +5173,12 @@
         }
       }
     },
-    "T74": {
+    "T77": {
       "array": {
-        "ref": "T75"
+        "ref": "T78"
       }
     },
-    "T75": {
+    "T78": {
       "object": {
         "line": {
           "optional": false,
@@ -4947,7 +5194,7 @@
         }
       }
     },
-    "T76": {
+    "T79": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -4985,7 +5232,7 @@
         }
       }
     },
-    "T77": {
+    "T80": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -4995,7 +5242,23 @@
         }
       }
     },
-    "T78": {
+    "T81": {
+      "object": {
+        "officeId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "victimId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T82": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5011,17 +5274,17 @@
         }
       }
     },
-    "T79": {
+    "T83": {
       "array": {
-        "ref": "T72"
+        "ref": "T75"
       }
     },
-    "T80": {
+    "T84": {
       "array": {
-        "ref": "T81"
+        "ref": "T85"
       }
     },
-    "T81": {
+    "T85": {
       "object": {
         "id": {
           "optional": false,
@@ -5129,13 +5392,13 @@
         }
       }
     },
-    "T82": {
+    "T86": {
       "object": {},
       "values": {
-        "ref": "T83"
+        "ref": "T87"
       }
     },
-    "T83": {
+    "T87": {
       "object": {
         "id": {
           "optional": false,
@@ -5239,7 +5502,7 @@
         }
       }
     },
-    "T84": {
+    "T88": {
       "object": {
         "active": {
           "optional": false,
@@ -5256,7 +5519,7 @@
         "candidates": {
           "optional": false,
           "shape": {
-            "ref": "T85"
+            "ref": "T89"
           }
         },
         "lastResultWeek": {
@@ -5270,7 +5533,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T87"
+                "ref": "T91"
               }
             ]
           }
@@ -5293,97 +5556,9 @@
           "shape": {
             "union": [
               {
-                "ref": "T88"
+                "ref": "T92"
               }
             ]
-          }
-        }
-      }
-    },
-    "T85": {
-      "array": {
-        "ref": "T86"
-      }
-    },
-    "T86": {
-      "object": {
-        "id": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "kind": {
-          "optional": false,
-          "shape": {
-            "union": [
-              {
-                "literal": "judge"
-              },
-              {
-                "literal": "mayor"
-              },
-              {
-                "literal": "gang"
-              }
-            ]
-          }
-        },
-        "gangId": {
-          "optional": false,
-          "shape": {
-            "union": [
-              {
-                "literal": null
-              },
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "votes": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T87": {
-      "object": {
-        "personId": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "weeks": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T88": {
-      "object": {
-        "week": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "winnerId": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "candidates": {
-          "optional": false,
-          "shape": {
-            "ref": "T89"
           }
         }
       }
@@ -5439,11 +5614,99 @@
       }
     },
     "T91": {
-      "array": {
-        "ref": "T92"
+      "object": {
+        "personId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "weeks": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
       }
     },
     "T92": {
+      "object": {
+        "week": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "winnerId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "candidates": {
+          "optional": false,
+          "shape": {
+            "ref": "T93"
+          }
+        }
+      }
+    },
+    "T93": {
+      "array": {
+        "ref": "T94"
+      }
+    },
+    "T94": {
+      "object": {
+        "id": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "kind": {
+          "optional": false,
+          "shape": {
+            "union": [
+              {
+                "literal": "judge"
+              },
+              {
+                "literal": "mayor"
+              },
+              {
+                "literal": "gang"
+              }
+            ]
+          }
+        },
+        "gangId": {
+          "optional": false,
+          "shape": {
+            "union": [
+              {
+                "literal": null
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "votes": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T95": {
+      "array": {
+        "ref": "T96"
+      }
+    },
+    "T96": {
       "object": {
         "week": {
           "optional": false,
@@ -5577,12 +5840,12 @@
         }
       }
     },
-    "T93": {
+    "T97": {
       "array": {
-        "ref": "T94"
+        "ref": "T98"
       }
     },
-    "T94": {
+    "T98": {
       "object": {
         "sound": {
           "optional": true,
@@ -5659,7 +5922,7 @@
         }
       }
     },
-    "T95": {
+    "T99": {
       "object": {
         "delay": {
           "optional": false,
@@ -5670,7 +5933,7 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T96"
+            "ref": "T100"
           }
         },
         "waited": {
@@ -5681,12 +5944,12 @@
         }
       }
     },
-    "T96": {
+    "T100": {
       "array": {
         "type": "boolean"
       }
     },
-    "T97": {
+    "T101": {
       "object": {
         "delay": {
           "optional": false,
@@ -5697,18 +5960,18 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T96"
+            "ref": "T100"
           }
         }
       }
     },
-    "T98": {
+    "T102": {
       "object": {},
       "values": {
-        "ref": "T99"
+        "ref": "T103"
       }
     },
-    "T99": {
+    "T103": {
       "object": {
         "id": {
           "optional": false,
@@ -5858,13 +6121,13 @@
         }
       }
     },
-    "T100": {
+    "T104": {
       "object": {},
       "values": {
-        "ref": "T101"
+        "ref": "T105"
       }
     },
-    "T101": {
+    "T105": {
       "object": {
         "kind": {
           "optional": false,
@@ -5998,7 +6261,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T102"
+                "ref": "T106"
               }
             ]
           }
@@ -6008,7 +6271,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T103"
+                "ref": "T107"
               }
             ]
           }
@@ -6025,7 +6288,7 @@
         }
       }
     },
-    "T102": {
+    "T106": {
       "object": {
         "goods": {
           "optional": false,
@@ -6083,7 +6346,7 @@
         }
       }
     },
-    "T103": {
+    "T107": {
       "object": {
         "buildingId": {
           "optional": false,
@@ -6099,13 +6362,13 @@
         }
       }
     },
-    "T104": {
+    "T108": {
       "object": {},
       "values": {
-        "ref": "T105"
+        "ref": "T109"
       }
     },
-    "T105": {
+    "T109": {
       "object": {
         "sourceId": {
           "optional": false,
@@ -6235,13 +6498,13 @@
         }
       }
     },
-    "T106": {
+    "T110": {
       "object": {},
       "values": {
-        "ref": "T107"
+        "ref": "T111"
       }
     },
-    "T107": {
+    "T111": {
       "object": {
         "week": {
           "optional": false,
@@ -6263,7 +6526,7 @@
         }
       }
     },
-    "T108": {
+    "T112": {
       "object": {},
       "values": {
         "union": [
@@ -6271,12 +6534,12 @@
             "literal": null
           },
           {
-            "ref": "T109"
+            "ref": "T113"
           }
         ]
       }
     },
-    "T109": {
+    "T113": {
       "object": {
         "personId": {
           "optional": false,

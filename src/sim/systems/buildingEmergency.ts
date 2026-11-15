@@ -10,6 +10,7 @@ import {escapeSample} from '../burningEscape';
 import type {Rng} from '../rng';
 import { minuteRate } from '../constants';
 import { policeOnDuty } from '../duty';
+import { policeRescueArrival } from '../captivity';
 import type {Building,Person,Vec2,WorldState} from '../types';
 import { peopleList, buildingList } from '../entityLists';
 
@@ -174,6 +175,7 @@ export function tickBuildingEmergencies(w:WorldState,rng:Rng,minutes:number):voi
       } else {
         if(response.vehicle)p.inVehicle=false;
         response.stage='working';response.arrivedMinute=w.minute;if(response.kind==='reporter')presentPhoto(w,p);
+        if (response.rescueCaptiveId != null) policeRescueArrival(w,rng,response.rescueCaptiveId);
       }
     }
     // Out of time on the job: begin the return leg rather than dropping the

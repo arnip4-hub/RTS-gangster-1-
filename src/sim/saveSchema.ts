@@ -299,6 +299,18 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
   }
   for (const p of peopleList(w)) {
     if (p.gangId != null && !w.gangs[p.gangId]) throw Error('Save has a person in a missing gang.');
+    if (p.familyOfId != null && (!w.people[p.familyOfId] || p.role!=='citizen' ||
+      !['spouse','sibling'].includes(p.familyRelation ?? '')))
+      throw Error('Save has an invalid official family relationship.');
+    if (p.householdCash != null && (!Number.isSafeInteger(p.householdCash) || p.householdCash<0))
+      throw Error('Save has invalid household money.');
+    const hold=p.captivity;
+    if (hold && (p.status!=='kidnapped' || p.capturedBy==null || !w.gangs[p.capturedBy] ||
+      !w.buildings[hold.officeId] || hold.searchProgress<0 || !Number.isFinite(hold.searchProgress) ||
+      hold.startedAt<0 || hold.nextEscapeAt<hold.startedAt ||
+      hold.stage==='held' && !w.gangs[p.capturedBy].prisonerIds.includes(p.id) ||
+      hold.stage==='transport' && !Object.values(w.orders).some(o=>o.kidnapDelivery?.victimId===p.id)))
+      throw Error('Save has invalid captivity.');
     if (p.taxRecords && (p.role !== 'accountant' || Object.entries(p.taxRecords).some(([id, n]) => !w.gangs[Number(id)] || n < 0)))
       throw Error('Save has invalid accountant tax records.');
     if (p.taxEvasionWeeks && (p.role !== 'accountant' || !Array.isArray(p.taxEvasionWeeks) || p.taxEvasionWeeks.length > 16 ||
@@ -324,6 +336,9 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if(s&&(!Number.isInteger(s.week)||s.week<1||s.week>w.week||!w.people[s.victimId]||s.startMinute<earliest(s.week)||s.untilMinute<=s.startMinute))throw Error('Save has an invalid shock reaction.');
   }
   for (const o of [...Object.values(w.orders), ...w.lastWeekOrders]) {
+    if (o.kidnapDelivery && (!w.buildings[o.kidnapDelivery.officeId] || !w.people[o.kidnapDelivery.victimId] ||
+      o.type!=='kidnap' || o.state!=='travelling' && o.state!=='executing'))
+      throw Error('Save has invalid kidnapping transport.');
     if (o.workedMinutes != null && (o.workedMinutes < 0 || o.workedMinutes > weekDuration(w)))
       throw Error('Save has an invalid order duty duration.');
     if (o.reportedCrewSize != null && (!Number.isSafeInteger(o.reportedCrewSize) || o.reportedCrewSize < 1 || o.reportedCrewSize > MAX_TEAM_SIZE))

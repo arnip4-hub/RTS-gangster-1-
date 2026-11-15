@@ -11,6 +11,8 @@ import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
 import { campaignMinute, stampedMinute, weekDuration } from './calendar';
+import { kidnappableBy } from './officialFamilies';
+import { freeCaptive, ransomQuote } from './captivity';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
   DRIVE_MIN_DISTANCE,
@@ -104,7 +106,7 @@ export function orderActors(w: WorldState, order: Order): Person[] {
 
 export function whereaboutsUnknown(gang: Gang, target: Person): boolean {
   if (target.gangId === gang.id) return false;
-  if (target.gangId == null) return false;
+  if (target.gangId == null && target.familyOfId == null) return false;
   if (gang.knownPeople.includes(target.id)) return false;
   return true;
 }
@@ -294,6 +296,10 @@ function targetPos(w: WorldState, order: Order): Vec2 | null {
     return isExportTerminal(terminal) ? buildingDoor(w, terminal) : null;
   }
   if(order.raidDelivery){const warehouse=w.buildings[order.raidDelivery.warehouseId];return warehouse?buildingDoor(w,warehouse):null;}
+  if(order.kidnapDelivery){
+    const office=w.buildings[order.kidnapDelivery.officeId];
+    return office?.ownerGangId===order.gangId && office.state!=='destroyed' ? buildingDoor(w,office) : null;
+  }
   if (order.hunting) return huntPos(w, order);
   if (def.target === 'person') {
     const p = order.targetPersonId != null ? w.people[order.targetPersonId] : null;
@@ -656,6 +662,11 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
           else if (!boarding && !a.dest && dist(a.pos, tp) > 6) setDestination(w, a, tp);
           if (stepPerson(a, minutes, trafficContext(w)) || !boarding && !a.inVehicle && dist(a.pos, tp) <= 6) arrived++;
         }
+        if (order.kidnapDelivery) {
+          const captive=w.people[order.kidnapDelivery.victimId];
+          if (captive?.capturedBy===order.gangId && captive.captivity?.stage==='transport') captive.pos={...actors[0].pos};
+          else {finishOrder(w,order,'The captive got away during transport.');freedSomething=true;continue;}
+        }
         if (order.hunting) {
           // Whoever they are looking for may die meanwhile (another crew, a
           // street fight): a killing is then done, anything else has no one to do.
@@ -801,6 +812,7 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
 
 function workForTarget(w: WorldState, order: Order, actors: Person[]): number {
   if(order.raidDelivery)return 10;
+  if(order.kidnapDelivery)return 10;
   const def = ORDERS[order.type];
   const skill = starFactor(actorSkill(actors, def.skills));
   void w;
@@ -841,6 +853,11 @@ function standingGuards(w: WorldState, b: Building): number {
 }
 
 function finishOrder(w: WorldState, order: Order, failReason: string | null): void {
+  if (order.kidnapDelivery) {
+    const captive=w.people[order.kidnapDelivery.victimId];
+    if (captive?.capturedBy===order.gangId) freeCaptive(w,captive,`${captive.name} escaped during transport.`);
+    delete order.kidnapDelivery;
+  }
   releaseTransportOrder(w,order.id);
   if (failReason) recoverExportGoods(w, order);
   // Cut short after part of it was done (a raid's haul taken, an export load
@@ -1054,9 +1071,9 @@ function resolveTarget(
   // there is nobody left to bribe, beat, take or shoot (a corpse was beaten
   // back to life, a prisoner taken twice).
   if (order.type === 'kill' && victim?.status === 'dead') { order.results.push(`${victim.name} is already dead.`); return; }
-  if (def.target === 'person' && (!victim || !onTheStreet(victim))) return finishOrder(w, order, 'The target could not be found.');
+  if (def.target === 'person' && !order.kidnapDelivery && (!victim || !onTheStreet(victim))) return finishOrder(w, order, 'The target could not be found.');
   const here = building ? w.lots[building.lotId].center : lead.pos;
-  if (victim) keepContactDistance(actors, victim);
+  if (victim && !order.kidnapDelivery) keepContactDistance(actors, victim);
 
   const say = (s: string) => order.results.push(s);
   // The attempt failed (refused, botched, got away): reported, and returned so
@@ -1502,7 +1519,9 @@ function resolveTarget(
       }
       if (!building) return;
       if (building.state === 'destroyed') return finishOrder(w, order, 'The site is gone.');
-      if (building.state !== 'trading') return finishOrder(w, order, `${placeName(w, building)} is shut; there was nothing worth taking.`);
+      const knownCaptive=peopleList(w).find(p=>p.gangId===gang.id && p.status==='kidnapped' &&
+        p.captivity?.stage==='held' && p.captivity.officeId===building.id && (building.knowledge[gang.id]??0)>=3);
+      if (building.state !== 'trading' && !knownCaptive) return finishOrder(w, order, `${placeName(w, building)} is shut; there was nothing worth taking.`);
       const t = typeOf(building);
       const blk = w.blocks[building.blockId];
       const guards = standingGuards(w, building);
@@ -1516,6 +1535,13 @@ function resolveTarget(
         buildingId: building.id,
       });
       if (success) {
+        const captive=knownCaptive;
+        if (captive) {
+          freeCaptive(w,captive,`${captive.name} was rescued from ${placeName(w,building)}.`);
+          say(`Rescued ${captive.name} from ${placeName(w,building)}.`);
+          order.completedTargets++; order.targetPaid=true;
+          break;
+        }
         const haul = Math.round(((t?.profit ?? 200) * 1.6 + blk.landValue * 12) * rng.range(0.6, 1.5));
         receiveOrderCash(w, gang, order, 'other', haul);
         say(`Raided ${placeName(w, building)} for $${haul.toLocaleString('en-US')}.`);
@@ -1556,35 +1582,57 @@ function resolveTarget(
     }
 
     case 'kidnap': {
+      if (order.kidnapDelivery) {
+        const captive=w.people[order.kidnapDelivery.victimId];
+        const office=w.buildings[order.kidnapDelivery.officeId];
+        if (!captive || !office || office.ownerGangId!==gang.id || office.state==='destroyed' ||
+          captive.capturedBy!==gang.id || captive.captivity?.stage!=='transport')
+          return finishOrder(w,order,'The captive was lost on the journey.');
+        captive.captivity.stage='held'; captive.pos={...w.lots[office.lotId].center};
+        captive.buildingId=office.id; captive.inVehicle=false;
+        if (!gang.prisonerIds.includes(captive.id)) gang.prisonerIds.push(captive.id);
+        delete order.kidnapDelivery;
+        say(`${captive.name} reached the safe house.`);
+        report(w,gang.id,'waiting',`${captive.name} is being held at your office.`,captive.pos,captive.id);
+        break;
+      }
       if (!victim) return finishOrder(w, order, 'The target could not be found.');
-      if (victim.gangId == null || victim.gangId === gang.id)
-        return finishOrder(w, order, 'Only rival gang members can be taken.');
+      if (!kidnappableBy(victim, gang.id))
+        return finishOrder(w, order, 'The target is no longer available.');
       const success = roll(rng, actors, ['stealth', 'fists', 'intimidation'], 0.35);
+      const office = nearestOffice(w,gang.id,victim.pos);
+      if (!office) return finishOrder(w,order,'A safe house is needed before this kidnapping.');
       stepOut(w,lead,victim.pos);
-      recordCrime(w, rng, {
+      const crime=recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,
         type: 'kidnap',
         pos: victim.pos,
         victimId: victim.id,
+        severity: victim.familyOfId != null ? 9 : undefined,
       });
       if (success) {
         // 0x4DFCB0: an abducted shopkeeper (type 15) −32 hostility / +32 fear.
         if (victim.role === 'owner') shiftAttitude(victim, gang.id, -32, 32);
         victim.status = 'kidnapped';
         victim.capturedBy = gang.id;
-        victim.interrogationValue = 100;
+        victim.interrogationValue = victim.gangId == null ? 0 : 100;
         victim.orderId = null;
         victim.streetOrder = null;
+        if (victim.vehicleKey) dismount(w,victim);
         victim.inVehicle = false;
         clearDestination(victim);
-        const office = nearestOffice(w, gang.id, victim.pos);
-        if (office) victim.pos = { ...w.lots[office.lotId].center };
-        if (!gang.prisonerIds.includes(victim.id)) gang.prisonerIds.push(victim.id);
-        const pocket = rng.int(120, 900);
+        victim.captivity={stage:'transport',officeId:office.id,startedAt:campaignMinute(w),
+          reported:crime.reported,discovered:false,searchProgress:0,nextEscapeAt:campaignMinute(w)+360};
+        if (victim.familyOfId != null && w.people[victim.familyOfId])
+          shiftAttitude(w.people[victim.familyOfId],gang.id,80,0);
+        if (victim.gangId==null) victim.householdCash ??= ransomQuote(w,victim);
+        order.kidnapDelivery={officeId:office.id,victimId:victim.id}; order.state='travelling';
+        for (const a of actors) setDestination(w,a,buildingDoor(w,office));
+        const pocket = victim.gangId==null ? rng.int(20,100) : rng.int(120, 900);
         receiveOrderCash(w, gang, order, 'other', pocket);
         say(`Took ${victim.name} — and $${pocket} from his pockets.`);
-        report(w, gang.id, 'waiting', `${victim.name} has been brought to your office.`, victim.pos, victim.id);
+        report(w, gang.id, 'waiting', `${victim.name} is being transported to your office.`, victim.pos, victim.id);
       } else {
         miss(`${victim.name} got away.`);
         if (rng.chance(0.35) && actors.length) {
@@ -1914,6 +1962,7 @@ export function killPerson(w: WorldState, p: Person, reason: string): void {
   p.teamId = null;
   p.capturedBy = null;
   p.interrogationValue = 0;
+  delete p.captivity;
 
   for (const b of buildingList(w)) {
     if (b.managerId === p.id) b.managerId = null;
