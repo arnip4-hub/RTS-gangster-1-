@@ -5,8 +5,11 @@ import { roleCoat } from './characterPresentation';
 import { actionEnvelope, actionFlash, THROW_RELEASE, type CharacterAction } from './characterActions';
 import {THROW_TIMING} from '../sim/presentationEvents';
 import {handlingAction,longGun,weaponVisible,drawDuration} from './weaponHandling';
+import type { CharacterWardrobe } from './characterWardrobe';
+import { prepareWardrobeMask, WardrobeMaterialState } from './characterWardrobeMaterial';
+import { createWardrobeGarments } from './characterWardrobeGarments';
 
-export interface CharacterAppearance { role:PersonRole; coat:number; weapon?:WeaponId; carriedProp?:'explosives'|'crate'; throwable?:'molotov'|'bomb'; charred?:number; firefighting?:boolean; }
+export interface CharacterAppearance { role:PersonRole; coat:number; weapon?:WeaponId; carriedProp?:'explosives'|'crate'; throwable?:'molotov'|'bomb'; charred?:number; firefighting?:boolean; wardrobe?:CharacterWardrobe; }
 const palmOffsetCache=new WeakMap<THREE.BufferGeometry,Map<string,THREE.Vector3>>();
 
 /** Skin weights identify cloth without tinting faces, hair, hands or shoes. */
@@ -50,6 +53,8 @@ export class CharacterEquipment {
   private ownedGeometry:THREE.BufferGeometry[]=[];
   private ownedSkeletons:THREE.Skeleton[]=[];
   private signature='';
+  private presentationRevision=0;
+  get revision():number { return this.presentationRevision; }
   private rest=new Map<string,THREE.Matrix4>();
   private restPositions=new Map<string,THREE.Vector3>();
   private boneMap=new Map<string,THREE.Bone>();
@@ -62,8 +67,11 @@ export class CharacterEquipment {
   private throwRelease?:THREE.Vector3;
   private throwRotation?:THREE.Quaternion;
   private weaponGrips=new Map<THREE.Object3D,THREE.Quaternion>();
+  private paintedWardrobe = new WardrobeMaterialState();
+  private wardrobeGarments?: ReturnType<typeof createWardrobeGarments>;
+  private wardrobeCharring = -1;
 
-  constructor(private group:THREE.Group,model:THREE.Object3D,private library:EquipmentModels,private bareJudgeHead=false,private dedicatedBody=false) {
+  constructor(private group:THREE.Group,private model:THREE.Object3D,private library:EquipmentModels,private bareJudgeHead=false,private dedicatedBody=false) {
     // The caller supplies the normalized reference pose with an identity root.
     group.updateMatrixWorld(true);
     model.traverse(node=> {
@@ -73,6 +81,7 @@ export class CharacterEquipment {
       }
       if(!(node instanceof THREE.SkinnedMesh)) return;
       if(!this.dedicatedBody)prepareClothMask(node);
+      prepareWardrobeMask(node);
       this.originals.set(node,node.material);
       const tint=(source:THREE.Material) => {
         const mat=source.clone(); this.materials.push(mat);
@@ -95,8 +104,9 @@ export class CharacterEquipment {
               diffuseColor.rgb=max((mix(vec3(boldLight),diffuseColor.rgb,1.15)-.18)*1.18+.18,0.0);
               float ash=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));
               diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.023,.021,.019)+ash*.085,charred);`);
+          this.paintedWardrobe.patch(shader);
         };
-        mat.customProgramCacheKey=()=> 'og-role-clothing-burn-v4-'+Number(this.dedicatedBody); return mat;
+        mat.customProgramCacheKey=()=> 'og-role-clothing-wardrobe-v5-'+Number(this.dedicatedBody); return mat;
       };
       node.material=Array.isArray(node.material)?node.material.map(tint):tint(node.material);
     });
@@ -127,7 +137,8 @@ export class CharacterEquipment {
 
   set(appearance?:CharacterAppearance):void {
     this.appearance=appearance;
-    this.mix.value=this.dedicatedBody?0:appearance ? appearance.role==='judge'?1:.88 : 0;
+    this.paintedWardrobe.set(appearance?.wardrobe);
+    this.mix.value=this.dedicatedBody||appearance?.wardrobe?0:appearance ? appearance.role==='judge'?1:.88 : 0;
     this.charred.value=appearance?.charred??0;
     this.shirt.value=appearance?.role==='judge'?0:1;
     // Uniforms keep their folds, belt and buttons rather than a flat wash of colour.
@@ -142,11 +153,19 @@ export class CharacterEquipment {
         this.color.value.setHSL(this.hsl.h,Math.min(.45,this.hsl.s),Math.min(.32,this.hsl.l));
       }
     }
-    const key=appearance?`${appearance.role}/${appearance.weapon??''}/${appearance.carriedProp??''}/${appearance.throwable??''}/${!!appearance.firefighting}`:'';
+    const key=appearance?`${appearance.role}/${appearance.weapon??''}/${appearance.carriedProp??''}/${appearance.throwable??''}/${!!appearance.firefighting}/${appearance.wardrobe?.signature??''}`:'';
+    this.updateWardrobeCharring(appearance?.charred ?? 0);
     if(key===this.signature) return;
     this.clearAttachments(); this.signature=key;
     if(!appearance) return;
     const {role,weapon,carriedProp}=appearance;
+    if (appearance.wardrobe) {
+      this.wardrobeGarments = createWardrobeGarments(this.group, this.model, appearance.wardrobe, this.rest, this.restPositions);
+      this.fitWardrobeBody(this.wardrobeGarments.hidesSourceHat, !!this.wardrobeGarments.hidesSourceBody,
+        this.wardrobeGarments.bodyHem, this.wardrobeGarments.bodyTop);
+      this.paintedWardrobe.outerHem.value = Number.isFinite(this.wardrobeGarments.bodyHem) ? this.wardrobeGarments.bodyHem : 0;
+      this.updateWardrobeCharring(appearance.charred ?? 0);
+    }
     if(appearance.firefighting){
       const wrist=this.restPositions.get('RightHand');if(wrist)this.fixed('fireHose','RightHand',wrist.clone());return;
     }
@@ -169,7 +188,7 @@ export class CharacterEquipment {
       this.fixed('cameraStrap','Spine',new THREE.Vector3(0,1.18,.20));
     }
     if(role==='judge') {
-      if(!this.dedicatedBody) { this.robe(); this.fitJudgeBody(); this.fixed('collar','Spine',new THREE.Vector3(0,1.405,.16)); }
+      if(!this.dedicatedBody && !appearance.wardrobe) { this.robe(); this.fitJudgeBody(); this.fixed('collar','Spine',new THREE.Vector3(0,1.405,.16)); }
       if(!weapon) this.hand('gavel','RightHand');
     }
   }
@@ -444,7 +463,47 @@ export class CharacterEquipment {
     if(head && this.bareJudgeHead)this.fixed('judgeHair','Head',head.clone().add(new THREE.Vector3(0,.073,-.012)));
   }
 
+  /** A replacement hat/outer garment has real depth; remove the hidden source
+   * triangles so a fedora does not poke through a cap or a skirt through a coat. */
+  private fitWardrobeBody(hideHat:boolean,hideBody:boolean,bodyHem:number,bodyTop:number):void {
+    if (!hideHat && !hideBody) return;
+    const hem = bodyHem;
+    const top = bodyTop;
+    this.originals.forEach((_material, mesh) => {
+      const original = mesh.geometry, mask = original.getAttribute('aWardrobe');
+      const point = original.getAttribute('aWardrobePoint'), body = original.getAttribute('aWardrobeBody');
+      if (!mask || !point || !body) return;
+      const sourceIndex = original.index, kept:number[] = [];
+      const count = sourceIndex?.count ?? mask.count;
+      const covered = (i:number) => hideBody && body.getX(i) > .7 && point.getY(i) > hem && point.getY(i) < top;
+      for (let i=0;i<count;i+=3) {
+        const a=sourceIndex?sourceIndex.getX(i):i,b=sourceIndex?sourceIndex.getX(i+1):i+1,c=sourceIndex?sourceIndex.getX(i+2):i+2;
+        if (hideHat && mask.getW(a)+mask.getW(b)+mask.getW(c) > .5) continue;
+        if (Number(covered(a)) + Number(covered(b)) + Number(covered(c)) >= 2) continue;
+        kept.push(a,b,c);
+      }
+      const geometry=original.clone();geometry.setIndex(kept);
+      this.geometryOverrides.set(mesh,original);mesh.geometry=geometry;this.ownedGeometry.push(geometry);
+    });
+  }
+
+  private updateWardrobeCharring(amount:number):void {
+    if (amount === this.wardrobeCharring || !this.wardrobeGarments) return;
+    this.wardrobeCharring = amount;
+    for (const root of this.wardrobeGarments?.meshes ?? []) root.traverse(node => {
+      if (!(node instanceof THREE.Mesh)) return;
+      for (const material of Array.isArray(node.material) ? node.material : [node.material]) {
+        if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+        const source = material.userData.wardrobeBaseColor ??= material.color.clone();
+        material.color.copy(source).lerp(new THREE.Color(0x090807), THREE.MathUtils.clamp(amount, 0, 1));
+      }
+    });
+  }
+
   private clearAttachments():void {
+    this.presentationRevision++;
+    this.wardrobeGarments?.dispose();this.wardrobeGarments=undefined;
+    this.wardrobeCharring = -1;
     this.weaponGrips.clear();
     this.throwRelease=undefined;
     this.throwRotation=undefined;

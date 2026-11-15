@@ -11,9 +11,12 @@ const minute = Number(process.argv[3] ?? 1.35);
 const flags = process.argv.slice(4);
 const params = new URLSearchParams();
 if (flags.includes('--hybrid')) params.set('people', 'painted3d');
+if (flags.includes('--wardrobe')) params.set('people', 'wardrobe3d');
 if (flags.includes('--close')) params.set('close', '1');
 const textureFlag = flags.find(flag => flag.startsWith('--texture='));
 if (textureFlag) params.set('texture', textureFlag.slice('--texture='.length));
+const corpseFlag = flags.find(flag => flag.startsWith('--corpse='));
+if (corpseFlag) params.set('corpse', corpseFlag.slice('--corpse='.length));
 if (!Number.isFinite(minute) || minute < 0 || minute > 4) throw Error('Frame must be between 0 and 4 game minutes.');
 const server = await createServer({ logLevel: 'error', server: { host: '127.0.0.1', port: 5189, strictPort: false } });
 let browser;
@@ -29,7 +32,7 @@ try {
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto(`http://127.0.0.1:${port}/visual-review.html?${params}`, { waitUntil: 'domcontentloaded' });
-  await page.waitForFunction(() => window.__visualReview?.ready === true, { timeout: 120000 });
+  await page.waitForFunction(() => window.__visualReview?.ready === true, undefined, { timeout: 120000 });
   await page.evaluate(time => window.__visualReview.seek(time), minute);
   await page.screenshot({ path: output });
   const review = await page.evaluate(() => ({ building: window.__visualReview.building,

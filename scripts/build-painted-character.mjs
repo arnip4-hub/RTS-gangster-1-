@@ -1,10 +1,11 @@
-/** Rebuild the small albedo used by the illustrated 3D character proof.
- * Geometry, UVs, bones and motion remain in the existing fedora GLB. */
+/** Shared painted albedos: no extra texture is needed per civilian identity. */
 import sharp from 'sharp';
 
-await sharp('art-source/illustrated/characters/fedora-painted.webp')
-  .resize(1024, 1024, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
-  .jpeg({ quality: 90, mozjpeg: true })
-  .toFile('public/art/city/illustrated-fedora-albedo.jpg');
+for (const style of ['fedora', 'woman', 'worker', 'police', 'fbi']) {
+  await sharp(`art-source/illustrated/characters/${style}-painted.webp`)
+    .resize(1024, 1024, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
+    .jpeg({ quality: 90, mozjpeg: true })
+    .toFile(`public/art/city/illustrated-${style}-albedo.jpg`);
+}
 
-console.log('Painted character proof: 1024 × 1024 fedora albedo');
+console.log('Painted characters: five shared 1024 × 1024 albedos');

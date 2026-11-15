@@ -205,10 +205,12 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('detailed')}>Detailed</button>
           <button aria-pressed={visualStyle === 'illustrated'} className={`btn sm${visualStyle === 'illustrated' ? ' on' : ''}`}
             onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
+          <button aria-pressed={visualStyle === 'illustrated3d'} className={`btn sm${visualStyle === 'illustrated3d' ? ' on' : ''}`}
+            onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated keeps the game's painted city textures and uses drawn people, cars and portraits.
-          Special action animations still use 3D figures. It is new artwork, not images from the 1998 game.
+          Illustrated 3D pairs painted buildings with animated people, varied clothing, body builds and skin tones.
+          Illustrated 1930s uses drawn street figures. Both use original illustrated portraits.
           Save and reopen the city to apply the street style; graphics quality is separate.
         </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}

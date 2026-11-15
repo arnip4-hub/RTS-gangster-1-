@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import type { Person, WorldState } from '../sim/types';
-import { campaignMinute } from '../sim/calendar';
-import { bodySceneStage } from '../sim/bodyRecovery';
+import { streetCorpseStage } from './corpsePresentation';
 import { peopleList } from '../sim/entityLists';
 import { illustratedPersonRow } from './illustratedPeople';
 import { patchInstancedUv } from './materialUv';
@@ -52,14 +51,16 @@ export class DeathMarks {
   private readonly rotation = new THREE.Quaternion();
   private readonly uv = new THREE.Vector4();
   private readonly up = new THREE.Vector3(0, 1, 0);
-  private bodyTexture: THREE.Texture;
+  private bodyTexture: THREE.Texture | null;
 
-  constructor(private readonly capacity = 256) {
+  constructor(private readonly capacity = 256, private readonly sheetsOnly = false) {
     this.group.name = 'death-scenes';
-    this.bodyTexture = new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}art/city/illustrated-people-atlas.png`);
-    this.bodyTexture.colorSpace = THREE.SRGBColorSpace;
-    this.bodyTexture.minFilter = this.bodyTexture.magFilter = THREE.LinearFilter;
-    this.bodyTexture.generateMipmaps = false;
+    this.bodyTexture = sheetsOnly ? null : new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}art/city/illustrated-people-atlas.png`);
+    if (this.bodyTexture) {
+      this.bodyTexture.colorSpace = THREE.SRGBColorSpace;
+      this.bodyTexture.minFilter = this.bodyTexture.magFilter = THREE.LinearFilter;
+      this.bodyTexture.generateMipmaps = false;
+    }
     const bodyMaterial = new THREE.MeshBasicMaterial({ map: this.bodyTexture, side: THREE.DoubleSide,
       transparent: true, depthWrite: false });
     patchInstancedUv(bodyMaterial);
@@ -79,17 +80,18 @@ export class DeathMarks {
 
   update(w: WorldState, groundY: (x: number, y: number) => number = () => KERB_H,
     at: (p: Person) => { x: number; y: number } = p => p.pos): void {
-    const now = campaignMinute(w);
-    const dead = peopleList(w).filter(p => p.status === 'dead' && p.bodyRecovery !== null && !p.inVehicle &&
-      (p.bodyRecovery ? bodySceneStage(p, now) !== 'gone' : p.diedWeek >= w.week - 1))
+    const dead = peopleList(w).filter(p => {
+      const stage = streetCorpseStage(p, w);
+      return stage != null && stage !== 'gone' && (!this.sheetsOnly || stage === 'sheet');
+    })
       .sort((a, b) => (b.diedAt ?? 0) - (a.diedAt ?? 0) || b.id - a.id).slice(0, this.capacity);
-    const signature = dead.map(p => `${p.id}:${p.bodyRecovery ? bodySceneStage(p, now) : 'legacy'}`).join(',');
+    const signature = dead.map(p => `${p.id}:${streetCorpseStage(p, w)}`).join(',');
     if (signature === this.signature) return;
     this.signature = signature;
     this.bodies.reset();
     const counts: Record<MarkKind, number> = { sheet: 0, charred: 0 };
     for (const p of dead) {
-      const kind = p.bodyRecovery && bodySceneStage(p, now) === 'sheet' ? 'sheet'
+      const kind = streetCorpseStage(p, w) === 'sheet' ? 'sheet'
         : p.burningEscape?.fatal ? 'charred' : 'body';
       const angle = ((p.id * 2654435761) >>> 0) / 0x100000000 * Math.PI * 2;
       this.rotation.setFromAxisAngle(this.up, angle);
@@ -112,7 +114,7 @@ export class DeathMarks {
 
   dispose(): void {
     this.group.removeFromParent();
-    this.bodies.dispose(); this.bodyTexture.dispose();
+    this.bodies.dispose(); this.bodyTexture?.dispose();
     for (const mesh of Object.values(this.marks)) {
       (mesh.material as THREE.MeshBasicMaterial).map?.dispose();
       (mesh.material as THREE.Material).dispose(); mesh.dispose();

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:," />
+    <title>Illustrated 3D wardrobe review</title>
+    <style>
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #ece3cd; color: #302a23; font-family: Georgia, serif; }
+      canvas { display: block; width: 100vw; height: 100vh; }
+      header { position: absolute; top: 22px; left: 36px; right: 36px; pointer-events: none; }
+      h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: .04em; }
+      p { margin: 0; font: 14px/1.4 system-ui, sans-serif; }
+      .label { position: absolute; width: 260px; transform: translateX(-50%); text-align: center; pointer-events: none; }
+      .label strong { display: block; font-size: 15px; }
+      .label span { display: block; margin-top: 4px; font: 11px/1.3 system-ui, sans-serif; color: #645748; }
+    </style>
+  </head>
+  <body>
+    <header><h1 id="title">Illustrated 3D wardrobe</h1><p id="description">Loading actual rigged characters…</p></header>
+    <canvas id="review"></canvas>
+    <div id="labels"></div>
+    <script type="module">
+      import * as THREE from 'three';
+      import { SculptReviewLayer } from './src/render/sculptReviewLayer.ts';
+      import { CHARACTER_SCALE } from './src/render/detailedCharacters.ts';
+      import {
+        CHARACTER_OUTFITS, CHARACTER_UNIFORMS, CHARACTER_BODY_TYPES,
+        CHARACTER_SKIN_TONES, CHARACTER_FACE_PRESETS, CHARACTER_HAIR_STYLES,
+        resolveCharacterWardrobe, withCharacterWardrobe,
+      } from './src/render/characterWardrobe.ts';
+
+      // A development character sheet. The game uses the same wardrobe and
+      // model layer, while this page deliberately places every variant in view.
+      const query = new URLSearchParams(location.search);
+      const page = query.get('page') ?? 'men';
+      if (!['men', 'women', 'uniforms', 'all', 'bodies', 'skins'].includes(page)) throw Error(`Unknown gallery page: ${page}`);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0xece3cd);
+      const canvas = document.getElementById('review');
+      const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+      renderer.setPixelRatio(1);
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      scene.add(new THREE.HemisphereLight(0xffeed5, 0x625948, 2.0));
+      const sun = new THREE.DirectionalLight(0xffe2b7, 2.6);
+      sun.position.set(-8, 18, 20);
+      sun.castShadow = true;
+      sun.shadow.mapSize.set(2048, 2048);
+      sun.shadow.camera.left = -25; sun.shadow.camera.right = 25;
+      sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -5;
+      sun.shadow.bias = -.00025;
+      scene.add(sun);
+      const fill = new THREE.DirectionalLight(0xc9d2df, .6);
+      fill.position.set(15, 8, 12); scene.add(fill);
+
+      function entry(index, outfit, options = {}) {
+        const female = options.female ?? outfit.sex === 'female';
+        const role = options.role ?? outfit.roles?.[0] ?? 'citizen';
+        const person = { id: 50000 + index * 101, portrait: index * 17, female, role };
+        const base = resolveCharacterWardrobe(person);
+        const bodies = CHARACTER_BODY_TYPES.filter(body => body.sex === (female ? 'female' : 'male'));
+        const body = bodies[options.bodyIndex ?? index % bodies.length];
+        const skinIndex = options.skinIndex ?? index % CHARACTER_SKIN_TONES.length;
+        const skin = CHARACTER_SKIN_TONES[skinIndex];
+        const faces = CHARACTER_FACE_PRESETS.filter(face => face.sex === (female ? 'female' : 'male'));
+        const face = faces[options.faceIndex ?? index % faces.length];
+        const hair = options.hairIndex == null ? base.hair : CHARACTER_HAIR_STYLES
+          .filter(hair => hair.sex === (female ? 'female' : 'male'))[options.hairIndex];
+        const wardrobe = withCharacterWardrobe(base, {
+          outfit, body, skinIndex, skinColor: skin.color, skinGroup: skin.group, face, hair,
+          heightScale: options.heightScale ?? [0.94, 1, 1.06][index % 3],
+        });
+        const baseStyle = female ? 'woman' : outfit.silhouette === 'work' ? 'worker'
+          : ['police', 'policeChief'].includes(role) ? 'police' : 'fedora';
+        return { person, wardrobe, baseStyle, caption: options.caption ?? outfit.label };
+      }
+
+      const male = CHARACTER_OUTFITS.filter(outfit => outfit.sex !== 'female');
+      const female = CHARACTER_OUTFITS.filter(outfit => outfit.sex === 'female');
+      let entries;
+      if (page === 'men') entries = male.map((outfit, i) => entry(i, outfit));
+      else if (page === 'women') entries = female.map((outfit, i) => entry(i + 25, outfit));
+      else if (page === 'uniforms') entries = CHARACTER_UNIFORMS.map((outfit, i) => entry(i + 50, outfit));
+      else if (page === 'all') entries = [...CHARACTER_OUTFITS, ...CHARACTER_UNIFORMS].map((outfit, i) => entry(i, outfit));
+      else if (page === 'bodies') entries = CHARACTER_BODY_TYPES.map((body, i) => {
+        const isFemale = body.sex === 'female';
+        const outfit = (isFemale ? female : male)[0];
+        return entry(i + 100, outfit, { female: isFemale, bodyIndex: i % 4, skinIndex: 3,
+          heightScale: 1, faceIndex: 0, hairIndex: 0, caption: `${body.sex} · ${body.shape}` });
+      });
+      else entries = CHARACTER_SKIN_TONES.map((skin, i) => entry(i + 200, male[0], {
+        bodyIndex: 1, skinIndex: i, heightScale: 1, faceIndex: 0, hairIndex: 0, caption: skin.id,
+      }));
+      if (!entries.length) throw Error('The wardrobe catalog supplied no gallery characters.');
+
+      const columns = page === 'all' ? 10 : page === 'uniforms' || page === 'bodies' ? 4 : 5;
+      const rows = Math.ceil(entries.length / columns), stepX = 3.2, stepY = 3.25;
+      const gridW = columns * stepX, gridH = rows * stepY;
+      const aspect = innerWidth / innerHeight;
+      const viewHeight = Math.max(gridH + 1.2, (gridW + 1) / aspect);
+      const centerY = (gridH - stepY) / 2 + 1.1;
+      const camera = new THREE.OrthographicCamera(-viewHeight * aspect / 2, viewHeight * aspect / 2,
+        viewHeight / 2, -viewHeight / 2, .1, 100);
+      camera.position.set(0, centerY + 1.3, 30);
+      camera.lookAt(0, centerY, 0);
+      camera.updateMatrixWorld(true);
+
+      const pedestalGeometry = new THREE.CylinderGeometry(.66, .71, .055, 32);
+      const pedestalMaterial = new THREE.MeshStandardMaterial({ color: 0xd5c7aa, roughness: 1 });
+      const labels = document.getElementById('labels');
+      const labelNodes = [];
+      const scratch = new THREE.Vector3();
+      for (const [i, item] of entries.entries()) {
+        const x = (i % columns - (columns - 1) / 2) * stepX;
+        const y = (rows - 1 - Math.floor(i / columns)) * stepY;
+        item.position = new THREE.Vector3(x, y, 0);
+        item.matrix = new THREE.Matrix4().compose(item.position,
+          new THREE.Quaternion().setFromEuler(new THREE.Euler(0, page === 'bodies' ? .9 : .22, 0)),
+          new THREE.Vector3(CHARACTER_SCALE, CHARACTER_SCALE, CHARACTER_SCALE));
+        const pedestal = new THREE.Mesh(pedestalGeometry, pedestalMaterial);
+        pedestal.position.set(x, y - .03, 0); pedestal.receiveShadow = true;
+        scene.add(pedestal);
+        const label = document.createElement('div'); label.className = 'label';
+        const name = document.createElement('strong'); name.textContent = item.caption;
+        const details = document.createElement('span');
+        details.textContent = `${item.wardrobe.body.shape} · skin ${item.wardrobe.skinIndex + 1} · ${item.wardrobe.outfit.pattern}`;
+        label.append(name, details); labels.append(label);
+        label.style.width = `${Math.min(260, innerWidth / columns - 12)}px`;
+        scratch.set(x, y - .18, .15).project(camera);
+        label.style.left = `${(scratch.x + 1) * innerWidth / 2}px`;
+        label.style.top = `${(1 - scratch.y) * innerHeight / 2}px`;
+        labelNodes.push(label);
+      }
+      const titles = { men: '25 men’s clothing combinations', women: '25 women’s clothing combinations',
+        uniforms: 'Eight occupational uniforms', all: '50 civilian combinations + eight uniforms',
+        bodies: 'Eight body builds on the same two outfits', skins: 'Ten skin shades on one shared outfit' };
+      document.getElementById('title').textContent = titles[page];
+      const layer = new SculptReviewLayer(scene, 1, () => {}, Math.max(96, entries.length), { painted: true });
+      await layer.load();
+      if (!layer.ready) throw Error(layer.error ?? 'The painted character layer did not finish loading.');
+      let disposed = false, paused = true, currentPhase = .25;
+      function frame(phase) {
+        if (disposed) return;
+        currentPhase = phase;
+        layer.resetCharacters();
+        for (const item of entries) {
+          const ok = layer.pushCharacter(item.person.id, item.baseStyle, item.matrix, phase * Math.PI * 2, true,
+            { role: item.person.role, coat: item.wardrobe.outfit.coatColor, wardrobe: item.wardrobe },
+            { clock: phase, delta: 0 });
+          if (!ok) throw Error(`Failed to draw wardrobe ${item.wardrobe.outfit.id}`);
+        }
+        layer.commitCharacters();
+        renderer.render(scene, camera);
+      }
+      frame(currentPhase);
+      const stats = () => {
+        let skinnedMeshes = 0, vertices = 0;
+        scene.traverse(node => {
+          if (!(node instanceof THREE.SkinnedMesh)) return;
+          skinnedMeshes++; vertices += node.geometry.getAttribute('position').count;
+        });
+        return { page, characters: entries.length, activeRigs: layer.characterCount, skinnedMeshes, vertices,
+          outfitIds: entries.map(item => item.wardrobe.outfit.id),
+          bodyIds: [...new Set(entries.map(item => item.wardrobe.body.id))],
+          skinIndices: [...new Set(entries.map(item => item.wardrobe.skinIndex))],
+          phase: currentPhase };
+      };
+      const initial = stats();
+      if (initial.skinnedMeshes < entries.length || initial.activeRigs !== entries.length)
+        throw Error('Gallery did not produce a real skinned character for every wardrobe entry.');
+      document.getElementById('description').textContent = `${entries.length} animated 3D characters · shared source bodies and painted materials · deterministic gallery`;
+      window.__wardrobeReview = { ready: true, stats, seek(phase) { paused = true; frame(phase); },
+        resume() { paused = false; }, dispose() { disposed = true; layer.dispose(); renderer.dispose();
+          pedestalGeometry.dispose(); pedestalMaterial.dispose(); labelNodes.forEach(node => node.remove()); } };
+      function animate(time) { if (disposed) return; if (!paused) frame(time / 1300 % 1); requestAnimationFrame(animate); }
+      requestAnimationFrame(animate);
+    </script>
+  </body>
+</html>

@@ -3,6 +3,7 @@ import type { Person } from '../sim/types';
 import { characterStyle } from './characterPresentation';
 import type {CharacterAction} from './characterActions';
 import { ACTOR_STYLES, ACTOR_STRIDE_METRES, actorGeometry, createActorMaterial, createActorDepthMaterial, type ActorStyle } from './actors';
+import type { CharacterWardrobe } from './characterWardrobe';
 
 interface Batch {
   mesh: THREE.InstancedMesh;
@@ -51,6 +52,9 @@ export class ActorLayer {
   private skinColor = new THREE.Color();
   private actionMatrix = new THREE.Matrix4();
   private fallRotation = new THREE.Matrix4();
+  private wardrobeMatrix = new THREE.Matrix4();
+  private wardrobeScale = new THREE.Matrix4();
+  private wardrobeCoat = new THREE.Color();
   private disposed = false;
 
   constructor(scene: THREE.Scene, capacity: number) {
@@ -83,9 +87,19 @@ export class ActorLayer {
 
   reset(): void { for (const batch of this.batches.values()) batch.count = 0; }
 
-  push(person: Person, matrix: THREE.Matrix4, coat: THREE.Color, phase: number, amplitude: number, action?:CharacterAction): void {
-    const batch = this.batches.get(actorStyleFor(person))!;
+  push(person: Person, matrix: THREE.Matrix4, coat: THREE.Color, phase: number, amplitude: number, action?:CharacterAction,
+    wardrobe?: CharacterWardrobe): void {
+    const style = wardrobe?.body.sex === 'female' ? 'woman' : actorStyleFor(person);
+    const batch = this.batches.get(style)!;
     if (batch.count >= batch.mesh.instanceMatrix.count) return;
+    if (wardrobe) {
+      // Distant figures remain one instanced draw per body style, while
+      // keeping the same identity's height, build, skin and coat palette.
+      this.wardrobeScale.makeScale(wardrobe.body.widthScale, wardrobe.heightScale * .94, wardrobe.body.depthScale);
+      this.wardrobeMatrix.copy(matrix).multiply(this.wardrobeScale);
+      matrix = this.wardrobeMatrix;
+      coat = this.wardrobeCoat.setHex(wardrobe.outfit.coatColor);
+    }
     const i = batch.count++;
     if(action?.kind==='death'||action?.kind==='burnDeath'){
       // The distant instanced body must also fall, including before HD loads.
@@ -97,7 +111,7 @@ export class ActorLayer {
     }else batch.mesh.setMatrixAt(i, matrix);
     batch.mesh.setColorAt(i, coat);
     batch.walk.setXY(i, phase, amplitude);
-    this.skinColor.setHex(SKIN[Math.abs(person.portrait | 0) % SKIN.length]);
+    this.skinColor.setHex(wardrobe?.skinColor ?? SKIN[Math.abs(person.portrait | 0) % SKIN.length]);
     if(action?.kind==='burnDeath')this.skinColor.setHex(0x24211d);
     batch.skin.setXYZ(i, this.skinColor.r, this.skinColor.g, this.skinColor.b);
   }

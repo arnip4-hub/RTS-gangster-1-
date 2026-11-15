@@ -3,8 +3,9 @@ import { GANG_COLORS } from '../sim/constants';
 import type { Gang, Person } from '../sim/types';
 import { bossPortraitUrl, portraitUrl } from './art';
 import { useArtStatus } from './useArtStatus';
-import { readVisualStyle } from '../render/visualStyle';
+import { readVisualStyle, usesPaintedCity } from '../render/visualStyle';
 import { appearanceIndex, personSkinGroup } from '../render/personAppearance';
+import { resolveCharacterWardrobe } from '../render/characterWardrobe';
 
 /**
  * Studio portrait for everybody in the city. Illustrated civilians and
@@ -15,7 +16,7 @@ import { appearanceIndex, personSkinGroup } from '../render/personAppearance';
 export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   // Citizens and rank-and-file officers use a stable layered drawing. The
   // commissioned paintings remain for the crew and agency leadership.
-  const illustrated = readVisualStyle() === 'illustrated';
+  const illustrated = usesPaintedCity(readVisualStyle());
   const composed = illustrated && !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
   // A boss's own painting when it has been delivered; the pool face otherwise.
   const boss = illustrated ? undefined : bossPortraitUrl(person.face);
@@ -71,21 +72,26 @@ const CARD = ['#cfc3a4', '#c8bb9c', '#d4c8aa', '#c2b696'] as const;
  */
 export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   const p = appearanceIndex(person);
+  const wardrobe = readVisualStyle() === 'illustrated3d' ? resolveCharacterWardrobe(person) : undefined;
+  const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
   const tone = personSkinGroup(person);
-  const skin = SKIN[tone * 2 + Math.floor(r(p, 1) * 2)];
-  const hair = pick(HAIR, p, 2);
-  const coat = person.role === 'police' ? '#252e42' : person.role === 'fbi' ? '#34332f' : pick(COAT, p, 3);
+  const skin = wardrobe ? hex(wardrobe.skinColor) : SKIN[tone * 2 + Math.floor(r(p, 1) * 2)];
+  const hair = wardrobe ? hex(wardrobe.hair.color) : pick(HAIR, p, 2);
+  const coat = wardrobe ? hex(wardrobe.outfit.coatColor) : person.role === 'police' ? '#252e42' : person.role === 'fbi' ? '#34332f' : pick(COAT, p, 3);
   const card = pick(CARD, p, 4);
-  const jaw = person.female ? 8.6 : 9.2 + r(p, 5) * 0.9;
-  const wide = person.female ? 7.6 : 7.9 + r(p, 6) * 0.8;
+  const jaw = (person.female ? 8.6 : 9.2 + r(p, 5) * 0.9) * (wardrobe?.face.length ?? 1);
+  const wide = (person.female ? 7.6 : 7.9 + r(p, 6) * 0.8) * (wardrobe?.face.width ?? 1);
 
   // Hats were near-universal out of doors, but a portrait is taken indoors, so
   // rather more than half the city is bare-headed here.
   const hatRoll = r(p, 7);
-  const hatKind = person.role === 'police' ? 'cap' : person.role === 'fbi' ? 'fedora'
+  const paintedHat = wardrobe?.headwear.kind;
+  const hatKind = paintedHat ? paintedHat === 'none' ? 'none' : ['uniformCap','flatCap','fireHelmet'].includes(paintedHat) ? 'cap'
+    : ['cloche','beret','pillbox'].includes(paintedHat) ? 'cloche' : 'fedora'
+    : person.role === 'police' ? 'cap' : person.role === 'fbi' ? 'fedora'
     : hatRoll < 0.42 ? (person.female ? 'cloche' : hatRoll < 0.24 ? 'fedora' : 'cap') : 'none';
-  const hatColor = pick(HAT, p, 8);
-  const balding = !person.female && r(p, 9) > 0.86;
+  const hatColor = wardrobe ? hex(wardrobe.headwear.color) : pick(HAT, p, 8);
+  const balding = wardrobe ? ['bald','balding'].includes(wardrobe.hair.style) : !person.female && r(p, 9) > 0.86;
   const moustache = !person.female && r(p, 10) > 0.72;
   const glasses = r(p, 11) > 0.85;
   const wrinkles = r(p, 14) > 0.72;

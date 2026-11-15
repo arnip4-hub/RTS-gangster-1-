@@ -26,12 +26,15 @@
       import { lotFacing, profileForLot } from './src/render/profile.ts';
       import { clearDestination, setDestination, stepPerson } from './src/sim/movement.ts';
       import { CELL } from './src/sim/constants.ts';
+      import { campaignMinute } from './src/sim/calendar.ts';
 
       // This page is intentionally outside the game's menu and release build.
       // The fixed seed and positions give art changes the same camera and actors.
-      localStorage.setItem('og.visualStyle', 'illustrated');
       const query = new URLSearchParams(location.search);
       const hybrid = query.get('people') === 'painted3d';
+      const wardrobeMode = query.get('people') === 'wardrobe3d';
+      const corpseStage = query.get('corpse');
+      localStorage.setItem('og.visualStyle', wardrobeMode ? 'illustrated3d' : 'illustrated');
       const close = hybrid && query.get('close') === '1';
       const canvas = document.getElementById('city');
       const { world } = createWorld({ ...defaultGameOptions(), continuousTime: true,
@@ -87,6 +90,13 @@
         setDestination(world, person, finish);
         return { person, start, finish };
       });
+      if (wardrobeMode && ['body', 'sheet'].includes(corpseStage)) {
+        const victim = cast[0];
+        victim.status = 'dead'; victim.hp = 0; victim.diedWeek = world.week;
+        victim.diedAt = campaignMinute(world) - 10;
+        victim.bodyRecovery = corpseStage === 'sheet' ? { coveredAt: campaignMinute(world) - 1 } : {};
+        clearDestination(victim);
+      }
       // One guaranteed 1930s car beside the cast; ambient traffic also runs.
       const driver = byRole('citizen').find(p => !cast.includes(p));
       driver.buildingId = null;
@@ -113,12 +123,14 @@
       // Atlases and illustrated walls/storefronts load separately from the
       // geometry. Wait for the final material set before accepting a frame.
       const until = performance.now() + 30000;
+      const peopleReady = () => wardrobeMode ? renderer.getSculptModelStatus().ready
+        : renderer.illustratedPeople?.ready && renderer.vehicleSprites?.ready;
       while (performance.now() < until &&
-        (!renderer.illustratedPeople?.ready || !renderer.vehicleSprites?.ready ||
+        (!peopleReady() ||
          !renderer.facadeMats?.[0]?.map?.image?.src?.includes('illustrated-facade-red-brick.jpg') ||
          !renderer.shopMat?.map?.image?.src?.includes('illustrated-storefront.jpg')))
         await new Promise(resolve => setTimeout(resolve, 100));
-      if (!renderer.illustratedPeople?.ready || !renderer.vehicleSprites?.ready ||
+      if (!peopleReady() ||
           !renderer.facadeMats?.[0]?.map?.image?.src?.includes('illustrated-facade-red-brick.jpg') ||
           !renderer.shopMat?.map?.image?.src?.includes('illustrated-storefront.jpg'))
         throw Error('Illustrated street assets did not finish loading.');
@@ -198,6 +210,7 @@
         const time = Math.max(0, Math.min(4, minutes));
         const whole = Math.floor(time);
         for (const { person, start, finish } of walkers) {
+          if (person.status === 'dead') continue;
           person.pos = { ...start };
           clearDestination(person);
           setDestination(world, person, finish);
@@ -227,6 +240,7 @@
         cast: cast.map(p => ({ id: p.id, role: p.role })),
         stats() { return { drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
           carSprites: renderer.vehicleSprites?.sprites.count, carModels: renderer.sedans?.count,
+          wardrobeMode, detailed: wardrobeMode ? renderer.getSculptModelStatus() : undefined,
           painted3d: paintedActor ? { skinnedMeshes: paintedActor.skeletons.length,
             boneCounts: paintedActor.skeletons, triangles: paintedActor.triangles,
             animation: paintedActor.clip.name, animationTime: paintedActor.mixer.time,

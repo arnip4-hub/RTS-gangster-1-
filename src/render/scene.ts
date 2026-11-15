@@ -6,6 +6,7 @@ import {EmergencyHoses} from './emergencyHoses';
 import { activeBlocks, blockRect, cityBlockAt, cityStreetInset, streetNameIndex } from '../sim/cityLayout';
 import { CityLandscape } from './cityLandscape';
 import { DeathMarks } from './deathMarks';
+import { heldCorpseAction, streetCorpseStage } from './corpsePresentation';
 import { CarGunfire } from './carGunfire';
 import { closedFrontMaterial } from './closedFront';
 import { riverBank, riverCrossing } from './riverBanks';
@@ -63,7 +64,8 @@ import {SculptRubble,rubblePiles,type RubblePlacement} from './sculptRubble';
 import { bossInsideOffice, characterPriority, streetPersonVisible, useDetailedModels, carriesExplosives, workingInside } from './characterPresentation';
 import { characterInView, characterNeedsDetail, characterPixelHeight, DETAIL_KEEP_METRES, MAX_DETAILED_STREET_CHARACTERS } from './characterDetail';
 import { graphicsPixelRatio, LIGHT_DETAILED_STREET_CHARACTERS, readGraphicsQuality, type GraphicsQuality } from './graphicsQuality';
-import { readVisualStyle } from './visualStyle';
+import { readVisualStyle, usesPaintedCity } from './visualStyle';
+import { resolveCharacterWardrobe, type CharacterWardrobe } from './characterWardrobe';
 import { previewActorMotion, previewStreetPosition, type PreviewActorMotion } from './previewActorMotion';
 import { kerbside, roadHeading } from '../sim/vehicleNavigation';
 import { campaignMinute } from '../sim/calendar';
@@ -220,6 +222,18 @@ export class CityRenderer {
   private renderer: THREE.WebGLRenderer;
   private graphicsQuality: GraphicsQuality = readGraphicsQuality();
   private readonly visualStyle = readVisualStyle();
+  private wardrobes = new WeakMap<Person, { key: string; value: CharacterWardrobe }>();
+
+  private wardrobeFor(person: Person): CharacterWardrobe | undefined {
+    if (this.visualStyle !== 'illustrated3d') return undefined;
+    const key = `${person.id}:${person.portrait}:${person.female}:${person.role}:${person.gangId}`;
+    let cached = this.wardrobes.get(person);
+    if (!cached || cached.key !== key) {
+      cached = { key, value: resolveCharacterWardrobe(person) };
+      this.wardrobes.set(person, cached);
+    }
+    return cached.value;
+  }
   private world: WorldState;
   private tex: CityTextures;
   private ownedTextures = new TextureOwner();
@@ -242,6 +256,7 @@ export class CityRenderer {
   private deathMarks?: DeathMarks;
   private carGunfire?: CarGunfire;
   private deathMarksChecked = -Infinity;
+  private corpseFacings = new Map<ID, number>();
   /** Where each man carrying crates was last shown: one killed at it falls there, not at the truck. */
   private shuttleSeen = new Map<number, { x: number; y: number }>();
   private groundCanvas!: HTMLCanvasElement;
@@ -476,7 +491,7 @@ export class CityRenderer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.32;
-    if (this.visualStyle === 'illustrated') this.renderer.toneMappingExposure = 1.12;
+    if (usesPaintedCity(this.visualStyle)) this.renderer.toneMappingExposure = 1.12;
 
     this.camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -2000, 4000);
     const cityW = world.gridW * CELL;
@@ -560,7 +575,7 @@ export class CityRenderer {
 
     // Show procedural city art immediately, then swap in the delivered sheets
     // for the selected visual style as they finish loading.
-    void (this.visualStyle === 'illustrated' ? loadIllustratedCityArt() : loadCityArt()).then((art) => {
+    void (usesPaintedCity(this.visualStyle) ? loadIllustratedCityArt() : loadCityArt()).then((art) => {
       if (!this.disposed) this.applyArt(art);
     });
   }
@@ -678,7 +693,7 @@ export class CityRenderer {
     this.facadeMats = this.tex.facades.map((f, index) => {
       // The painted sheets already carry their own highlights and soot. The
       // stronger gain belongs to the photographed sheets in detailed mode.
-      const gain = this.visualStyle === 'illustrated' && index < 5
+      const gain = usesPaintedCity(this.visualStyle) && index < 5
         ? [1.15, 1.45, 1.05, 1, 1.05][index]
         : FACADE_ALBEDO_GAIN[index] ?? 1;
       const m = new THREE.MeshStandardMaterial({
@@ -831,7 +846,7 @@ export class CityRenderer {
     this.fireEscapes = new InstancePool(fireEscapeGeometry(), ironMat, nB, { castShadow: true });
 
     const roofPropMat = new THREE.MeshStandardMaterial({
-      color: this.visualStyle === 'illustrated' ? 0xb6a994 : 0xffffff,
+      color: usesPaintedCity(this.visualStyle) ? 0xb6a994 : 0xffffff,
       roughness: 0.9, vertexColors: true,
     });
     // The saw-tooth roofs get a material of their own so the glazing can be mapped in later.
@@ -1008,7 +1023,7 @@ export class CityRenderer {
     this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
       new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
     if (this.preferVehicleSprites) this.ensureVehicleSprites();
-    this.preferSculptModels = this.visualStyle === 'detailed' && useDetailedModels(window.location.search);
+    this.preferSculptModels = this.visualStyle !== 'illustrated' && useDetailedModels(window.location.search);
     if (this.preferSculptModels) this.ensureSculptModels();
     this.syncVehiclePresentation();
   }
@@ -1016,7 +1031,7 @@ export class CityRenderer {
   private ensureSculptModels(): void {
     if (this.sculptModels) return;
     const layer = new SculptReviewLayer(this.scene, MAX_CARS + MAX_AGENTS,
-      () => this.syncVehiclePresentation(), MAX_AGENTS);
+      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d' });
     this.sculptModels = layer;
     this.sculptLoad = layer.load().then(() => {
       this.sculptLoad = null;
@@ -1447,7 +1462,7 @@ export class CityRenderer {
       // Base colour: a period wall tint per building (fresh and sooted brick,
       // limewash, buff, ochre, grey stone) over the facade texture, with a
       // little lightness variation, then washed with gang colour.
-      const paintedFacade = this.visualStyle === 'illustrated' && prof.facade < 5;
+      const paintedFacade = usesPaintedCity(this.visualStyle) && prof.facade < 5;
       const tint = paintedFacade ? [1, 1, 1] : WALL_TINTS[Math.floor(r01(b.id, 33) * WALL_TINTS.length)];
       const v = paintedFacade ? 0.94 + r01(b.id, 30) * 0.12 : 0.88 + r01(b.id, 30) * 0.24;
       this.colorScratch.setRGB(v * tint[0], v * tint[1], v * tint[2]);
@@ -2011,6 +2026,10 @@ export class CityRenderer {
     const viewerHex = viewer ? Number(GANG_COLORS[viewer.color].light.replace('#', '0x')) : 0xffffff;
 
     const watchedIds = this.tagged.watchedIds();
+    for (const id of this.corpseFacings.keys()) {
+      const person = w.people[id];
+      if (!person || streetCorpseStage(person, w, this.subMinute) !== 'body') this.corpseFacings.delete(id);
+    }
     const burning=(p:Person)=>p.burningEscape?.week===w.week?p.burningEscape:undefined;
     // The reach test first: it is what every later pass applies anyway, and
     // the visibility rules below cost more than it does across 8,000 people.
@@ -2028,10 +2047,13 @@ export class CityRenderer {
       if (!doors) officeDoorsByGang.set(gangId, doors = officeDoors(w, gangId));
       return doors;
     };
-    const people = this.peopleNear(areas, watchedIds).filter(p => near(p) && (burning(p)?
+    const people = this.peopleNear(areas, watchedIds).filter(p => near(p) &&
+      (this.visualStyle === 'illustrated3d' && p.status === 'dead'
+        ? streetCorpseStage(p, w, this.subMinute) === 'body'
+        : (burning(p)?
       escapeSample(burning(p)!,w.minute+this.subMinute).time>=0:
       !bossInsideOffice(p) && !workingInside(w, p) && !(p.gangId != null && atOffice(w, p, doorsOf(p.gangId))) && (streetPersonVisible(p, watchedIds.has(p.id) ? p.id : this.selectedPersonId) || meeting.has(p.id) ||
-      (this.actionsEnabled && this.characterActions.has(p.id) || this.characterActions.hasDeath(p.id)) && !p.inVehicle && p.status!=='jailed' && p.status!=='kidnapped')));
+      (this.actionsEnabled && this.characterActions.has(p.id) || this.characterActions.hasDeath(p.id)) && !p.inVehicle && p.status!=='jailed' && p.status!=='kidnapped'))));
     if (watchedIds.size) people.sort((a,b) => Number(watchedIds.has(b.id)) - Number(watchedIds.has(a.id)));
     const hdIds = new Set<number>(), visibleIds = new Set<number>();
     this.camera.updateMatrixWorld(true);
@@ -2102,18 +2124,20 @@ export class CityRenderer {
       // Use the visible route tangent, not the previous committed waypoint.
       const driving = p.inVehicle && !shuttle;
       const vehicle = vehicleForPerson(w, p);
-      const walking = shuttle ? shuttle.walking : burn?burn.fleeing:shock?false:preview.moving && !p.inVehicle;
+      const ownCorpse = this.visualStyle === 'illustrated3d' && p.status === 'dead';
+      const walking = !ownCorpse && (shuttle ? shuttle.walking : burn?burn.fleeing:shock?false:preview.moving && !p.inVehicle);
       const cue=this.characterActions.presentation(p.id);
       const response=p.emergencyResponse;
-      const action:import('./characterActions').CharacterAction|undefined=burn?
+      const incidentAction:import('./characterActions').CharacterAction|undefined=burn?
         (burn.fleeing?{kind:'fleeBurning',time:burn.time}:escape!.fatal?{kind:'burnDeath',time:burn.deathTime}:undefined):
         shock&&shockTime>=0?{kind:'shock',time:shockTime}:
         response?.stage==='working'&&response.kind==='fire'?{kind:'firefight',time:(w.minute+this.subMinute-(response.arrivedMinute??w.minute))/MINUTES_PER_SECOND}:
         response?.stage==='working'&&response.kind==='reporter'?{kind:'photo',time:((w.minute+this.subMinute-(response.arrivedMinute??w.minute))/MINUTES_PER_SECOND)%4}:
         liveCharacterAction(cue,this.actionsEnabled);
+      const action = ownCorpse ? heldCorpseAction(p, incidentAction) : incidentAction;
       let facing = shuttle ? shuttle.facing : preview.moving ? preview.facing : driving ? roadHeading(w, pos) : r01(p.id, 3) * Math.PI * 2;
       // A burning man running from the door is moving, though he has no route.
-      const motion = this.actorMotion.sample(p.id, pos.x, pos.y, shuttle ? shuttle.walking : burn ? burn.fleeing : preview.moving, facing);
+      const motion = this.actorMotion.sample(p.id, pos.x, pos.y, !ownCorpse && (shuttle ? shuttle.walking : burn ? burn.fleeing : preview.moving), facing);
       if (!shuttle && (!driving || preview.moving || p.dest)) facing = motion.facing;
       if(burn)facing=burn.facing;
       else if(shock){
@@ -2123,6 +2147,10 @@ export class CityRenderer {
       else if(response?.stage==='working')facing=Math.atan2(response.lookAt.x-pos.x,response.lookAt.y-pos.y);
       // A man turns to his target; a car does not (it swung sideways on every hit).
       if(action?.target&&!driving)facing=Math.atan2(action.target.x-pos.x,action.target.y-pos.y);
+      if (ownCorpse) {
+        facing = this.corpseFacings.get(p.id) ?? facing;
+        this.corpseFacings.set(p.id, facing);
+      }
       const surface = driving ? VEHICLE_GROUND_CLEARANCE : streetSurfaceHeight(this.world, pos.x, pos.y) + .008;
       this.dummy.position.set(pos.x, surface, pos.y);
       this.dummy.rotation.set(0, facing, 0);
@@ -2168,11 +2196,11 @@ export class CityRenderer {
           { action, heldWeapon: burn ? undefined : this.characterActions.heldWeapon(p.id), carrying: !!shuttle?.carrying });
         const detailed = !illustrated && hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
           this.dummy.matrix, motion.phase, walking,
-          {role:p.role,coat:hex,firefighting:action?.kind==='firefight',charred:burn&&escape!.fatal?Math.min(1,.25+burn.time/(BURNING_TIMING.flee+2)):0,weapon:burn||response||action?.kind==='strike'||action?.kind==='throw'?undefined:this.characterActions.heldWeapon(p.id),
+          {role:p.role,coat:hex,wardrobe:this.wardrobeFor(p),firefighting:action?.kind==='firefight',charred:burn&&escape!.fatal?Math.min(1,.25+burn.time/(BURNING_TIMING.flee+2)):ownCorpse&&p.burningEscape?.fatal?1:0,weapon:ownCorpse||burn||response||action?.kind==='strike'||action?.kind==='throw'?undefined:this.characterActions.heldWeapon(p.id),
             carriedProp:shuttle?.carrying?'crate':!burn&&action?.kind!=='throw'&&carriesExplosives(w,p)?'explosives':undefined,throwable:action?.kind==='throw'?action.throwable:undefined},
           {clock:this.simClock,delta:this.actionDelta,action,previewActions:this.actionsEnabled||action?.kind==='shoot',posture:p.closeCombat?.posture,...(shuttle ? (shuttle.carrying ? {gait:'carry' as const} : {}) : dailyMotion(w,p))});
         if (!detailed && !illustrated)
-          this.actors.push(p, this.dummy.matrix, this.colorScratch, motion.phase, walking ? 1 : 0,action);
+          this.actors.push(p, this.dummy.matrix, this.colorScratch, motion.phase, walking ? 1 : 0,action,this.wardrobeFor(p));
         if(burn&&escape!.fatal)this.burningPeople?.push(pos.x,surface,pos.y,burn.time,burn.deathTime,
           detailed?this.sculptModels?.burningAnchors(p.id):undefined,p.id,
           burn.fleeing?{x:Math.sin(burn.facing),z:Math.cos(burn.facing)}:undefined);
@@ -2401,7 +2429,7 @@ export class CityRenderer {
   // ------------------------------------------------------------ public api
 
   setWorld(world: WorldState): void {
-    if (world !== this.world) this.actorMotion.clear();
+    if (world !== this.world) { this.actorMotion.clear(); this.corpseFacings?.clear(); }
     this.world = world;
     this.clearGroundBase();
     this.groundDirty = true; this.groundUrgent = true;
@@ -2917,7 +2945,7 @@ export class CityRenderer {
     // Chalk outlines and charred silhouettes where people died, checked twice a second.
     if (this.clock - this.deathMarksChecked > .5) {
       this.deathMarksChecked = this.clock;
-      if (!this.deathMarks) { this.deathMarks = new DeathMarks(); this.scene.add(this.deathMarks.group); }
+      if (!this.deathMarks) { this.deathMarks = new DeathMarks(256, this.visualStyle === 'illustrated3d'); this.scene.add(this.deathMarks.group); }
       this.deathMarks.update(this.world, (x, y) => streetSurfaceHeight(this.world, x, y), p => this.shuttleSeen.get(p.id) ?? p.pos);
     }
     // Pose transitions can settle after a paused command; one-shot action time

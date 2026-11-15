@@ -5,6 +5,77 @@ The remake's detailed city relies on photographed facade and road textures,
 legible but does not have the compact, hand-drawn feeling of the 1998 game.
 The original game's images are not part of this project.
 
+## Illustrated 3D wardrobe
+
+Choose **Game Options → City artwork → Illustrated 3D**, then save and reopen
+the city. The painted building materials now accompany animated 3D people in
+normal play, with the same walking, combat and held equipment as the detailed
+character layer.
+
+| Appearance component | Delivered choices |
+| --- | ---: |
+| Civilian clothing combinations | 50: 25 male and 25 female |
+| Occupational uniforms | 8 |
+| Body builds | 8: thin, average, stocky and heavy on both bodies |
+| Heights | 3 |
+| Skin shades | 10 |
+| Face presets | 32 |
+| Hair variants | 18 |
+| Headwear variants | 18 |
+| Civilian garment palettes | Up to 6 per outfit |
+
+These are assembled outfits: painted base bodies, separate coat/trouser
+colours, fabric patterns, fitted headwear and collars, and skinned skirt or
+coat extensions. Heavy builds change the torso and belly geometry, widen the
+shoulders, and preserve normal head and shoe proportions. The variation is
+more than a colour change. Uniforms follow actual roles; a visit to a venue
+does not change a citizen into one of its workers.
+
+![Male clothing combinations](images/wardrobe-men.png)
+
+![Female clothing combinations](images/wardrobe-women.png)
+
+![Body builds with clothing and other identity traits held fixed](images/body-builds.png)
+
+![Ten shades applied consistently to face and hands](images/skin-tones.png)
+
+![Eight occupational uniforms](images/uniforms.png)
+
+![Illustrated 3D wardrobe in the real city renderer](images/wardrobe-city.png)
+
+Identity comes from the saved person ID and portrait index. Clothing, build,
+skin and face use separate deterministic choices, so old saves acquire stable
+looks without a new save format. Composed portraits use the corresponding
+skin shade, hair and clothing palette. Commissioned crew portraits retain
+their existing skin family. Female officers use a female body with their
+uniform.
+
+The five 1024-pixel painted base maps are shared. The city retains its limit
+of 32 detailed visible characters (fewer with Light graphics); distant people
+keep their identity's body scale, coat and skin in instanced simpler figures.
+A bounded geometry cache shares body/face variants and retains only referenced
+rigs plus spare geometry. This is not a benchmark of 6,000 simultaneously
+animated detailed bodies. Automated population checks cover all 50 civilian
+outfits and all builds and tones across 6,000 generated identities.
+
+The new coat and skirt extensions have simple folds and the fur collars are
+still coarse at close zoom. They need a further art pass for tailored hems,
+lapels and fine fabric detail. The system supplies the full configured
+set now; it remains beta artwork.
+
+Rebuild the base maps with `npm run art:character`. Capture all presets with
+`node scripts/capture-wardrobe-review.mjs /tmp/wardrobe.png --page=all`.
+Other pages are `men`, `women`, `bodies`, `skins` and `uniforms`; `--phase=.75`
+samples another walking pose. `wardrobe-review.html` uses the same character
+layer as normal gameplay. The actual city capture is
+`node scripts/capture-visual-review.mjs /tmp/wardrobe-city.png 0.25 --wardrobe`.
+
+Uncovered street bodies retain the victim's wardrobe and build in the final
+3D fall pose. An arriving officer replaces the body with the existing white
+sheet; the coroner's collection removes it. There is no switch to an unrelated
+old street sprite after the fall cue expires. Use `--corpse=body` or
+`--corpse=sheet` with the city capture command to review those stages.
+
 ## First playable comparison
 
 **Game Options → City artwork → Illustrated 1930s (preview)** uses newly

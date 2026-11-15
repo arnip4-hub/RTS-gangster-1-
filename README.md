@@ -180,6 +180,13 @@ work are shown in [Art direction](docs/ART_DIRECTION.md).
 That page also shows the first painted 3D character proof: an animated fedora
 man beside the illustrated buildings, currently in the development review scene.
 
+**Illustrated 3D** now brings the painted city and animated character wardrobe
+into normal play: 50 civilian clothing combinations, eight occupational
+uniforms, eight body builds, three heights and ten skin shades, with varied
+faces, hair and hats. Save and reopen the city after selecting this artwork
+option. [See the actual wardrobe and city captures](docs/ART_DIRECTION.md#illustrated-3d-wardrobe).
+Coat/skirt extensions and fur are still beta art and need further tailoring.
+
 ```bash
 git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git
 cd RTS-gangster-1-

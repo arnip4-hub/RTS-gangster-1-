@@ -15,6 +15,8 @@ import {loadCombatMotions} from './combatMotions';
 import { characterSupports, characterFloor, type GroundSupport } from './characterGrounding';
 import type { VehicleId } from '../sim/types';
 import { createSculptVehicle, SCULPT_VEHICLE_KINDS } from './sculptVehicles';
+import { CharacterMorphologyCache } from './characterMorphology';
+import { CHARACTER_FACE_PRESETS } from './characterWardrobe';
 
 const BASE = `${import.meta.env.BASE_URL}art/city/sculpt`;
 const STYLES = DETAILED_CHARACTER_STYLES;
@@ -45,6 +47,7 @@ interface CharacterEntry {
   idleLift?:number;
   burntFloorLift?:number;
   burnAnchors?:{bone:THREE.Object3D;point:THREE.Vector3}[];
+  wardrobeSignature?: string;
 }
 
 /** Detailed city models, shared by normal play and the art review. Picking and game state remain owned by CityRenderer. */
@@ -59,11 +62,13 @@ export class SculptReviewLayer {
   private sourceScenes: THREE.Object3D[] = [];
   private sourceTextures = new Set<THREE.Texture>();
   private equipmentLibrary = new EquipmentModels();
+  private morphology = new CharacterMorphologyCache(256);
   private visible = true;
   private disposed = false;
 
   constructor(private scene: THREE.Scene, private carCapacity: number,
-    private onReady: () => void, private characterCapacity = MAX_DETAILED_CHARACTERS) {}
+    private onReady: () => void, private characterCapacity = MAX_DETAILED_CHARACTERS,
+    private options: { painted?: boolean } = {}) {}
 
   async load(): Promise<void> {
     try {
@@ -89,6 +94,33 @@ export class SculptReviewLayer {
       const props = loaded.slice(SCULPT_VEHICLE_KINDS.length+STYLES.length);
       this.sourceScenes.push(...loaded.map(asset => asset.scene));
       const maxTexture = textureLimit();
+      // Each rig shares its style's one painted atlas; identities are uniforms
+      // and geometry parameters, never an additional texture per citizen.
+      if (this.options.painted) {
+        const paintedStyles = ['fedora', 'woman', 'worker', 'police', 'fbi'] as const;
+        const maps = await Promise.all(paintedStyles.map(async style => {
+          const texture = await new THREE.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}art/city/illustrated-${style}-albedo.jpg`);
+          texture.flipY = false;
+          texture.colorSpace = THREE.SRGBColorSpace;
+          texture.minFilter = THREE.LinearFilter;
+          texture.generateMipmaps = false;
+          if (this.disposed) texture.dispose();
+          else this.sourceTextures.add(texture);
+          return texture;
+        }));
+        if (this.disposed) { maps.forEach(map => map.dispose()); return; }
+        paintedStyles.forEach((style, index) => {
+          const asset = people[STYLES.indexOf(style)];
+          asset.scene.traverse(child => {
+            if (!(child instanceof THREE.Mesh)) return;
+            for (const material of Array.isArray(child.material) ? child.material : [child.material]) {
+              if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+              if (material.map) this.sourceTextures.add(material.map);
+              material.map = maps[index];
+            }
+          });
+        });
+      }
       for (const asset of loaded) asset.scene.traverse(child => {
         if (!(child instanceof THREE.Mesh)) return;
         for (const material of Array.isArray(child.material) ? child.material : [child.material])
@@ -110,7 +142,7 @@ export class SculptReviewLayer {
           // Cloth and skin should be lit once, by the city lights.
           material.emissiveMap = null;
           material.emissive.setRGB(0, 0, 0);
-          if(!hasDedicatedBody(STYLES[personIndex])) material.color.multiplyScalar(1.2);
+          if(!hasDedicatedBody(STYLES[personIndex]) && !this.options.painted) material.color.multiplyScalar(1.2);
           material.roughness = 1;
           material.metalness = 0;
           if (material instanceof THREE.MeshPhysicalMaterial) material.specularIntensity = 0;
@@ -144,7 +176,13 @@ export class SculptReviewLayer {
   pushCharacter(id: number, baseStyle: ActorStyle, matrix: THREE.Matrix4,
     phase: number, walking: boolean, appearance?: CharacterAppearance, frame?: CharacterFrame): boolean {
     if (!this.ready || !this.visible) return false;
-    const style=detailedCharacterStyle(baseStyle,appearance?.role);
+    const wardrobe = this.options.painted ? appearance?.wardrobe : undefined;
+    // Dedicated male uniform meshes are not a substitute for a woman's body.
+    const style: DetailedCharacterStyle = wardrobe?.body.sex === 'female'
+      ? appearance?.role === 'judge' ? 'judgeWoman' : 'woman'
+      : wardrobe && !['police','policeChief','firefighter','fbi','fbiHead','judge','reporter'].includes(appearance!.role)
+        ? wardrobe.outfit.silhouette === 'work' ? 'worker' : 'fedora'
+        : detailedCharacterStyle(baseStyle,appearance?.role);
     const template = this.templates.get(style);
     if (!template) return false;
     let entry = this.characters.get(id);
@@ -218,8 +256,6 @@ export class SculptReviewLayer {
         group.add(model);
         entry = { style, group, model, mixer, clip: template.clip, used: true,
           motion:new CharacterMotion(mixer,template.clip,template.actions??new Map()),baseY:model.position.y };
-        // Construct bindings in the neutral root, before assigning a city matrix.
-        if (appearance) entry.equipment = new CharacterEquipment(group, model, this.equipmentLibrary, style === 'worker', hasDedicatedBody(style));
       }
       entry.group.name = `sculpt-review-actor-${id}`;
       entry.motion.reset();
@@ -227,12 +263,41 @@ export class SculptReviewLayer {
       this.scene.add(entry.group);
       this.characters.set(id, entry);
     }
+    if (entry.wardrobeSignature !== wardrobe?.signature) {
+      // A spare rig can be reassigned to another identity. Restore its source
+      // body before applying that person's proportions, then rebuild fittings.
+      entry.equipment?.dispose(); entry.equipment = undefined;
+      this.morphology.release(entry.model);
+      entry.group.matrix.identity(); entry.group.matrixWorldNeedsUpdate = true;
+      if (template.normalization) {
+        entry.model.scale.copy(template.normalization.scale);
+        entry.model.position.copy(template.normalization.position);
+      }
+      // Sampling explicitly also clears the previous owner's action weights;
+      // changing the mixer clock alone can retain a fallen or throwing pose.
+      entry.motion.sample(0, false);
+      entry.motion.forgetPose();
+      entry.model.updateMatrixWorld(true);
+      if (wardrobe) this.morphology.apply(entry.model, { build: wardrobe.body.shape,
+        heightScale: wardrobe.heightScale, faceIndex: Math.max(0, CHARACTER_FACE_PRESETS.findIndex(face => face.id === wardrobe.face.id)),
+        face: wardrobe.face });
+      entry.baseY = entry.model.position.y;
+      entry.ground = undefined; entry.idleLift = undefined; entry.burntFloorLift = undefined;
+      entry.burnAnchors = undefined;
+      entry.wardrobeSignature = wardrobe?.signature;
+    }
     if (appearance && !entry.equipment) {
       entry.group.matrix.identity(); entry.group.matrixWorldNeedsUpdate = true;
-      entry.mixer.setTime(0);
+      entry.motion.sample(0, false);
+      entry.motion.forgetPose();
       entry.equipment = new CharacterEquipment(entry.group, entry.model, this.equipmentLibrary, style === 'worker', hasDedicatedBody(style));
     }
+    const equipmentRevision = entry.equipment?.revision;
     entry.equipment?.set(appearance);
+    if (entry.equipment?.revision !== equipmentRevision) {
+      entry.ground = undefined; entry.idleLift = undefined; entry.burntFloorLift = undefined;
+      entry.burnAnchors = undefined;
+    }
     entry.used = true;
     entry.group.matrix.copy(matrix);
     entry.group.matrixWorldNeedsUpdate = true;
@@ -248,7 +313,7 @@ export class SculptReviewLayer {
     }
     if(frame?.action?.kind==='throw'&&entry.equipment&&!entry.equipment.hasThrowRelease){
       entry.motion.sample(phase,false,{...frame,delta:0,action:{...frame.action,time:THROW_RELEASE}});
-      entry.group.updateMatrixWorld(true);entry.ground??=characterSupports(entry.model);
+      entry.group.updateMatrixWorld(true);entry.ground??=characterSupports(entry.group);
       entry.model.position.y+=(matrix.elements[13]-characterFloor(entry.ground))/groupScale;entry.group.updateMatrixWorld(true);
       entry.equipment?.captureThrowRelease();entry.model.position.y=entry.baseY;entry.motion.forgetPose();
     }
@@ -260,7 +325,7 @@ export class SculptReviewLayer {
       const active=(action&&['hit','death','burnDeath','fleeBurning','strike','throw'].includes(action.kind))||
         (frame.posture!=null&&frame.posture!=='standing');
       if(active||entry.motion.standingWeight>.999){
-        entry.ground??=characterSupports(entry.model);
+        entry.ground??=characterSupports(entry.group);
         const heldCorpse=action?.kind==='burnDeath'&&action.time>=4.5;
         const lift=heldCorpse?(entry.burntFloorLift??(entry.burntFloorLift=matrix.elements[13]-characterFloor(entry.ground))):active?matrix.elements[13]-characterFloor(entry.ground):
           entry.idleLift??(entry.idleLift=matrix.elements[13]-characterFloor(entry.ground));
@@ -311,6 +376,7 @@ export class SculptReviewLayer {
   private disposeCharacter(entry: CharacterEntry): void {
     entry.group.removeFromParent();
     entry.equipment?.dispose();
+    this.morphology.release(entry.model);
     entry.model.traverse(child => { if (child instanceof THREE.SkinnedMesh) child.skeleton.dispose(); });
     entry.mixer.stopAllAction();
   }
@@ -360,6 +426,7 @@ export class SculptReviewLayer {
     releaseSourceModels(this.sourceScenes, this.sourceTextures);
     this.sourceTextures.clear();
     this.equipmentLibrary.dispose();
+    this.morphology.dispose();
     this.templates.clear();
     this.sourceScenes.length = 0;
     this.ready = false;
