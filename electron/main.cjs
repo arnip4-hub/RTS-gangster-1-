@@ -37,7 +37,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1600, height: 960, minWidth: 1024, minHeight: 640,
     backgroundColor: '#0b0b0d', show: false, autoHideMenuBar: true,
-    title: 'RTS-Gangsters v. beta',
+    title: 'RTS gangster beta',
     // The packaged exe carries the icon; this covers `electron .` runs.
     icon: path.join(DIST, 'art', 'brand', 'favicon-512.png'),
     webPreferences: {
@@ -71,7 +71,7 @@ function createWindow() {
   win.webContents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit' || win.isDestroyed()) return;
     if (++crashes <= 2) { win.webContents.reload(); return; }
-    dialog.showMessageBox(win, { type: 'error', title: 'RTS-Gangsters v. beta',
+    dialog.showMessageBox(win, { type: 'error', title: 'RTS gangster beta',
       message: 'The game stopped unexpectedly. Your saved games are safe on disk.', buttons: ['Restart', 'Quit'] })
       .then(({ response }) => { if (response === 0) { crashes = 0; win.webContents.reload(); } else app.quit(); })
       .catch(() => app.quit());
@@ -120,8 +120,8 @@ else {
     createWindow();
     app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
   }).catch(e => {
-    console.error('RTS-Gangsters v. beta could not start:', e);
-    dialog.showErrorBox('RTS-Gangsters v. beta', `The game could not start.\n\n${e instanceof Error ? e.message : e}`);
+    console.error('RTS gangster beta could not start:', e);
+    dialog.showErrorBox('RTS gangster beta', `The game could not start.\n\n${e instanceof Error ? e.message : e}`);
     app.quit();
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });

@@ -1,4 +1,4 @@
-# RTS-Gangsters v. beta
+# RTS gangster beta
 
 An experimental real-time strategy fork of [Original Gangster](https://github.com/daleeb/original-gangster-release),
 the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal is
@@ -55,15 +55,13 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-test-20261115.3)
-contains an installer (`Original.Gangster.Setup.1.0.6.exe`) and a portable executable
-(`Original.Gangster.1.0.6.exe`). Those files still carry the remake's old name;
-the next build will use **RTS-Gangsters v. beta**.
-This published build predates the overhead City Plan, `W/A/S/D`, the seven-day
-clock and continuous week rollover listed above. Existing saves keep their
-original five-day clock to preserve their in-progress orders; start a new
-campaign to try the continuous calendar. Check each release's notes for what
-is included before downloading.
+The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.1)
+contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
+`RTS-gangster-beta-Portable.exe`. It includes the overhead City Plan,
+`W/A/S/D` movement, the seven-day clock, continuous week rollover, live police
+case reviews, and rival reactions to visible law enforcement. Existing saves
+keep their original five-day clock; start a new campaign to try the continuous
+calendar. Financial settlement and court proceedings still run weekly.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.

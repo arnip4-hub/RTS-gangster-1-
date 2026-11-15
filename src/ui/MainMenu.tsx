@@ -138,7 +138,7 @@ export function MainMenu() {
     <div className="scene scene-casino">
       <div className="scene-light" aria-hidden="true" />
       <h1 className="scene-title">
-        <span className="rts-wordmark">RTS-Gangsters <small>v. beta</small></span>
+        <span className="rts-wordmark">RTS gangster <small>beta</small></span>
       </h1>
 
       <nav className="plaque-stack" aria-label="Main menu">
@@ -265,7 +265,7 @@ export function MainMenu() {
         />
       )}
       {sheet === 'credits' && (
-        <Modal title="Credits" kicker="RTS-Gangsters v. beta" onClose={() => setSheet(null)} width={640}>
+        <Modal title="Credits" kicker="RTS gangster beta" onClose={() => setSheet(null)} width={640}>
           <div className="credits">
             <h4>The original</h4>
             <p>

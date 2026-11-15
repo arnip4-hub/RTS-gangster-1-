@@ -35,7 +35,7 @@ export function AttractMode() {
 
   return (
     <div className="attract" role="presentation">
-      <div className="rts-wordmark attract-wordmark">RTS-Gangsters <small>v. beta</small></div>
+      <div className="rts-wordmark attract-wordmark">RTS gangster <small>beta</small></div>
       <div className="attract-banner">Demonstration</div>
       <div className="title-skip attract-skip">Press any key</div>
     </div>

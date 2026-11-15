@@ -34,7 +34,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: original-gangster-windows
+          name: rts-gangster-beta-windows
           path: release/*.exe
           if-no-files-found: error
 
@@ -47,6 +47,6 @@ jobs:
         run: |
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS-Gangsters v. beta ($env:TAG)" --notes "Experimental RTS prototype built from ${{ github.ref_name }} at ${{ github.sha }}. Includes a Windows installer and a portable executable. See the project README for features and current limitations."
+            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta" --notes "Windows test build from ${{ github.ref_name }} at ${{ github.sha }}. Includes continuous seven-day city time, live police case reviews, and rival reactions to visible police and FBI activity. Court cases and financial settlement remain weekly."
           }
           gh release upload $env:TAG release/*.exe --clobber
