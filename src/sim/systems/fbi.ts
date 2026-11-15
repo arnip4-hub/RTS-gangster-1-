@@ -47,7 +47,7 @@ export const RACKET_INVESTIGATION_BAR = 180;
 export const RAID_MANAGER_BAR = 63;
 /** Crime.xtx suspicion byte (+0xC) of the rows the remake's crime kinds file. */
 export const CRIME_ROW_SUSPICION: Readonly<Record<string, number>> = {
-  bribe: 20, extort: 20, intimidate: 20, kidnap: 60, raid: 40, ambush: 100, assault: 40, streetAssault: 40,
+  bribe: 20, extort: 20, intimidate: 20, pressureWitness: 40, kidnap: 60, raid: 40, hijack: 80, ambush: 100, assault: 40, streetAssault: 40,
   bomb: 80, kill: 100, streetKill: 100, smashUp: 60, torch: 80,
 };
 /** 0x4DB700: only a crime whose suspicion is above 59 marks the men who did it. */

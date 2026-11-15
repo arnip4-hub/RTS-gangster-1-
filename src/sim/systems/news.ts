@@ -59,7 +59,7 @@ function writeNews(w: WorldState, since?: number): void {
     });
   }
 
-  const robberies = thisWeek.filter((c) => c.kind === 'raid');
+  const robberies = thisWeek.filter((c) => c.kind === 'raid' || c.kind === 'hijack');
   if (robberies.length) {
     addNews(w, {
       section: 'crime',

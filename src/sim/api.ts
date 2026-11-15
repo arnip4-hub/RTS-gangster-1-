@@ -68,6 +68,8 @@ import { CELL, GO_STRAIGHT_ASSETS } from './constants';
 import { kidnappableBy } from './officialFamilies';
 import { freeCaptive } from './captivity';
 import { weekDuration } from './calendar';
+import { roadPosition } from './vehicleNavigation';
+import { isStorageSite } from './goodsStorage';
 
 import { clearDestination, setDestination } from './movement';
 import { canonicalAreaBlocks, lieutenantAreaChoices } from './lieutenantAreas';
@@ -237,6 +239,12 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
 
   const def = ORDERS[input.type];
   if (!def) return fail('No such order.');
+  if (input.type === 'hijack') {
+    if (!allBuildings(w).some(b => b.ownerGangId === gangId && b.state === 'trading' && isStorageSite(b)))
+      return fail('Own a working warehouse, haulage company or ice house before hijacking freight.');
+    if (input.pos && dist(input.pos, roadPosition(w, input.pos)) > 22)
+      return fail('Choose a roadside point where trucks can pass.');
+  }
   if(input.type==='export'&&!team.vehicles.truck)return fail('Allocate a truck to this crew before ordering Export.');
   if (input.type === 'bomb' && !(team.weapons.explosives ?? 0) && !(gang.weapons.explosives ?? 0)) return fail('Buy explosives before ordering a Bomb.');
   const opts = defaultOptions(input.opts);
@@ -270,6 +278,10 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
     const target = input.personId != null ? w.people[input.personId] : null;
     if (!target || ['dead', 'jailed', 'kidnapped'].includes(target.status)) return fail('Choose an available target.');
     if (input.type === 'kidnap' && !kidnappableBy(target, gangId)) return fail('Choose an active rival or civilian.');
+    if (input.type === 'pressureWitness' && !Object.values(w.cases).some(c => c.gangId === gangId &&
+      ['awaiting', 'onTrial'].includes(c.status) && c.knowsWitnesses && c.witnessIds.includes(target.id) &&
+      !c.bribedWitnessIds?.includes(target.id) && !c.silencedWitnessIds?.includes(target.id)))
+      return fail('Choose a named witness who still plans to testify in your open case.');
   }
   if (def.target === 'point' && !validPoint(w, input.pos)) return fail('Choose a place inside the city.');
 

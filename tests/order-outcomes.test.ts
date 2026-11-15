@@ -150,6 +150,25 @@ describe('planned orders produce real gameplay outcomes', () => {
     expect(bought).toBe(true);
   }, 240000);
 
+  it('lets a crew pressure a named witness, with a fresh police report on refusal', () => {
+    const s = fixture(404), witness = Object.values(s.w.people).find(p => p.role === 'owner')!;
+    const caseId = s.w.sequences.court++;
+    s.w.cases[caseId] = { id: caseId, gangId: s.gang.id, defendantId: s.team.memberIds[0],
+      crime: 'racketeering', judgeId: s.w.judgeIds[0], daId: s.w.daIds[0],
+      witnessIds: [witness.id], jurorIds: [], weeksToTrial: 3, status: 'onTrial',
+      knowsWitnesses: true, knowsJurors: false, judgeBribed: false, strength: 55 };
+    expect(issueOrder(s.w, s.gang.id, { teamId: s.team.id, type: 'pressureWitness', personId: s.w.mayorId }).ok).toBe(false);
+    const order = run(s, { type: 'pressureWitness', personId: witness.id }, true);
+    const court = s.w.cases[caseId];
+    expect(s.w.crimes.some(c => c.kind === 'pressureWitness' && c.victimId === witness.id)).toBe(true);
+    if (court.silencedWitnessIds?.includes(witness.id)) expect(order.state).toBe('done');
+    else {
+      expect(order.state).toBe('failed');
+      expect(court.strength).toBeGreaterThan(55);
+      expect(s.w.crimes.find(c => c.kind === 'pressureWitness')?.reported).toBe(true);
+    }
+  }, 240000);
+
   it('intimidates a refusing protection payer and makes collection possible again', () => {
     let cowed = false;
     for (const seed of [404, 405, 406, 407, 408]) {

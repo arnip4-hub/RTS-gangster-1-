@@ -9,6 +9,7 @@ import type { CourtCase, CrimeRecord, ID, OrderType, WorldState } from '../types
 import { allBuildings } from '../world';
 import { peopleList } from '../entityLists';
 import { recordSqueal } from '../squealers';
+import { placeInPrison } from '../prison';
 
 /**
  * Police work, arrests and the courts. Trials are a contest between your lawyer
@@ -278,7 +279,8 @@ function progressCases(w: WorldState, rng: Rng): void {
 
     const livingWitnesses = c.witnessIds.filter((id) => {
       const wn = w.people[id];
-      return wn && wn.status === 'active' && !c.bribedWitnessIds?.includes(id) && (wn.opinion[gang.id] ?? 0) < 40;
+      return wn && wn.status === 'active' && !c.bribedWitnessIds?.includes(id) &&
+        !c.silencedWitnessIds?.includes(id) && (wn.opinion[gang.id] ?? 0) < 40;
     });
     const friendlyJurors = c.jurorIds.filter((id) => {
       const j = w.people[id];
@@ -297,6 +299,7 @@ function progressCases(w: WorldState, rng: Rng): void {
       const isBoss = defendant.role === 'boss';
       defendant.status = 'jailed';
       defendant.jailWeeks = isBoss ? 999 : rng.int(2, 6);
+      placeInPrison(w, defendant);
       w.weekLog.push(`${defendant.name} was convicted of ${c.crime}.`);
       if (gang.isPlayer) addMessage(w, 'police', `${defendant.name} was convicted and jailed.`);
       addNews(w, {
@@ -337,6 +340,10 @@ function releasePrisoners(w: WorldState): void {
     p.jailWeeks--;
     if (p.jailWeeks <= 0) {
       p.status = 'active';
+      delete p.prisonId;
+      delete p.prisonSince;
+      delete p.prisonOperation;
+      delete p.prisonProtectedUntil;
       p.wanted = Math.max(0, p.wanted - 40);
       w.weekLog.push(`${p.name} was released from prison.`);
     }
@@ -356,6 +363,7 @@ export function describeCrime(kind: string): string {
     case 'torch':
       return 'arson';
     case 'raid':
+    case 'hijack':
       return 'armed robbery';
     case 'kidnap':
       return 'kidnapping';
@@ -363,6 +371,7 @@ export function describeCrime(kind: string): string {
       return 'criminal damage';
     case 'extort':
     case 'intimidate':
+    case 'pressureWitness':
       return 'extortion';
     case 'shootout':
       return 'discharging a firearm';

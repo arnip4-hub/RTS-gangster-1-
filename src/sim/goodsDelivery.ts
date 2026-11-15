@@ -15,6 +15,14 @@ const slotKey = (id: number, slot: number) => slot === 0 ? id : -id * 10 - slot;
 /** Game minutes a delivery truck stays at the shop while its cases go in (playtest, 1 October). */
 export const UNLOAD_MINUTES = 8;
 export const DELIVERY_SPEED = DRIVE_SPEED * VEHICLES.truck.speed;
+/** The crew takes the actual lorry and drives its manifest to its own store. */
+export function divertHijackedDelivery(w: WorldState, d: GoodsDelivery, gangId: number, store: Building): void {
+  d.gangId = gangId;
+  d.returning = false;
+  d.halted = false;
+  delete d.unloadLeft;
+  route(w, d, store);
+}
 const owns = (b: Building | undefined, gangId: number): b is Building => !!b && b.ownerGangId === gangId && b.state === 'trading';
 
 /** Business employees automatically handle distribution. Their service trucks

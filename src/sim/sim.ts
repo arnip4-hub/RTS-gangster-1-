@@ -35,6 +35,7 @@ import { dailyBusinessIncome, weeklyEconomy } from './systems/economy';
 import { tickGoods } from './goodsDelivery';
 import { dispatchFbi, normalizeFbiInvestigations, tickFbi, weeklyFbi } from './systems/fbi';
 import { tickLaw, weeklyLaw } from './systems/law';
+import { tickPrison } from './prison';
 import { dailyNews, weeklyNews } from './systems/news';
 import { territoryGoodwill, weeklyOpinion } from './systems/opinion';
 import { weeklyPolitics } from './systems/politics';
@@ -317,6 +318,7 @@ export class Sim {
     if (this.resolveImmediateOutcome()) return;
     tickFbi(w, this.rng, 1);
     tickLaw(w, this.rng);
+    tickPrison(w, this.rng);
     tickCaptivity(w, this.rng);
     tickSpecialistJobs(w, 1);
     finishMovementTick(w);

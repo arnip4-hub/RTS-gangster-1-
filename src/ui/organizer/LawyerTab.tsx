@@ -26,6 +26,7 @@ import { personListIds, togglePersonList } from '../../sim/personLists';
 import { reportedSquealers } from '../../sim/squealers';
 import type { OrderType } from '../../sim/types';
 import { queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
+import { knownPrisonRivals, PRISON_NAMES, prisonOf, requestPrisonAttack, requestPrisonContact, requestPrisonProtection } from '../../sim/prison';
 
 export function LawyerTab() {
   const sim = useGame((s) => s.sim)!;
@@ -60,6 +61,7 @@ export function LawyerTab() {
     .sort((a, b) => b.wanted - a.wanted);
   const crimes = w.crimes.filter((c) => c.gangId === gang.id && c.week >= w.week - 1 && !c.charge);
   const investigations = crimes.filter(c => c.reported);
+  const imprisoned = peopleList(w).filter(p => p.gangId === gang.id && p.status === 'jailed');
   const lawyerInvestigating = (crimeId: number) => Object.values(w.specialistJobs ?? {}).some(j =>
     j.crimeId === crimeId && specialistJobActive(j));
 
@@ -331,6 +333,25 @@ export function LawyerTab() {
         </Panel>
       )}
 
+      <Panel title="Prison Contacts">
+        {imprisoned.length === 0 ? <Empty>None of your people are serving a sentence.</Empty> : imprisoned.map(inmate => (
+          <div key={inmate.id} style={{ padding: '5px 0', borderBottom: '1px dotted #bdb094' }}>
+            <div className="row between tiny"><b>{inmate.name}</b><span>{PRISON_NAMES[prisonOf(w, inmate)]} · {inmate.jailWeeks} week(s)</span></div>
+            <div className="row wrap" style={{ gap: 5, marginTop: 4 }}>
+              <button className="btn sm" disabled={!!inmate.prisonOperation} onClick={() => notify(act(s => requestPrisonContact(s.world, gang.id, inmate.id)))}>Ask around · $150</button>
+              <button className="btn sm" onClick={() => notify(act(s => requestPrisonProtection(s.world, gang.id, inmate.id)))}>Protection · $500</button>
+              {inmate.prisonOperation && <span className="muted tiny">{inmate.prisonOperation.kind} pending</span>}
+            </div>
+            {knownPrisonRivals(w, gang.id, inmate).map(target => <div key={target.id} className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
+              <span style={{ flex: 1 }}>Known inmate: {target.name}</span>
+              <button className="btn sm danger" disabled={!!inmate.prisonOperation}
+                onClick={() => notify(act(s => requestPrisonAttack(s.world, gang.id, inmate.id, target.id)))}>Arrange attack · $650</button>
+            </div>)}
+          </div>
+        ))}
+        <Hint>Inmates learn only about people they share a prison with. Contacts and attacks resolve at morning roll call; an attack can extend a sentence and draw police attention.</Hint>
+      </Panel>
+
       <Panel title="Police Investigations">
         {investigations.length === 0 ? <Empty>No open police files against your gang.</Empty> :
           investigations.slice(-12).map(crime => {
@@ -390,8 +411,10 @@ export function LawyerTab() {
                   {c.witnessIds.filter(id => w.people[id]?.status === 'active').length === 0 && <span>: none left</span>}
                   {c.witnessIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active').map(p => (
                     <div key={p.id} className="row wrap" style={{ gap: 5, marginTop: 3 }}>
-                      <span style={{ flex: 1 }}>{p.name}{c.bribedWitnessIds?.includes(p.id) ? ' · bought' : ''}</span>
-                      <button className="btn sm" disabled={!gang.teamIds.length} onClick={() => planAgainst('bribe', p.id)}>Bribe</button>
+                      <span style={{ flex: 1 }}>{p.name}{c.bribedWitnessIds?.includes(p.id) ? ' · bought' : c.silencedWitnessIds?.includes(p.id) ? ' · silent' : ''}</span>
+                      <button className="btn sm" disabled={!gang.teamIds.length || !!c.silencedWitnessIds?.includes(p.id)} onClick={() => planAgainst('bribe', p.id)}>Bribe</button>
+                      <button className="btn sm" disabled={!gang.teamIds.length || !!c.bribedWitnessIds?.includes(p.id) || !!c.silencedWitnessIds?.includes(p.id)}
+                        onClick={() => planAgainst('pressureWitness', p.id)}>Pressure</button>
                       <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', p.id)}>Plan hit</button>
                     </div>
                   ))}

@@ -130,7 +130,7 @@ function recentThreat(w: WorldState, gang: Gang) {
       crime.buildingId == null) continue;
     const site = w.buildings[crime.buildingId];
     const visibleDamage = (site?.state === 'damaged' || site?.state === 'destroyed') &&
-      ['smashUp', 'torch', 'bomb', 'raid'].includes(crime.kind);
+      ['smashUp', 'torch', 'bomb', 'raid', 'hijack'].includes(crime.kind);
     if (site && (site.ownerGangId === gang.id || site.protection?.gangId === gang.id) &&
       (crime.reported || visibleDamage)) return crime;
   }

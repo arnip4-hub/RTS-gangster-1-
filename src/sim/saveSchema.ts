@@ -5,7 +5,7 @@ import { blockRect } from './cityLayout';
 import { cityTramLines, tramCount, tramLineValid, tramRoute } from './trams';
 import { BLOCK_MODULE_BY_ID, moduleFacing, moduleRect, moduleSetback } from './blockModules';
 import { MAX_TEAM_SIZE, VEHICLES } from './constants';
-import { weekDuration } from './calendar';
+import { campaignMinute, weekDuration } from './calendar';
 import { onRoad, vehiclePathOnRoad } from './vehicleNavigation';
 import { peopleList, buildingList } from './entityLists';
 
@@ -307,6 +307,12 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       throw Error('Save has an invalid family relationship.');
     if (p.householdCash != null && (!Number.isSafeInteger(p.householdCash) || p.householdCash<0))
       throw Error('Save has invalid household money.');
+    if (p.prisonOperation && (p.status !== 'jailed' || p.prisonOperation.dueAt < 0 ||
+      p.prisonOperation.kind === 'attack' && (p.prisonOperation.targetId == null || !w.people[p.prisonOperation.targetId]) ||
+      p.prisonOperation.kind === 'contact' && p.prisonOperation.targetId != null))
+      throw Error('Save has an invalid prison task.');
+    if (p.prisonSince != null && (p.prisonSince < 0 || p.prisonSince > campaignMinute(w) || p.prisonId == null))
+      throw Error('Save has an invalid prison placement.');
     const hold=p.captivity;
     if (hold && (p.status!=='kidnapped' || p.capturedBy==null || !w.gangs[p.capturedBy] ||
       !w.buildings[hold.officeId] || hold.searchProgress<0 || !Number.isFinite(hold.searchProgress) ||
@@ -390,6 +396,10 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       throw Error('Save has invalid audit takings.');
   }
   for (const g of Object.values(w.gangs)) {
+    if (Object.entries(g.prisonIntel ?? {}).some(([id, intel]) => !w.people[Number(id)] ||
+      !w.people[intel.sourceId] || w.people[intel.sourceId].gangId !== g.id ||
+      intel.learnedAt < 0 || intel.learnedAt > campaignMinute(w)))
+      throw Error('Save has invalid prison intelligence.');
     if(g.history.some(p=>p.cash!=null&&p.assets<0))throw Error('Save has invalid asset history.');
     if (g.scorePeaks && (g.scorePeaks.cash < 0 || !Number.isSafeInteger(g.scorePeaks.territory) ||
       g.scorePeaks.territory < 0 || !Number.isSafeInteger(g.scorePeaks.manpower) || g.scorePeaks.manpower < 0))

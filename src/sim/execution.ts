@@ -15,6 +15,8 @@ import { ensureOwnerRelative, kidnappableBy } from './officialFamilies';
 import { recordSqueal } from './squealers';
 import { freeCaptive, ransomQuote } from './captivity';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
+import { divertHijackedDelivery } from './goodsDelivery';
+import { goodsRoom, isStorageSite } from './goodsStorage';
 import {
   DRIVE_MIN_DISTANCE,
   MINUTES_PER_WEEK,
@@ -974,6 +976,44 @@ function tickStandingOrder(
       for (const a of actors) if (a.dest) stepPerson(a, minutes, trafficContext(w));
       break;
     }
+    case 'hijack': {
+      const point = order.targetPos;
+      if (!point) { finishOrder(w, order, 'Choose a roadside position.'); return; }
+      for (const a of actors) {
+        if (a.inVehicle) { dismount(w, a); clearDestination(a); }
+        if (dist(a.pos, point) > 8) {
+          if (!a.dest) setDestination(w, a, point);
+          stepPerson(a, minutes, trafficContext(w));
+        }
+      }
+      if (actors.every(a => dist(a.pos, point) > 12)) break;
+      const delivery = Object.values(w.goodsDeliveries ?? {}).filter(d => d.gangId !== order.gangId &&
+        !d.returning && d.amount > 0 && dist(d.pos, point) <= 20 && w.gangs[d.gangId] &&
+        !w.gangs[d.gangId].eliminated).sort((a, b) => dist(a.pos, point) - dist(b.pos, point))[0];
+      if (!delivery) break;
+      const stores = buildingList(w).filter(b => b.ownerGangId === order.gangId && b.state === 'trading' &&
+        isStorageSite(b) && goodsRoom(b, delivery.kind) >= delivery.amount &&
+        (!delivery.manifestKind || goodsRoom(b, delivery.manifestKind) >= (delivery.manifestCases ?? 0)));
+      stores.sort((a, b) => dist(buildingDoor(w, a), point) - dist(buildingDoor(w, b), point));
+      if (!stores.length) break;
+      const lead = actors[0], victimGang = w.gangs[delivery.gangId];
+      const crime = recordCrime(w, rng, { gangId: order.gangId, perpetratorId: lead.id,
+        type: 'hijack', pos: delivery.pos, buildingId: delivery.sourceId, isPublic: true });
+      const success = roll(rng, actors, ['firearms', 'driving', 'stealth'], .4);
+      if (!success) {
+        order.results.push(`The driver of ${victimGang.name}'s truck escaped the hijack.`);
+        if (!crime.reported) { crime.reported = true; w.gangs[order.gangId].evidence = Math.min(100, w.gangs[order.gangId].evidence + 3); }
+        finishOrder(w, order, 'The hijack failed and the driver reported it.');
+        return;
+      }
+      divertHijackedDelivery(w, delivery, order.gangId, stores[0]);
+      order.completedTargets++;
+      order.results.push(`Seized ${delivery.amount} cases of ${delivery.kind} from ${victimGang.name}; the truck is bound for ${placeName(w, stores[0])}.`);
+      report(w, order.gangId, 'combat', `Your crew hijacked ${victimGang.name}'s truck carrying ${delivery.amount} cases of ${delivery.kind}.`, point, lead.id);
+      report(w, victimGang.id, 'failed', `A freight truck carrying ${delivery.amount} cases of ${delivery.kind} was hijacked.`, point);
+      finishOrder(w, order, null);
+      break;
+    }
     default:
       break;
   }
@@ -1473,6 +1513,32 @@ function resolveTarget(
         // Listed with the refusals (red, and a link to the place) when it has premises.
         if (building) refused(`${target.name} would not be moved.`, building);
         else miss(`${target.name} would not be moved.`);
+      }
+      break;
+    }
+
+    case 'pressureWitness': {
+      if (!victim) return finishOrder(w, order, 'The witness could not be found.');
+      const cases = Object.values(w.cases).filter(c => c.gangId === gang.id &&
+        ['awaiting', 'onTrial'].includes(c.status) && c.witnessIds.includes(victim.id) &&
+        !c.bribedWitnessIds?.includes(victim.id) && !c.silencedWitnessIds?.includes(victim.id));
+      if (!cases.length) return finishOrder(w, order, `${victim.name} is no longer due to testify.`);
+      const crime = recordCrime(w, rng, { gangId: gang.id, perpetratorId: lead.id,
+        type: 'pressureWitness', pos: victim.pos, victimId: victim.id });
+      if (roll(rng, actors, ['intimidation', 'stealth'], .3 + Math.max(0, -(victim.opinion[gang.id] ?? 0)) / 240)) {
+        for (const c of cases) (c.silencedWitnessIds ??= []).push(victim.id);
+        opinionShift(victim, gang.id, -12, { hostility: 4, fear: 22 });
+        say(`${victim.name} agreed not to testify.`);
+        if (rng.chance(.12)) {
+          crime.reported = true;
+          gang.evidence = Math.min(100, gang.evidence + 2);
+          say(`${victim.name} still reported the threat to police.`);
+        }
+      } else {
+        crime.reported = true;
+        gang.evidence = Math.min(100, gang.evidence + 5);
+        for (const c of cases) c.strength = Math.min(100, c.strength + 6);
+        miss(`${victim.name} refused and reported the threat to police.`);
       }
       break;
     }

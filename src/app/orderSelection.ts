@@ -23,6 +23,9 @@ export function selectableOrderSite(w: WorldState, gangId: ID, card: Pick<JobCar
 export function selectableOrderPerson(w: WorldState, gangId: ID, type: OrderType, p: Person): boolean {
   if (ORDERS[type].target !== 'person' || ['dead', 'jailed', 'kidnapped'].includes(p.status)) return false;
   if (type === 'kidnap' && !kidnappableBy(p, gangId)) return false;
+  if (type === 'pressureWitness' && !Object.values(w.cases).some(c => c.gangId === gangId &&
+    ['awaiting', 'onTrial'].includes(c.status) && c.knowsWitnesses && c.witnessIds.includes(p.id) &&
+    !c.bribedWitnessIds?.includes(p.id) && !c.silencedWitnessIds?.includes(p.id))) return false;
   if (p.gangId == null || p.gangId === gangId || w.gangs[gangId].knownPeople.includes(p.id)) return true;
   // A stranger at a site you know can be named as a target: the crew has to
   // hunt for him first (previewOrder marks the order as hunting).

@@ -144,6 +144,11 @@ export interface Person {
   orderId: ID | null;
   /** Weeks remaining before an arrested/jailed person returns. */
   jailWeeks: number;
+  /** Virtual prison placement, shared only with inmates at the same facility. */
+  prisonId?: 0 | 1;
+  prisonSince?: number;
+  prisonProtectedUntil?: number;
+  prisonOperation?: { kind: 'contact' | 'attack'; dueAt: number; targetId?: ID };
   /** Bribe/retainer bookkeeping. */
   bribedBy: ID | null;
   employedBy: ID | null;
@@ -489,6 +494,7 @@ export type OrderType =
   // Minor crimes
   | 'bribe'
   | 'intimidate'
+  | 'pressureWitness'
   | 'extort'
   | 'raid'
   | 'kidnap'
@@ -498,6 +504,7 @@ export type OrderType =
   | 'torch'
   | 'bomb'
   | 'kill'
+  | 'hijack'
   | 'ambush';
 
 export type SpecialistOrderType =
@@ -778,6 +785,8 @@ export interface Gang {
   prisonerIds: ID[];
   /** Rival gang members this gang has identified. */
   knownPeople: ID[];
+  /** Limited information carried out of prison by this gang's own inmates. */
+  prisonIntel?: Record<ID, { prisonId: 0 | 1; learnedAt: number; sourceId: ID }>;
   /** Player-curated dossiers; no AI knowledge or automatic orders. */
   watchPersonIds?: ID[];
   hitPersonIds?: ID[];
@@ -868,6 +877,7 @@ export interface CourtCase {
   jurorIds: ID[];
   /** Case-specific interference; a bribe only counts for the trial it reached. */
   bribedWitnessIds?: ID[];
+  silencedWitnessIds?: ID[];
   bribedJurorIds?: ID[];
   /** Weeks until the verdict. */
   weeksToTrial: number;
