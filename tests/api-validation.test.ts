@@ -57,6 +57,28 @@ describe('site rules shared by the map and accepted orders', () => {
     expect(cancelOrder(w, raid.id).ok).toBe(true);
     expect(issueOrder(w, gang.id, { teamId: team.id, type: 'raid', buildingIds: [store.id] }).ok).toBe(true);
   });
+
+  it('refuses a second active Extort order at one business while leaving other block sites available', () => {
+    const { w, gang, team } = fixture();
+    const site = allBuildings(w).find(b => b.state === 'trading' && isValidAreaTarget(w, gang.id, 'extort', b) &&
+      allBuildings(w).some(other => other.id !== b.id && other.blockId === b.blockId &&
+        isValidAreaTarget(w, gang.id, 'extort', other)))!;
+    expect(site).toBeTruthy();
+    expect(issueOrder(w, gang.id, { teamId: team.id, type: 'extort', buildingIds: [site.id] }).ok).toBe(true);
+    const first = w.orders[team.orderIds[0]];
+    const duplicate = issueOrder(w, gang.id, { teamId: team.id, type: 'extort', buildingIds: [site.id] });
+    expect(duplicate.ok).toBe(false);
+    expect(duplicate.ok ? '' : duplicate.error).toMatch(/already targets that business/);
+    expect(team.orderIds).toEqual([first.id]);
+
+    const blockOrder = issueOrder(w, gang.id, { teamId: team.id, type: 'extort', blockIds: [site.blockId] });
+    expect(blockOrder.ok).toBe(true);
+    const second = w.orders[team.orderIds[1]];
+    expect(second.targetBuildingIds).not.toContain(site.id);
+    expect(second.targetBuildingIds.length).toBeGreaterThan(0);
+    expect(cancelOrder(w, first.id).ok).toBe(true);
+    expect(issueOrder(w, gang.id, { teamId: team.id, type: 'extort', buildingIds: [site.id] }).ok).toBe(true);
+  });
 });
 
 describe('resource ownership', () => {

@@ -10,7 +10,7 @@ import { kidnappableBy } from '../sim/officialFamilies';
 /** Map/clipboard candidates share the order rules without spending time or IDs. */
 export function selectableOrderSite(w: WorldState, gangId: ID, card: Pick<JobCard, 'type' | 'opts'> & { editingOrderId?: ID }, b: Building): boolean {
   if (!buildingMapIntel(b, gangId).siteKnown || b.state === 'destroyed') return false;
-  // Already on this week's books for the same job (the order being edited aside).
+  // Another active order already targets this site (the order being edited aside).
   if (siteAlreadyOrdered(w, gangId, card.type, b.id, card.editingOrderId)) return false;
   if (ORDERS[card.type].target === 'area') return isValidAreaTarget(w, gangId, card.type, b, card.opts);
   if (ORDERS[card.type].target !== 'building') return false;

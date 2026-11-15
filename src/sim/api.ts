@@ -73,7 +73,7 @@ import { isStorageSite } from './goodsStorage';
 
 import { clearDestination, setDestination } from './movement';
 import { canonicalAreaBlocks, lieutenantAreaChoices } from './lieutenantAreas';
-import { CENTRE_LOT, allBuildings, buildingDoor, dist, gangAssets, ownedBuildings, teamsOf, territoryBlocks } from './world';
+import { CENTRE_LOT, allBuildings, buildingDoor, buildingsOfBlock, dist, gangAssets, ownedBuildings, teamsOf, territoryBlocks } from './world';
 import { peopleList } from './entityLists';
 import { quitGangPayroll } from './payrollMark';
 
@@ -137,9 +137,9 @@ export interface IssueOrderInput {
   replacingOrderId?: ID;
 }
 
-/** Orders on one site that only make sense once a week: a second raid on the
- * same store paid a second haul, a second purchase failed at the door. */
-const ONE_PER_SITE: ReadonlySet<OrderType> = new Set<OrderType>(['raid', 'smashUp', 'torch', 'bomb', 'buyPremises', 'setUpBusiness', 'runBusiness']);
+/** Orders that cannot be active twice at the same site. A new attempt is
+ * allowed once the first order has finished, failed or been cancelled. */
+const ONE_PER_SITE: ReadonlySet<OrderType> = new Set<OrderType>(['extort', 'raid', 'smashUp', 'torch', 'bomb', 'buyPremises', 'setUpBusiness', 'runBusiness']);
 
 /** This gang already has an order of this kind on the books for the site. */
 export function siteAlreadyOrdered(w: WorldState, gangId: ID, type: OrderType, buildingId: ID, ignoreOrderId?: ID): boolean {
@@ -190,7 +190,11 @@ export function previewOrder(w: WorldState, gangId: ID, input: IssueOrderInput):
   const opts = defaultOptions(input.opts);
   const blockIds = [...new Set((input.blockIds ?? []).map(id => w.blocks[id]?.layout?.mergedInto ?? id))];
   const buildingIds = [...new Set(input.buildingIds ?? [])];
-  const targetBuildingIds = expandTargets(w, gangId, input.type, blockIds, buildingIds, opts);
+  const targetBuildingIds = expandTargets(w, gangId, input.type, blockIds, buildingIds, opts)
+    // A block can still be extorted when another crew has one of its shops.
+    // Explicitly selected sites are validated by issueOrder instead.
+    .filter(id => input.type !== 'extort' || buildingIds.includes(id) ||
+      !siteAlreadyOrdered(w, gangId, input.type, id, input.replacingOrderId));
   const charity = w.buildings[targetBuildingIds[0]];
   if (input.type === 'donate' && opts.amount == null && charity && donationTarget(charity)) opts.amount = donationAmount(w, charity);
   const order: Order = {
@@ -274,6 +278,8 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
   if (def.target === 'area' && buildingIds.some((id) => !isValidAreaTarget(w, gangId, input.type, w.buildings[id], opts))) {
     return fail('That site is not valid for this order.');
   }
+  if (input.type === 'extort' && buildingIds.some(id => siteAlreadyOrdered(w, gangId, input.type, id, input.replacingOrderId)))
+    return fail('An Extort order already targets that business. Wait for it to finish or cancel it first.');
   if (def.target === 'person') {
     const target = input.personId != null ? w.people[input.personId] : null;
     if (!target || ['dead', 'jailed', 'kidnapped'].includes(target.status)) return fail('Choose an available target.');
@@ -285,18 +291,15 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
   }
   if (def.target === 'point' && !validPoint(w, input.pos)) return fail('Choose a place inside the city.');
 
-  const targetBuildingIds = expandTargets(
-    w,
-    gangId,
-    input.type,
-    blockIds,
-    buildingIds,
-    opts,
-  );
+  const order = previewOrder(w, gangId, { ...input, buildingIds, blockIds, opts })!;
+  const targetBuildingIds = order.targetBuildingIds;
 
   // A whole-block order with no eligible sites (for example, a municipal or
   // charity block selected for extortion) is refused rather than sent out.
-  if (def.target === 'area' && !targetBuildingIds.length) return fail('Nothing there for that order.');
+  if (def.target === 'area' && !targetBuildingIds.length)
+    return fail(input.type === 'extort' && blockIds.some(id => buildingsOfBlock(w, w.blocks[id]).some(b =>
+      isValidAreaTarget(w, gangId, 'extort', b) && siteAlreadyOrdered(w, gangId, 'extort', b.id, input.replacingOrderId)))
+      ? 'Every available business there already has an Extort order.' : 'Nothing there for that order.');
   // Premises can only be bought within two blocks of your territory.
   if (input.type === 'buyPremises') {
     const site = w.buildings[targetBuildingIds[0]];
@@ -305,7 +308,6 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
     }
   }
 
-  const order = previewOrder(w, gangId, { ...input, buildingIds, blockIds, opts })!;
   // Refuse a purchase the gang cannot pay for now, rather than send the crew
   // out for a week to fail at the door. The order still checks again on arrival.
   const price = input.type === 'buyPremises' ? buildingValue(w, w.buildings[targetBuildingIds[0]])

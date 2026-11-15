@@ -7,8 +7,8 @@ import { observeTargetRace } from '../sim/targetRace';
 import { FLAT_OUT_BUDGET_MS, SPEED_STAGES, isFlatOut, nearestStage, stageIndex } from './speed';
 import { automaticRoofsPreference } from '../render/viewModes';
 import { create } from 'zustand';
-import { fitAreaToWeek, type ApiResult } from '../sim/api';
-import { weekCharge } from '../sim/execution';
+import { fitAreaToWeek, siteAlreadyOrdered, type ApiResult } from '../sim/api';
+import { isValidAreaTarget, weekCharge } from '../sim/execution';
 import { Sim } from '../sim/sim';
 import { planGang } from '../sim/ai';
 import type { GameOptions, ID, MessageCategory, OrderOptions, OrderType, SpecialistJob, Vec2 } from '../sim/types';
@@ -744,6 +744,10 @@ export const useGame = create<GameState>((set, get) => ({
   toggleJobTargetBuilding: (id) => {
     const { jobCard: jc, sim } = get();
     if (!jc || !sim) return;
+    if (jc.type === 'extort' && siteAlreadyOrdered(sim.world, sim.playerGang.id, 'extort', id, jc.editingOrderId)) {
+      get().notify({ ok: false, error: 'An Extort order already targets that business. Wait for it to finish or cancel it first.' });
+      return;
+    }
     const asked = { ...jc, ...jc.requested };
     set({ jobCard: fitJobCard(sim, { ...jc, ...toggleOrderSite(sim.world, sim.playerGang.id, asked, id) }) });
   },
@@ -752,6 +756,17 @@ export const useGame = create<GameState>((set, get) => ({
     const { jobCard: jc, sim } = get();
     if (!jc || !sim) return;
     const asked = { ...jc, ...jc.requested };
+    if (jc.type === 'extort' && !blockOrderSites(sim.world, sim.playerGang.id, asked, id).length) {
+      const block = sim.world.blocks[sim.world.blocks[id]?.layout?.mergedInto ?? id];
+      if (block?.lotIds.some(lotId => {
+        const site = sim.world.buildings[sim.world.lots[lotId].buildingId];
+        return site && isValidAreaTarget(sim.world, sim.playerGang.id, 'extort', site) &&
+          siteAlreadyOrdered(sim.world, sim.playerGang.id, 'extort', site.id, jc.editingOrderId);
+      })) {
+        get().notify({ ok: false, error: 'Every available business there already has an Extort order.' });
+        return;
+      }
+    }
     set({ jobCard: fitJobCard(sim, { ...jc, ...toggleOrderBlock(sim.world, sim.playerGang.id, asked, id) }) });
   },
 
