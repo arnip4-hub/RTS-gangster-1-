@@ -38,10 +38,13 @@ page and the Windows build workflow.
   it lowers drawing resolution, disables real-time shadows and limits detailed
   street characters to eight. It applies immediately and does not change the
   number of people simulated. The separate Standard textures option reduces
-  graphics memory use when the city next loads.
+  graphics memory use when the city next loads. Rival gangs now check for idle
+  crews every 30 game minutes and give each free crew one nearby protection or
+  extortion job, without replacing orders already in progress.
 - **Still to build:** simpler group selection and move orders, better live reports,
-  and a deeper redesign of weekly orders and accounting so the game can become
-  a full RTS. Automatic week rollover does not remove weekly rules yet.
+  AI goals, day/night tactics and live responses to events, and a deeper
+  redesign of weekly orders and accounting so the game can become a full RTS.
+  Automatic week rollover does not remove weekly rules yet.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.

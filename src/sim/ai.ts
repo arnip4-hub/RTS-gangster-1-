@@ -86,9 +86,73 @@ function aggression(gang: Gang): number {
   return gang.personality === 'aggressive' ? 1 : gang.personality === 'normal' ? 0.55 : 0.2;
 }
 
+/** Revisit a rival's free crews every half hour of continuous city time. The
+ * gang id spreads the work over different minutes instead of one large tick. */
+export const LIVE_AI_INTERVAL = 30;
+
+export function liveAiDue(minute: number, gangId: ID): boolean {
+  return minute % LIVE_AI_INTERVAL === (gangId * 5) % LIVE_AI_INTERVAL;
+}
+
+const openOrder = (state: string) =>
+  state === 'queued' || state === 'travelling' || state === 'waiting' || state === 'executing';
+
+function idleCrew(w: WorldState, team: Team): boolean {
+  const lieutenant = w.people[team.lieutenantId];
+  if (!lieutenant || lieutenant.status === 'dead' || lieutenant.status === 'jailed' || lieutenant.status === 'kidnapped') return false;
+  if (team.orderIds.some(id => w.orders[id] && openOrder(w.orders[id].state))) return false;
+  return ![team.lieutenantId, ...team.memberIds].some(id => w.people[id]?.streetOrder || w.people[id]?.resumeOrderId != null);
+}
+
+/** One short new job for each genuinely idle crew. Weekly staff, finance and
+ * diplomacy decisions remain with planGang until their RTS rules are ready. */
+export function planIdleCrews(w: WorldState, gang: Gang): void {
+  if (!w.options.continuousTime || w.phase !== 'week' || w.settlementStage != null || gang.isPlayer || gang.eliminated) return;
+  const teams = teamsOf(w, gang).filter(team => idleCrew(w, team));
+  if (!teams.length) return;
+
+  const near = homeBlocks(w, gang, 3);
+  const sites = near.flatMap(block => buildingsOfBlock(w, block));
+  const ordered = new Set<ID>();
+  for (const order of Object.values(w.orders)) {
+    if (order.gangId !== gang.id || order.isStreetOrder || order.state === 'cancelled') continue;
+    for (const id of order.targetBuildingIds) ordered.add(id);
+  }
+  const collection = sites.filter(b => b.state === 'trading' && b.protection?.gangId === gang.id &&
+    b.protection.collectedWeek !== w.week && !ordered.has(b.id));
+  const expansion = sites.filter(b => b.state === 'trading' && !ordered.has(b.id) &&
+    isValidAreaTarget(w, gang.id, 'extort', b));
+
+  for (const team of teams) {
+    // Done jobs remain in the weekly report, but no longer consume a live crew's
+    // capacity. issueOrder still validates the next job's actual size.
+    team.timeUsed = 0;
+    const home = w.people[team.lieutenantId].pos;
+    const nearest = (candidates: Building[]) => {
+      let best = -1, distance = Infinity;
+      for (let i = 0; i < candidates.length; i++) {
+        const pos = w.lots[candidates[i].lotId].center;
+        const d = dist(home, pos);
+        if (d < distance || d === distance && candidates[i].id < candidates[best]?.id) { best = i; distance = d; }
+      }
+      return best < 0 ? null : candidates.splice(best, 1)[0];
+    };
+    for (const [type, candidates] of [['collectProtection', collection], ['extort', expansion]] as const) {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const site = nearest(candidates);
+        if (!site) break;
+        const result = issueOrder(w, gang.id, { teamId: team.id, type, buildingIds: [site.id], opts: { manpower: 1 } });
+        if (result.ok) { ordered.add(site.id); break; }
+      }
+      if (team.orderIds.some(id => w.orders[id] && openOrder(w.orders[id].state))) break;
+    }
+  }
+}
+
 /** A whole planning phase for one computer-controlled gang; `autopilot` plans
- * the player's gang too, for the menu's attract mode. */
-export function planGang(w: WorldState, rng: Rng, gang: Gang, autopilot = false): void {
+ * the player's gang too, for the menu's attract mode. Continuous city time
+ * keeps weekly management but delegates crew jobs to planIdleCrews. */
+export function planGang(w: WorldState, rng: Rng, gang: Gang, autopilot = false, weeklyCrewOrders = true): void {
   if (gang.eliminated || (gang.isPlayer && !autopilot)) return;
   const boss = w.people[gang.bossId];
   if (!boss || boss.status === 'dead') return;
@@ -106,6 +170,12 @@ export function planGang(w: WorldState, rng: Rng, gang: Gang, autopilot = false)
     return lt && lt.status !== 'dead' && lt.status !== 'jailed' && lt.status !== 'kidnapped';
   });
   if (!teams.length) return;
+
+  if (!weeklyCrewOrders) {
+    const free = teams.find(team => idleCrew(w, team));
+    manageProperty(w, rng, gang, free ? [free.id] : []);
+    return;
+  }
 
   const near = homeBlocks(w, gang, 3);
   const nearIds = new Set(near.map((b) => b.id));

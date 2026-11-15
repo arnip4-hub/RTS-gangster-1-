@@ -8,7 +8,7 @@ import {finishBuildingRepairs} from './buildingDamage';
 import { finishTradingRestarts } from './businessState';
 import { validateSaveWorld, validateSaveWorldResponsive } from './saveSchema';
 import { canGoStraight, rolloverOrders } from './api';
-import { planGang } from './ai';
+import { liveAiDue, planGang, planIdleCrews } from './ai';
 import { createWorld } from './citygen';
 import { repairLegacyStreetSpawns } from './streetPlacement';
 import { closeFinances, currentFinances, openFinances } from './finances';
@@ -149,6 +149,9 @@ export class Sim {
     repairVehicleRoutes(w);
     for (const b of buildingList(w)) b.guardIds = b.guardIds.filter((id) => id === -1);
     dispatchFbi(w,this.rng);
+    if (w.options.continuousTime) {
+      for (const gang of Object.values(w.gangs)) planIdleCrews(w, gang);
+    }
   }
 
   /** Advance the working week. `seconds` is real elapsed time; speed multiplies it. */
@@ -290,6 +293,10 @@ export class Sim {
     tickGoods(w, 1);
     tickOrders(w, this.rng, 1, loadout);
     if (this.resolveImmediateOutcome()) return;
+    if (w.options.continuousTime) {
+      for (const gang of Object.values(w.gangs))
+        if (liveAiDue(w.minute, gang.id)) planIdleCrews(w, gang);
+    }
     tickStreetOrders(w, this.rng, 1, loadout);
     if (this.resolveImmediateOutcome()) return;
     tickBuildingEmergencies(w, this.rng, 1);
@@ -404,7 +411,7 @@ export class Sim {
       default: {
         const gang = Object.values(w.gangs)[stage - 17];
         if (gang) {
-          if (!gang.isPlayer && !gang.eliminated) planGang(w, this.rng, gang);
+          if (!gang.isPlayer && !gang.eliminated) planGang(w, this.rng, gang, false, !w.options.continuousTime);
         } else {
           w.minute = 0;
           if (w.options.continuousTime) {
@@ -820,7 +827,7 @@ export class Sim {
   private planAi(): void {
     for (const gang of Object.values(this.world.gangs)) {
       if (gang.isPlayer || gang.eliminated) continue;
-      planGang(this.world, this.rng, gang);
+      planGang(this.world, this.rng, gang, false, !this.world.options.continuousTime);
     }
   }
 }
