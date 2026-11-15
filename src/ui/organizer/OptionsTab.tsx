@@ -62,6 +62,7 @@ export function OptionsTab() {
   const roadNames = useGame((s) => s.roadNames);
   const mouseReversal = useGame((s) => s.mouseReversal);
   const textureQuality = useGame((s) => s.textureQuality);
+  const graphicsQuality = useGame((s) => s.graphicsQuality);
   const bureauGauges = useGame((s) => s.bureauGauges);
   const setRoadNames = useGame((s) => s.setRoadNames);
   const setAutoLowerRoofs = useGame((s) => s.setAutoLowerRoofs);
@@ -190,6 +191,13 @@ export function OptionsTab() {
         <div className="muted tiny" style={{ marginTop: 6 }}>
           Standard uses a quarter of the graphics memory for people, cars and trees, for older graphics cards. It applies when the city next loads.
         </div>
+        <button aria-pressed={graphicsQuality === 'light'} className={`btn sm${graphicsQuality === 'light' ? ' on' : ''}`} style={{ marginTop: 8 }}
+          onClick={() => useGame.getState().setGraphicsQuality(graphicsQuality === 'full' ? 'light' : 'full')}>
+          {graphicsQuality === 'light' ? 'Light graphics: on' : 'Light graphics: off'}
+        </button>
+        <div className="muted tiny" style={{ marginTop: 6 }}>
+          Lowers drawing resolution, removes real-time shadows and uses fewer detailed people. Applies immediately; game activity stays the same.
+        </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>
           {bureauGauges ? 'Bureau gauges: shown' : 'Bureau gauges: hidden'}
@@ -264,6 +272,7 @@ export function OptionsTab() {
             jobCard: state.jobCard, specialistCard: state.specialistCard, sheet: state.sheet, selectedTeamId: state.selectedTeamId,
             selectedBuildingId: state.selectedBuildingId, speed: state.speed, paused: state.paused, uiScale: state.uiScale,
             textureQuality: state.textureQuality,
+            graphicsQuality: state.graphicsQuality,
           }).then((name) => state.notify(`Debug file saved as ${name}.`),
             () => state.notify({ ok: false, error: 'The debug file could not be written.' }));
         }}>

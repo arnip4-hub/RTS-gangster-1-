@@ -34,7 +34,11 @@ page and the Windows build workflow.
   evening commutes without adding a permanent fleet to the save. Weekly
   finances still settle, but the city stays open: people, cars and unfinished
   orders keep their positions and continue into the next week. The Organizer
-  remains available on demand.
+  remains available on demand. Options now has a **Light graphics** switch:
+  it lowers drawing resolution, disables real-time shadows and limits detailed
+  street characters to eight. It applies immediately and does not change the
+  number of people simulated. The separate Standard textures option reduces
+  graphics memory use when the city next loads.
 - **Still to build:** simpler group selection and move orders, better live reports,
   and a deeper redesign of weekly orders and accounting so the game can become
   a full RTS. Automatic week rollover does not remove weekly rules yet.

@@ -62,6 +62,7 @@ import {rubbleGeometry,ruinRubble} from './rubble';
 import {SculptRubble,rubblePiles,type RubblePlacement} from './sculptRubble';
 import { bossInsideOffice, characterPriority, streetPersonVisible, useDetailedModels, carriesExplosives, workingInside } from './characterPresentation';
 import { characterInView, characterNeedsDetail, characterPixelHeight, DETAIL_KEEP_METRES, MAX_DETAILED_STREET_CHARACTERS } from './characterDetail';
+import { graphicsPixelRatio, LIGHT_DETAILED_STREET_CHARACTERS, readGraphicsQuality, type GraphicsQuality } from './graphicsQuality';
 import { previewActorMotion, previewStreetPosition, type PreviewActorMotion } from './previewActorMotion';
 import { kerbside, roadHeading } from '../sim/vehicleNavigation';
 import { previewVehicle } from '../sim/movement';
@@ -213,6 +214,7 @@ export class CityRenderer {
   readonly scene = new THREE.Scene();
   readonly camera: THREE.OrthographicCamera;
   private renderer: THREE.WebGLRenderer;
+  private graphicsQuality: GraphicsQuality = readGraphicsQuality();
   private world: WorldState;
   private tex: CityTextures;
   private ownedTextures = new TextureOwner();
@@ -459,8 +461,8 @@ export class CityRenderer {
     // bundle metadata and every texture wrapper uploaded to its WebGL context.
     this.tex = { ...cityTextures() };
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.setPixelRatio(graphicsPixelRatio(window.devicePixelRatio, this.graphicsQuality));
+    this.renderer.shadowMap.enabled = this.graphicsQuality === 'full';
     // World matrices are brought up to date once a frame in render(), not again
     // by every pass: each Tagged window re-renders the whole scene.
     this.scene.matrixWorldAutoUpdate = false;
@@ -2021,7 +2023,8 @@ export class CityRenderer {
       candidates.sort((a,b)=>Number(!!burning(b))-Number(!!burning(a)) || Number(watchedIds.has(b.id))-Number(watchedIds.has(a.id)) || Number(this.characterActions.get(b.id)?.kind==='throw')-Number(this.characterActions.get(a.id)?.kind==='throw') || (this.actionsEnabled?Number(this.characterActions.has(b.id))-Number(this.characterActions.has(a.id)):0) || characterPriority(a,this.selectedPersonId,null,viewer?.id??null)-
         characterPriority(b,this.selectedPersonId,null,viewer?.id??null) ||
         detailDistance(a)-detailDistance(b) || a.id-b.id);
-      candidates.slice(0,MAX_DETAILED_STREET_CHARACTERS).forEach(p=>hdIds.add(p.id));
+      const detailLimit = this.graphicsQuality === 'light' ? LIGHT_DETAILED_STREET_CHARACTERS : MAX_DETAILED_STREET_CHARACTERS;
+      candidates.slice(0,detailLimit).forEach(p=>hdIds.add(p.id));
       this.lastDetailedIds = hdIds;
       this.characterDetailStats.inView = visibleIds.size;
       this.characterDetailStats.eligible = candidates.length;
@@ -2527,11 +2530,19 @@ export class CityRenderer {
     this.width = Math.max(1, width);
     this.height = Math.max(1, height);
     // Moved to a screen with another scale (or the page zoomed): render at its ratio.
-    const ratio = Math.min(window.devicePixelRatio, 2);
+    const ratio = graphicsPixelRatio(window.devicePixelRatio, this.graphicsQuality);
     if (ratio !== this.renderer.getPixelRatio()) this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(this.width, this.height, false);
     this.clampTarget();
     this.updateCamera();
+  }
+
+  /** Change the GPU draw load without rebuilding the city or touching the simulation. */
+  setGraphicsQuality(quality: GraphicsQuality): void {
+    if (quality === this.graphicsQuality) return;
+    this.graphicsQuality = quality;
+    this.renderer.shadowMap.enabled = quality === 'full';
+    this.resize(this.width, this.height);
   }
 
   /**

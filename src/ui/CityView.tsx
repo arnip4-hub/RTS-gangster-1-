@@ -117,6 +117,7 @@ export function CityView() {
         const state = useGame.getState();
         const s = state.sim;
         if (s !== sim) return;
+        renderer.setGraphicsQuality(state.graphicsQuality);
         // The launch screen must paint before the planning snapshot and order
         // dispatch; do not compete with that work from the renderer loop.
         if (state.streetLoading && s.world.phase === 'planning') return;

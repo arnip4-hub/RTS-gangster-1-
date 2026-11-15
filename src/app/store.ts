@@ -1,4 +1,5 @@
 import { readTextureQuality, writeTextureQuality, type TextureQuality } from '../render/textureQuality';
+import { readGraphicsQuality, writeGraphicsQuality, type GraphicsQuality } from '../render/graphicsQuality';
 import { applyUiScale, readUiScale, writeUiScale } from './uiScale';
 import { applyLiveMovement } from '../sim/movement';
 import { recordScorePeaks } from '../sim/scoring';
@@ -105,6 +106,8 @@ interface GameState {
   bureauGauges: boolean;
   /** Model texture quality; applies when the city next loads (A20). */
   textureQuality: TextureQuality;
+  /** City drawing quality; applies immediately and is kept between sessions. */
+  graphicsQuality: GraphicsQuality;
   /** Interface scale chosen in Options (desktop app; see uiScale.ts). */
   uiScale: number;
   quitPrompt: boolean;
@@ -185,6 +188,7 @@ interface GameState {
   setMouseReversal: (on: boolean) => void;
   setBureauGauges: (on: boolean) => void;
   setTextureQuality: (quality: TextureQuality) => void;
+  setGraphicsQuality: (quality: GraphicsQuality) => void;
   setUiScale: (scale: number) => void;
   togglePoliceAreaBlock: (id: ID) => void;
   clearPoliceArea: () => void;
@@ -308,6 +312,7 @@ export const useGame = create<GameState>((set, get) => ({
   mouseReversal: readMouseReversal(),
   bureauGauges: readBureauGauges(),
   textureQuality: readTextureQuality(),
+  graphicsQuality: readGraphicsQuality(),
   uiScale: readUiScale(),
   quitPrompt: false,
   jobCard: null,
@@ -586,6 +591,10 @@ export const useGame = create<GameState>((set, get) => ({
   setTextureQuality: (textureQuality) => {
     writeTextureQuality(textureQuality);
     set({ textureQuality });
+  },
+  setGraphicsQuality: (graphicsQuality) => {
+    writeGraphicsQuality(graphicsQuality);
+    set({ graphicsQuality });
   },
   setUiScale: (uiScale) => {
     writeUiScale(uiScale);
