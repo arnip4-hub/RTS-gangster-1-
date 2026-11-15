@@ -3,12 +3,14 @@ import { defaultGameOptions } from '../src/app/newGame';
 import { selectableOrderPerson } from '../src/app/orderSelection';
 import { issueOrder, killPrisoner } from '../src/sim/api';
 import { campaignMinute } from '../src/sim/calendar';
-import { demandRansom, policeRescueArrival, pressureOfficial, ransomQuote, tickCaptivity } from '../src/sim/captivity';
+import { demandRansom, policeRescueArrival, pressureOfficial, pressureOwner, ransomQuote, refusedOwnerSites, tickCaptivity } from '../src/sim/captivity';
 import { bribePrice } from '../src/sim/officials';
+import { ensureOwnerRelative } from '../src/sim/officialFamilies';
 import { personProfile } from '../src/sim/personProfile';
 import { Sim } from '../src/sim/sim';
 import { buildingDoor } from '../src/sim/world';
 import type { CrimeRecord } from '../src/sim/types';
+import { isValidAreaTarget } from '../src/sim/execution';
 
 const make = (seed=406) => new Sim({...defaultGameOptions(),continuousTime:true,seed,citySize:10,startMoney:100000,startHoods:8});
 
@@ -44,6 +46,48 @@ describe('civilian kidnapping and official families',()=>{
       expect(profile.age).toBeGreaterThanOrEqual(18);
       expect(profile.householdSize).toBeGreaterThanOrEqual(1);
     }
+  });
+
+  it('adds a named owner relative after a refused extortion order',()=>{
+    const sim=make(),w=sim.world,g=sim.playerGang,team=w.teams[g.teamIds[0]];
+    const site=Object.values(w.buildings).filter(b=>b.ownerPersonId!=null && b.state==='trading' &&
+      isValidAreaTarget(w,g.id,'extort',b)).sort((a,b)=>
+        Math.hypot(w.lots[a.lotId].center.x-w.people[team.lieutenantId].pos.x,w.lots[a.lotId].center.y-w.people[team.lieutenantId].pos.y)-
+        Math.hypot(w.lots[b.lotId].center.x-w.people[team.lieutenantId].pos.x,w.lots[b.lotId].center.y-w.people[team.lieutenantId].pos.y))[0];
+    expect(site).toBeDefined();
+    vi.spyOn(sim.rng,'chance').mockReturnValue(false);
+    expect(issueOrder(w,g.id,{teamId:team.id,type:'extort',buildingIds:[site.id],opts:{manpower:1,priority:true}}).ok).toBe(true);
+    const order=w.orders[team.orderIds.at(-1)!];
+    sim.launchWeek();
+    for(let i=0;i<1800 && !site.extortRefusedBy?.includes(g.id) && order.state!=='failed';i++) {
+      if(order.state==='executing')order.workLeft=1;
+      sim.advance(1,1);
+    }
+    expect(site.extortRefusedBy).toContain(g.id);
+    const relative=Object.values(w.people).find(p=>p.familyOfId===site.ownerPersonId)!;
+    expect(relative.role).toBe('citizen');
+    expect(selectableOrderPerson(w,g.id,'kidnap',relative)).toBe(true);
+    if (relative.familyRelation==='spouse') expect(personProfile(w,w.people[site.ownerPersonId!]).spouse).toBe(relative.name);
+    expect(Sim.fromSave(structuredClone(w)).world.people[relative.id].familyOfId).toBe(site.ownerPersonId);
+  });
+
+  it('lets a held owner relative press one refused business into protection',()=>{
+    const sim=make(),w=sim.world,g=sim.playerGang;
+    const site=Object.values(w.buildings).find(b=>b.ownerPersonId!=null && b.state==='trading' && isValidAreaTarget(w,g.id,'extort',b))!;
+    const owner=w.people[site.ownerPersonId!],relative=ensureOwnerRelative(w,sim.rng,owner)!;
+    site.extortRefusedBy=[g.id];
+    const office=Object.values(w.buildings).find(b=>b.isHQ&&b.ownerGangId===g.id)!;
+    w.phase='week';w.minute=600;
+    relative.status='kidnapped';relative.capturedBy=g.id;
+    relative.captivity={stage:'held',officeId:office.id,startedAt:0,reported:false,
+      discovered:false,searchProgress:0,nextEscapeAt:1000};
+    g.prisonerIds.push(relative.id);
+    expect(refusedOwnerSites(w,owner.id,g.id)).toContain(site);
+    vi.spyOn(sim.rng,'chance').mockReturnValue(true);
+    expect(pressureOwner(w,sim.rng,g.id,relative.id).ok).toBe(true);
+    expect(site.protection?.gangId).toBe(g.id);
+    expect(site.extortRefusedBy).toBeUndefined();
+    expect(pressureOwner(w,sim.rng,g.id,relative.id).ok).toBe(false);
   });
 
   it('takes a civilian along on the actual crew journey before custody',()=>{

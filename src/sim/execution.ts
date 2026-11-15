@@ -11,7 +11,7 @@ import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
 import { campaignMinute, stampedMinute, weekDuration } from './calendar';
-import { kidnappableBy } from './officialFamilies';
+import { ensureOwnerRelative, kidnappableBy } from './officialFamilies';
 import { freeCaptive, ransomQuote } from './captivity';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
@@ -1219,6 +1219,7 @@ function resolveTarget(
         // 0x4CD730 marks the cell refused (flag 8), which stops this week's
         // fear fade in weeklyProtectionFear.
         building.protection.refusedWeek = w.week;
+        if (payer) ensureOwnerRelative(w,rng,payer);
         refused(`${w.people[building.ownerPersonId ?? -1]?.name ?? 'The owner'} refused to pay.`, building);
         // The till-short branch (not the outright refusal) is where the original
         // owner squeals: squeal level above 200 files a record, +5 evidence.
@@ -1505,6 +1506,7 @@ function resolveTarget(
           }
         }
         if (!building.extortRefusedBy?.includes(gang.id)) (building.extortRefusedBy ??= []).push(gang.id);
+        if (owner) ensureOwnerRelative(w,rng,owner);
         refused(`${placeName(w, building)} refused your protection.`, building);
       }
       break;

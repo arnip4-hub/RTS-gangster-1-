@@ -301,7 +301,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if (p.gangId != null && !w.gangs[p.gangId]) throw Error('Save has a person in a missing gang.');
     if (p.familyOfId != null && (!w.people[p.familyOfId] || p.role!=='citizen' ||
       !['spouse','sibling'].includes(p.familyRelation ?? '')))
-      throw Error('Save has an invalid official family relationship.');
+      throw Error('Save has an invalid family relationship.');
     if (p.householdCash != null && (!Number.isSafeInteger(p.householdCash) || p.householdCash<0))
       throw Error('Save has invalid household money.');
     const hold=p.captivity;

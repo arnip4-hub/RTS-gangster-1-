@@ -5,8 +5,10 @@ import { payCash, receiveCash } from './finances';
 import { clearDestination, setDestination } from './movement';
 import type { Rng } from './rng';
 import type { ID, Person, WorldState } from './types';
-import { buildingDoor, dist } from './world';
+import { buildingDoor, buildingName, dist } from './world';
 import { peopleList } from './entityLists';
+import { protectionFee } from './premises';
+import { shiftAttitude } from './attitudes';
 type Outcome = {ok:true;message:string} | {ok:false;error:string};
 
 export function freeCaptive(w: WorldState, p: Person, text?: string): void {
@@ -23,6 +25,10 @@ export function freeCaptive(w: WorldState, p: Person, text?: string): void {
 export function ransomQuote(w: WorldState, p: Person): number {
   const official = p.familyOfId == null ? undefined : w.people[p.familyOfId];
   if (p.gangId != null) return Math.min(8000, Math.max(600, Math.round((w.gangs[p.gangId]?.cash ?? 0) * .18)));
+  if (official?.role==='owner') {
+    const business=Object.values(w.buildings).find(b=>b.ownerPersonId===official.id);
+    return Math.min(6000,Math.max(1500,(business?protectionFee(business):250)*10));
+  }
   if (official) return ['mayor','policeChief','fbiHead'].includes(official.role) ? 8500 : 5500;
   return p.role === 'owner' ? 2500 : 700 + p.id % 9 * 150;
 }
@@ -49,7 +55,7 @@ export function demandRansom(w: WorldState, rng: Rng, gangId: ID, personId: ID, 
 
 export function pressureOfficial(w: WorldState, rng: Rng, gangId: ID, personId: ID): Outcome {
   const p=w.people[personId], hold=p?.captivity, official=hold && p.familyOfId!=null?w.people[p.familyOfId]:undefined;
-  if (!p || p.capturedBy!==gangId || hold?.stage!=='held' || !official || official.status!=='active')
+  if (!p || p.capturedBy!==gangId || hold?.stage!=='held' || !official || official.role==='owner' || official.status!=='active')
     return {ok:false,error:'You need an official’s relative held at the office.'};
   if (hold.pressured) return {ok:false,error:'You have already pressed this official.'};
   hold.pressured=true; hold.searchProgress+=25;
@@ -57,6 +63,38 @@ export function pressureOfficial(w: WorldState, rng: Rng, gangId: ID, personId: 
   if (!rng.chance(.45)) return {ok:true,message:`${official.name} refused and contacted investigators.`};
   (official.familyPressure ??= {})[gangId]={victimId:p.id,untilMinute:campaignMinute(w)+10080};
   return {ok:true,message:`${official.name} yielded temporarily. A lawyer can now seek a cheaper bribe; the investigation continues.`};
+}
+
+/** Only the owner who actually turned this gang down can be pressed into a
+ * protection deal. A new owner or another gang's site cannot be coerced here. */
+export function refusedOwnerSites(w: WorldState, ownerId: ID, gangId: ID) {
+  return Object.values(w.buildings).filter(b=>b.ownerPersonId===ownerId && b.state==='trading' &&
+    (b.ownerGangId==null && !b.protection && !!b.extortRefusedBy?.includes(gangId) ||
+      b.protection?.gangId===gangId && (b.protection.refusing || b.protection.refusedWeek===w.week)));
+}
+
+export function pressureOwner(w: WorldState, rng: Rng, gangId: ID, personId: ID): Outcome {
+  const p=w.people[personId],hold=p?.captivity,owner=hold && p.familyOfId!=null?w.people[p.familyOfId]:undefined;
+  if (!w.gangs[gangId] || !p || p.capturedBy!==gangId || hold?.stage!=='held' || owner?.role!=='owner' || owner.status!=='active')
+    return {ok:false,error:'You need a refusing owner’s relative held at your office.'};
+  if (hold.pressured) return {ok:false,error:'You have already pressed this owner.'};
+  const site=refusedOwnerSites(w,owner.id,gangId)[0];
+  if (!site) return {ok:false,error:'This owner has no outstanding refusal to your gang.'};
+  hold.pressured=true;hold.searchProgress+=25;
+  w.gangs[gangId].evidence=Math.min(100,w.gangs[gangId].evidence+5);
+  if (!rng.chance(.55)) {
+    hold.reported=true;
+    return {ok:true,message:`${owner.name} refused and contacted the police. The search intensifies.`};
+  }
+  if (site.protection) {site.protection.refusing=false;site.protection.grievance=0;delete site.protection.refusedWeek;}
+  else {
+    const base=protectionFee(site);
+    site.protection={gangId,weekly:base,base,refusing:false,grievance:0};
+  }
+  delete site.extortRefusedBy;
+  site.knowledge[gangId]=Math.max(site.knowledge[gangId]??0,2);
+  shiftAttitude(owner,gangId,-10,25);
+  return {ok:true,message:`${owner.name} agreed to pay protection at ${buildingName(w,site.id)}. The investigation continues.`};
 }
 
 /** Clues accumulate in game time. Discovery sends a real officer or a rival

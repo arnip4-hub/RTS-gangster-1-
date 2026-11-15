@@ -1,6 +1,8 @@
 import type { Building, Person, WorldState } from './types';
 import { buildingList, peopleList } from './entityLists';
 import { dist } from './world';
+import { createPerson } from './citygen';
+import type { Rng } from './rng';
 
 /** Public household records give officials one adult civilian relative each.
  * Running this on load also upgrades earlier RTS saves without extra RNG draws. */
@@ -25,6 +27,33 @@ export function ensureOfficialFamilies(w: WorldState): void {
     const home = official.homeBuildingId != null ? w.buildings[official.homeBuildingId]
       : homes.sort((a,b) => dist(w.lots[a.lotId].center,official.pos)-dist(w.lots[b.lotId].center,official.pos) || a.id-b.id)[0];
     if (home) official.homeBuildingId = relative.homeBuildingId = home.id;
+  }
+}
+
+/** A refused protection demand brings one adult member of the owner's
+ * household into the city. Reuse a resident when possible; saves keep the tie. */
+export function ensureOwnerRelative(w: WorldState, rng: Rng, owner: Person): Person | null {
+  if (!w.options.continuousTime || owner.role!=='owner' || owner.status!=='active') return null;
+  const existing=peopleList(w).find(p=>p.familyOfId===owner.id && p.role==='citizen');
+  if (existing) return existing;
+  const candidate=peopleList(w).filter(p=>p.role==='citizen' && p.status==='active' && p.familyOfId==null)
+    .sort((a,b)=>dist(a.pos,owner.pos)-dist(b.pos,owner.pos) || a.id-b.id)[0];
+  const relative=candidate ?? createPerson(w,rng,'citizen',owner.pos);
+  relative.familyOfId=owner.id;
+  relative.familyRelation=owner.id%2===0?'spouse':'sibling';
+  relative.name=`${relative.name.split(' ')[0]} ${owner.name.split(' ').at(-1)}`;
+  if (owner.homeBuildingId != null) relative.homeBuildingId=owner.homeBuildingId;
+  else if (relative.homeBuildingId != null) owner.homeBuildingId=relative.homeBuildingId;
+  return relative;
+}
+
+/** Upgrade an earlier RTS save that already contains owner refusals. */
+export function ensureRefusingOwnerFamilies(w: WorldState, rng: Rng): void {
+  if (!w.options.continuousTime) return;
+  for (const site of buildingList(w)) {
+    if (!site.extortRefusedBy?.length && site.protection?.refusing!==true) continue;
+    const owner=site.ownerPersonId==null?undefined:w.people[site.ownerPersonId];
+    if (owner) ensureOwnerRelative(w,rng,owner);
   }
 }
 

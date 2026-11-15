@@ -14,7 +14,7 @@ import {
 } from '../../sim/api';
 import { ORDERS, ORDER_GROUPS } from '../../sim/constants';
 import { weekDuration } from '../../sim/calendar';
-import { demandRansom, pressureOfficial, ransomQuote } from '../../sim/captivity';
+import { demandRansom, pressureOfficial, pressureOwner, ransomQuote, refusedOwnerSites } from '../../sim/captivity';
 import type { ID, Order, Team, WorldState } from '../../sim/types';
 import { buildingName, money, placeName } from '../../sim/world';
 import { buildingMapIntel } from '../../sim/mapIntel';
@@ -571,8 +571,11 @@ function ReportsPanel({ teamId }: { teamId: ID }) {
                   <button className="btn sm" onClick={() => notify(act(s => demandRansom(s.world,s.rng,gang.id,p.id,ransomQuote(s.world,p)))!)}>
                     Demand {money(ransomQuote(w,p))}
                   </button>
-                  {p.familyOfId != null && <button className="btn sm" disabled={!!p.captivity.pressured}
+                  {p.familyOfId != null && w.people[p.familyOfId]?.role!=='owner' && <button className="btn sm" disabled={!!p.captivity.pressured}
                     onClick={() => notify(act(s => pressureOfficial(s.world,s.rng,gang.id,p.id))!)}>Pressure official</button>}
+                  {p.familyOfId != null && w.people[p.familyOfId]?.role==='owner' && refusedOwnerSites(w,p.familyOfId,gang.id).length>0 &&
+                    <button className="btn sm" disabled={!!p.captivity.pressured}
+                      onClick={() => notify(act(s => pressureOwner(s.world,s.rng,gang.id,p.id))!)}>Pressure owner</button>}
                 </>}
                 <button className="btn sm" onClick={() => notify(act((s) => assaultPrisoner(s.world, s.rng, gang.id, p.id))!)}>
                   Assault

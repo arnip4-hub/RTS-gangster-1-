@@ -10,7 +10,7 @@ import { validateSaveWorld, validateSaveWorldResponsive } from './saveSchema';
 import { canGoStraight, rolloverOrders } from './api';
 import { liveAiDue, planGang, planIdleCrews } from './ai';
 import { createWorld } from './citygen';
-import { ensureOfficialFamilies } from './officialFamilies';
+import { ensureOfficialFamilies, ensureRefusingOwnerFamilies } from './officialFamilies';
 import { tickCaptivity } from './captivity';
 import { repairLegacyStreetSpawns } from './streetPlacement';
 import { closeFinances, currentFinances, openFinances } from './finances';
@@ -94,6 +94,8 @@ export class Sim {
     ensureOfficialFamilies(state);
     sim.rng = new Rng(state.options.seed);
     sim.rng.state = state.rngState;
+    ensureRefusingOwnerFamilies(state,sim.rng);
+    state.rngState=sim.rng.state;
     sim.accumulator = 0;
     for (const gang of Object.values(state.gangs)) {
       if (!gang.finances) openFinances(state, gang, true);

@@ -73,6 +73,11 @@ branch. The `main` branch keeps the earlier remake baseline.
   owners and rival gang members. Each mayor, police chief, FBI chief, judge and
   district attorney has a named adult civilian relative in the city. Relatives
   appear in the Organizer, but the crew must locate them before acting. A
+  business owner who refuses your extortion or a protection collection also
+  gains a named adult relative. That relative appears under **Refusing owners’
+  families**. Holding them at an office lets you try **Pressure owner**: the
+  owner may start or resume protection payments, or refuse and alert police.
+  This is one attempt per captive and adds investigative risk. A
   successful crew escorts its captive to an owned office; only then does the
   captive appear under **Prisoners**. There you can demand a ransom, press an
   official through a held relative, or release the captive. Demands may be

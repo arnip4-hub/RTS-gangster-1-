@@ -11,7 +11,7 @@ function roll(w: WorldState, id: number, salt: number): number {
 
 export function personProfile(w: WorldState, p: Person): {age:number;spouse:string|null;children:number;householdSize:number} {
   const official = p.familyRelation === 'spouse' && p.familyOfId != null ? w.people[p.familyOfId] : undefined;
-  const relative = ['mayor','policeChief','fbiHead','judge','da'].includes(p.role)
+  const relative = ['mayor','policeChief','fbiHead','judge','da','owner'].includes(p.role)
     ? Object.values(w.people).find(q => q.familyOfId === p.id && q.familyRelation === 'spouse') : undefined;
   const householdId = official?.id ?? p.id;
   const baseAge = 20 + roll(w, p.id, 17) % 46;

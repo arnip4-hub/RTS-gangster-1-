@@ -29,6 +29,7 @@ import { RECRUIT_TABS, STAFF_SKILLS, isStaffRole, recruitsOnTab, staffHireLabel,
 import { handleMapHit } from '../mapClick';
 import { selectableOrderPerson, selectableOrderSite, selectedOrderSites } from '../../app/orderSelection';
 import { resourceDragProps, useResourceDrop } from '../resourceDrag';
+import { refusedOwnerSites } from '../../sim/captivity';
 
 import { buildingList } from '../../sim/entityLists';
 export function hours(minutes: number): string {
@@ -511,7 +512,7 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
               'active'
             )}
           </Kicker>
-          {person.familyOfId != null && <div className="muted tiny">{person.familyRelation} of {sim.world.people[person.familyOfId]?.name ?? 'an official'}</div>}
+          {person.familyOfId != null && <div className="muted tiny">{person.familyRelation} of {sim.world.people[person.familyOfId]?.name ?? 'a resident'}</div>}
           <div className="row between" style={{ marginTop: 6 }}>
             <span className={`tag ${person.loyalty > 60 ? 'good' : person.loyalty > 30 ? 'warn' : 'bad'}`}>Loyalty {Math.round(person.loyalty)}</span>
             <span className="tag">Wanted {Math.round(person.wanted)}</span>
@@ -696,7 +697,9 @@ function ClipboardSheet() {
   const mayor = byRole('mayor'), das = byRole('da'), judges = byRole('judge');
   const chief = byRole('policeChief'), officers = byRole('police');
   const bureau = byRole('fbiHead'), press = byRole('reporter'), clergy = byRole('clergy');
-  const relatives = alive.filter(p => p.familyOfId != null && eligiblePerson(p));
+  const relatives = alive.filter(p => p.familyOfId != null && w.people[p.familyOfId]?.role!=='owner' && eligiblePerson(p));
+  const ownerRelatives = alive.filter(p => p.familyOfId != null && w.people[p.familyOfId]?.role==='owner' &&
+    refusedOwnerSites(w,p.familyOfId,gang.id).length>0 && eligiblePerson(p));
   // With a card looking for a target, the categories that hold one start open.
   const want = (n: number, kind: 'person' | 'site') => n > 0 && n <= 12 && (kind === 'person' ? pickingPerson : pickingSite);
 
@@ -724,6 +727,9 @@ function ClipboardSheet() {
         </ClipSection>
         <ClipSection id="families" title="Officials’ families" count={relatives.length} forceOpen={want(relatives.length,'person')}>
           {relatives.map(p => personRow(p, `${p.familyRelation} of ${w.people[p.familyOfId!]?.name ?? 'an official'} · whereabouts must be found`))}
+        </ClipSection>
+        <ClipSection id="ownerFamilies" title="Refusing owners’ families" count={ownerRelatives.length} forceOpen={want(ownerRelatives.length,'person')}>
+          {ownerRelatives.map(p => personRow(p, `${p.familyRelation} of ${w.people[p.familyOfId!]?.name ?? 'an owner'} · whereabouts must be found`))}
         </ClipSection>
         <ClipSection id="press" title="Journalists" count={press.length}>
           {press.map((p) => official(p, 'Reporter'))}

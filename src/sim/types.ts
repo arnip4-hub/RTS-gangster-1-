@@ -103,7 +103,7 @@ export interface Person {
   buildingId: ID | null;
   /** Stable home used by the continuous-time city schedule. Optional for old saves. */
   homeBuildingId?: ID;
-  /** A public family tie; the resident is a spouse or adult sibling of this official. */
+  /** A public family tie; the resident is a spouse or adult sibling of an official or owner. */
   familyOfId?: ID;
   familyRelation?: 'spouse' | 'sibling';
   /** Household funds available for a ransom; absent in old saves. */
