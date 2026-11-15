@@ -4,6 +4,27 @@ import type { MessageCategory } from '../sim/types';
 import { cameraApi } from './CityView';
 import { VIEW_ZOOM, viewForZoom } from '../render/viewModes';
 
+type PannableCamera = Pick<NonNullable<typeof cameraApi.ref>, 'panBy'>;
+
+/**
+ * RTS-style camera motion.  These are screen-space deltas, so CityRenderer
+ * keeps the movement useful at every zoom level and with either camera side.
+ */
+const MAP_PAN_KEYS: Record<string, readonly [number, number]> = {
+  w: [0, -52], ArrowUp: [0, -52],
+  a: [-52, 0], ArrowLeft: [-52, 0],
+  s: [0, 52], ArrowDown: [0, 52],
+  d: [52, 0], ArrowRight: [52, 0],
+};
+
+/** Handle one RTS map-navigation key. Exported so the controls stay testable. */
+export function panMapWithKeys(key: string, camera: PannableCamera | null = cameraApi.ref): boolean {
+  const delta = MAP_PAN_KEYS[key.length === 1 ? key.toLowerCase() : key];
+  if (!delta) return false;
+  camera?.panBy(delta[0], delta[1]);
+  return true;
+}
+
 /** Shared production keyboard controls for the organizer and working week. */
 export function useGameKeyboard() {
   const setTab = useGame((s) => s.setTab);
@@ -91,6 +112,12 @@ export function useGameKeyboard() {
         }
       }
       if (!planning) {
+        // W/A/S/D follows the city on screen; arrows are included for players
+        // who prefer them. These are camera controls, never orders.
+        if (!e.ctrlKey && !e.altKey && panMapWithKeys(e.key)) {
+          e.preventDefault();
+          return;
+        }
         if (s.organizerOpen && organizerTabs[e.key]) {
           e.preventDefault();
           setTab(organizerTabs[e.key]);

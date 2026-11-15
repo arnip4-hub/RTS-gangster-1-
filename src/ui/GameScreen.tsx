@@ -44,7 +44,10 @@ export function GameScreen() {
 
   if (!sim) return null;
   const planning = sim.world.phase === 'planning';
-  const organizerVisible = planning || organizerOpen;
+  // A normal week boundary is saved and relaunched immediately for RTS play.
+  // Do not flash the planning book during that short hand-off; it remains
+  // available at any other time with O / the Book button.
+  const organizerVisible = (planning && !streetLoading) || organizerOpen;
   if (attract) return <div className="game-shell working-interface attract-shell"><CityView /><AttractMode /></div>;
 
   const hint = (() => {

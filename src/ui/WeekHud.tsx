@@ -130,7 +130,7 @@ export function WeekHud() {
             else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('city');}
           }}/>
           <InterfaceButton label="Help" glyph="?" caption="Help" onClick={()=>state().setHelpOpen(true)}/>
-          <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={view==='plan'} title="City Plan View (Insert)" onClick={()=>zoom('plan')}/>
+          <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={view==='plan'} title="City Plan View (Insert) · Move with W/A/S/D or arrow keys" onClick={()=>zoom('plan')}/>
           <InterfaceButton label="Rooftop View" glyph="▱" caption="Rooftop" aria-pressed={view==='roof'} title="Rooftop View (Home)" onClick={()=>zoom('roof')}/>
           <InterfaceButton label="Street View" icon="orders/explore" caption="Street" aria-pressed={view==='street'} title="Street View (Page Up)" onClick={()=>zoom('street')}/>
           <InterfaceButton label="Center on Headquarters" glyph="⌂" caption="HQ" onClick={()=>{

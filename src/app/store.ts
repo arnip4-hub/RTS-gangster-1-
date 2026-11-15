@@ -783,8 +783,18 @@ export const useGame = create<GameState>((set, get) => ({
       }
       get().bump();
       if (sim.world.phase === 'gameOver') set({ screen: 'gameOver' });
-      else get().setTab('newspaper');
-      void get().autosave(true);
+      else {
+        // A settlement is still a weekly accounting boundary underneath, but
+        // it is no longer a hard turn boundary for the player. Keep the city
+        // live and make the just-finished paper the first page when the
+        // optional Organizer is next opened.
+        set({
+          organizerTab: 'newspaper', organizerOpen: false, organizerCollapsed: false,
+          jobCard: null, specialistCard: null, pickMode: null, sheet: null,
+          planningView: 'city', taggedPersonIds: [],
+        });
+        void get().launchWeek();
+      }
     }
   },
 

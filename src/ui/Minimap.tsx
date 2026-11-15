@@ -129,7 +129,7 @@ export function Minimap({ size = 250 }: { size?: number }) {
       className="minimap"
       style={{ width: size, height: size, display: 'block', cursor: 'crosshair' }}
       onClick={onClick}
-      title="Click to look there"
+      title="Click to look there · W/A/S/D or arrow keys move the main map"
     />
   );
 }
