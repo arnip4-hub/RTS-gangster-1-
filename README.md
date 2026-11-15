@@ -1,43 +1,94 @@
-# RTS-Gangsters v. beta
+# RTS gangster beta
 
 An experimental real-time strategy fork of [Original Gangster](https://github.com/daleeb/original-gangster-release),
 the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal is
 to run your gang from the city itself: move crews, issue orders while time passes,
 and open the Organizer whenever you need it.
 
-This is a **work in progress**, not a finished RTS conversion. The remake's weekly
-economy, order deadlines and other simulation rules still run underneath the live
-city. We are changing those systems incrementally and testing each step.
+This is a **work in progress**, not a finished RTS conversion. Financial and court
+reports still close weekly; crews, vehicles, deliveries and live orders carry on.
 
 ## Where the project stands
 
 Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
-branch. The default `main` branch is kept as the remake baseline, with this project
-page and the Windows build workflow.
+branch. The `main` branch keeps the earlier remake baseline.
 
-- **In the latest published Windows test build:** watch the 3D city, click the
-  minimap to jump across town, open the Organizer during a working week with `O`
-  or **Book**, and use **Move crew** in the People roster to choose a destination
-  for a deployed team.
-- **Implemented on `rts-development`, awaiting the next Windows build:** pan the
-  city with `W/A/S/D` or the arrow keys in plan, rooftop and street zoom during
-  the working week. After weekly settlement, the next working week starts
-  automatically; the Organizer is still available on demand.
+- **City and controls:** watch the 3D city, click the minimap
+  to jump across town, open the Organizer with `O` or **Book**, use **Move crew**
+  in the People roster, and pan the
+  city with `W/A/S/D` or the arrow keys during the working week. **City plan**
+  now opens the same overhead map used in the Organizer, with drag and zoom
+  controls; **Rooftop** and **Street** return to the 3D city at that location.
+  New campaigns run through all 24 hours of Monday through Sunday, with city
+  lighting and street activity changing at night. Most residents go home after
+  dark; a small nightlife crowd heads for cafes, pool halls, hotels, clubs and
+  gambling rooms, while officials and most police go home. Police no longer
+  wander aimlessly: a small night-shift group waits at headquarters, and a
+  witnessed, reported crime can call an available officer out by car. The
+  officer returns home or to headquarters after the response. Mayors, police
+  chiefs, judges, DAs and the FBI head use a lightweight service car for long
+  evening commutes without adding a permanent fleet to the save. Weekly
+  finances still settle, but the city stays open: people, cars and unfinished
+  orders keep their positions and continue into the next week. The Organizer
+  remains available on demand. Options now has a **Light graphics** switch:
+  it lowers drawing resolution, disables real-time shadows and limits detailed
+  street characters to eight. It applies immediately and does not change the
+  number of people simulated. The separate Standard textures option reduces
+  graphics memory use when the city next loads. Rival gangs now check for idle
+  crews every 30 game minutes. A six-hour goal steers each free crew toward
+  scouting, income or nearby expansion. Reported attacks or visible damage can
+  prompt a temporary guard, patrol or a limited retaliation when the attacker
+  and a rival site are known. Existing orders are left in progress. Scouting
+  reveals sites before the live planner targets them; there is no new district
+  ownership system.
+- **Time and city life:** the RTS clock now
+  takes 24 real minutes for a full day at normal speed.
+  People, cars and delivery trucks keep roughly the same screen pace; the
+  classic five-day mode keeps its original clock rate. The existing speed
+  controls still let players accelerate the longer day. The city also has a
+  haulage company, jazz club, movie theater, theater, ice house, bookmaker and
+  larger illegal brewery. The existing brothel is now labelled **Brothel**.
+  Haulage companies and ice houses hold stock and send goods by truck; jazz
+  clubs buy liquor. Residents, officials and off-duty police take individual
+  leisure trips, especially at weekends. A rotating police shift remains on
+  call, while new routine FBI investigations pause over the weekend. Actual
+  visitors affect weekly venue income. An official seen inside a gang-owned
+  brothel or casino gives that gang a one-week discount on a lawyer-arranged
+  bribe; the leverage is used up when the bribe is paid. On long trips, people
+  on foot can now walk to a tram stop, ride a scheduled tram, and walk from the
+  stop to their destination when that is faster than walking the whole way.
+  This also works for a player crew member given a long **Move** order on foot.
+- **Business and freight:** a slaughterhouse produces meat and the ice house
+  produces ice on workdays. Service trucks carry these physical loads to owned
+  butchers, restaurants and other eligible shops. Haulage companies and other
+  depots include one service truck; you can buy up to four more for $3,000 each,
+  with $150 weekly upkeep per extra truck. Choose **fast**, **cheap** or **quiet**
+  dispatch at a freight business. Cheap waits for fuller loads; quiet schedules
+  night trips in RTS games. A contraband truck can carry a legitimate load and
+  manifest too, reducing but never eliminating the gang's exposure. Existing
+  saves get the included truck and empty legal stock. Profitable businesses
+  pay a conservative daily advance in RTS mode; the weekly ledger reconciles
+  those advances, wages, upkeep and taxes.
 - **Still to build:** simpler group selection and move orders, better live reports,
-  and a deeper redesign of weekly orders and accounting so the game can become
-  a full RTS. Automatic week rollover does not remove weekly rules yet.
+  broader AI goals, day/night tactics and more live responses to events, and a deeper
+  redesign of weekly orders and accounting so the game can become a full RTS.
+  Automatic week rollover does not remove all weekly rules yet. Freight trucks
+  are owned by businesses, not assigned to individual drivers; rival gangs do
+  not yet intercept cargo, and there is no manual route editor.
+
+The [RTS time audit](docs/RTS_TIME_AUDIT.md) records which systems use game
+minutes, daily boundaries and the weekly settlement.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-test-20261115.3)
-contains an installer (`Original.Gangster.Setup.1.0.6.exe`) and a portable executable
-(`Original.Gangster.1.0.6.exe`). Those files still carry the remake's old name;
-the next build will use **RTS-Gangsters v. beta**.
-This published build predates the `W/A/S/D` and automatic week rollover changes
-listed above. Check each release's notes for what is included before downloading.
+The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.2)
+contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
+`RTS-gangster-beta-Portable.exe`. It includes the features above. Existing saves
+keep their original five-day clock; start a new campaign to try the continuous
+calendar. The classic mode keeps its original pacing.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.
