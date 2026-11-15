@@ -19,6 +19,7 @@ export function GameScreen() {
   const staff = useGame(s => s.specialistCard);
   const pickMode = useGame((s) => s.pickMode);
   const planningView = useGame((s) => s.planningView);
+  const weekPlanOpen = useGame((s) => s.weekPlanOpen);
   const organizerOpen = useGame((s) => s.organizerOpen);
   const helpOpen = useGame((s) => s.helpOpen);
   const setHelpOpen = useGame((s) => s.setHelpOpen);
@@ -44,6 +45,7 @@ export function GameScreen() {
 
   if (!sim) return null;
   const planning = sim.world.phase === 'planning';
+  const planShown = planning ? planningView === 'plan' : weekPlanOpen;
   // A normal week boundary is saved and relaunched immediately for RTS play.
   // Do not flash the planning book during that short hand-off; it remains
   // available at any other time with O / the Book button.
@@ -68,9 +70,9 @@ export function GameScreen() {
   })();
 
   return (
-    <div className={`game-shell ${planning?'planning-interface':organizerOpen?'working-interface live-organizer-interface':'working-interface'}`} onPointerDown={() => audio.ensure()}>
+    <div className={`game-shell ${planning?'planning-interface':organizerOpen?'working-interface live-organizer-interface':'working-interface'}${!planning && weekPlanOpen ? ' week-plan-interface' : ''}`} onPointerDown={() => audio.ensure()}>
       <CityView />
-      {planning && planningView === 'plan' && <Blueprint />}
+      {planShown && <Blueprint />}
 
       {!planning && <WeekHud />}
       {organizerVisible && <Organizer />}
@@ -78,7 +80,7 @@ export function GameScreen() {
       {!planning && <BuildingPanel />}
 
       {(savingToQuit || savingSnapshot) && !streetLoading && <div className="modal-back" role="status"><div className="paper sheet">Saving your city…</div></div>}
-      {hint && !jobCard && !staff && !(planning && planningView === 'plan' && pickMode?.kind === 'lieutenantArea') && <div className="paper hint-pill">{hint}</div>}
+      {hint && !jobCard && !staff && !(planShown && pickMode?.kind === 'lieutenantArea') && <div className="paper hint-pill">{hint}</div>}
       {helpOpen && <HelpSheet onClose={() => setHelpOpen(false)} />}
       {quitPrompt && (
         <ConfirmDialog

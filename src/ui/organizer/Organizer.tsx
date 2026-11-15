@@ -91,13 +91,13 @@ export function Organizer() {
         </>}
         {(live || planningView === 'city') && (
           <>
-            <button className="hud-btn" onClick={() => cameraApi.ref?.setZoom(VIEW_ZOOM.plan)} title="City Plan (Insert)">
+            <button className="hud-btn" onClick={() => { if (live) useGame.getState().setWeekPlanOpen(true); else setPlanningView('plan'); cameraApi.ref?.setZoom(VIEW_ZOOM.plan); }} title="Overhead City Plan (Insert)">
               Plan
             </button>
-            <button className="hud-btn" onClick={() => cameraApi.ref?.setZoom(VIEW_ZOOM.roof)} title="Rooftop (Home)">
+            <button className="hud-btn" onClick={() => { if (live) useGame.getState().setWeekPlanOpen(false); cameraApi.ref?.setZoom(VIEW_ZOOM.roof); }} title="Rooftop (Home)">
               Rooftop
             </button>
-            <button className="hud-btn" onClick={() => cameraApi.ref?.setZoom(VIEW_ZOOM.street)} title="Street (Page Up)">
+            <button className="hud-btn" onClick={() => { if (live) useGame.getState().setWeekPlanOpen(false); cameraApi.ref?.setZoom(VIEW_ZOOM.street); }} title="Street (Page Up)">
               Street
             </button>
             <button className="hud-btn" onClick={() => cameraApi.ref?.flipView()} title="Flip the view (F)">

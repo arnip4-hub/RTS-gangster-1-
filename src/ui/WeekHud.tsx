@@ -60,6 +60,7 @@ export function WeekHud() {
   const sim=useGame(s=>s.sim)!;
   const paused=useGame(s=>s.paused), finishing=useGame(s=>s.finishingWeek);
   const organizerOpen=useGame(s=>s.organizerOpen);
+  const weekPlanOpen=useGame(s=>s.weekPlanOpen);
   const filter=useGame(s=>s.messageFilter), override=useGame(s=>s.messageOverride);
   const messageBox=useGame(s=>s.messageBox), taggedIds=useGame(s=>s.taggedPersonIds);
   const autoCut=useGame(s=>s.autoLowerRoofs), overlays=useGame(s=>s.overlays);
@@ -78,7 +79,7 @@ export function WeekHud() {
   const state=useGame.getState;
   const worldRef=useRef(w);worldRef.current=w;
   useEffect(()=>{
-    const sync=()=>{const city=cameraApi.ref;if(city){setView(viewForZoom(city.getZoom()));setRemoved(city.areBuildingsRemoved());setFlipped(city.isFlipped());setPlace(streetLocation(worldRef.current,city.getTarget()));}};
+    const sync=()=>{const city=cameraApi.ref;if(city){setView(useGame.getState().weekPlanOpen?'plan':viewForZoom(city.getZoom()));setRemoved(city.areBuildingsRemoved());setFlipped(city.isFlipped());setPlace(streetLocation(worldRef.current,city.getTarget()));}};
     sync();const timer=window.setInterval(sync,150);return ()=>clearInterval(timer);
   },[]);
   const latest=w.messages.at(-1)?.id??0;
@@ -100,7 +101,7 @@ export function WeekHud() {
   const message=messages[messageIndex];
   const counts={combat:0,police:0,failed:0,waiting:0};
   for(const m of w.messages)counts[m.category]++;
-  const zoom=(mode:CityViewMode)=>{setView(mode);cameraApi.ref?.setZoom(VIEW_ZOOM[mode]);};
+  const zoom=(mode:CityViewMode)=>{state().setWeekPlanOpen(mode==='plan');setView(mode);cameraApi.ref?.setZoom(VIEW_ZOOM[mode]);};
   const watch=(p:Person)=>{state().selectPerson(p.id);state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));};
   // A roster crew is already filtered to people currently out in the city.
   // Send all of them to one destination without first opening each person's
@@ -130,7 +131,7 @@ export function WeekHud() {
             else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('city');}
           }}/>
           <InterfaceButton label="Help" glyph="?" caption="Help" onClick={()=>state().setHelpOpen(true)}/>
-          <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={view==='plan'} title="City Plan View (Insert) · Move with W/A/S/D or arrow keys" onClick={()=>zoom('plan')}/>
+          <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={weekPlanOpen} title="Overhead City Plan (Insert) · Move with W/A/S/D or arrow keys" onClick={()=>zoom('plan')}/>
           <InterfaceButton label="Rooftop View" glyph="▱" caption="Rooftop" aria-pressed={view==='roof'} title="Rooftop View (Home)" onClick={()=>zoom('roof')}/>
           <InterfaceButton label="Street View" icon="orders/explore" caption="Street" aria-pressed={view==='street'} title="Street View (Page Up)" onClick={()=>zoom('street')}/>
           <InterfaceButton label="Center on Headquarters" glyph="⌂" caption="HQ" onClick={()=>{

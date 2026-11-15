@@ -79,7 +79,8 @@ export function handleMapHit(hit: PickResult, opts: MapClickOptions = {}): void 
         // Deep26 §3.6: a City Plan click zooms to Rooftop View, where the
         // pavement point is picked precisely (the next click refines it).
         if (opts.fromPlan) {
-          state.setPlanningView('city');
+          if (s.world.phase === 'week') state.setWeekPlanOpen(false);
+          else state.setPlanningView('city');
           state.requestCamera({ ...hit.point, zoom: VIEW_ZOOM.roof });
         }
         return;

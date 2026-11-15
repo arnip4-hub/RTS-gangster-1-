@@ -20,9 +20,11 @@ page and the Windows build workflow.
   or **Book**, and use **Move crew** in the People roster to choose a destination
   for a deployed team.
 - **Implemented on `rts-development`, awaiting the next Windows build:** pan the
-  city with `W/A/S/D` or the arrow keys in plan, rooftop and street zoom during
-  the working week. After weekly settlement, the next working week starts
-  automatically; the Organizer is still available on demand.
+  city with `W/A/S/D` or the arrow keys during the working week. **City plan**
+  now opens the same overhead map used in the Organizer, with drag and zoom
+  controls; **Rooftop** and **Street** return to the 3D city at that location.
+  After weekly settlement, the next working week starts automatically; the
+  Organizer is still available on demand.
 - **Still to build:** simpler group selection and move orders, better live reports,
   and a deeper redesign of weekly orders and accounting so the game can become
   a full RTS. Automatic week rollover does not remove weekly rules yet.
@@ -36,8 +38,9 @@ The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/r
 contains an installer (`Original.Gangster.Setup.1.0.6.exe`) and a portable executable
 (`Original.Gangster.1.0.6.exe`). Those files still carry the remake's old name;
 the next build will use **RTS-Gangsters v. beta**.
-This published build predates the `W/A/S/D` and automatic week rollover changes
-listed above. Check each release's notes for what is included before downloading.
+This published build predates the overhead City Plan, `W/A/S/D` and automatic
+week rollover changes listed above. Check each release's notes for what is
+included before downloading.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.

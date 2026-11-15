@@ -4346,7 +4346,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 .city-plan-tools button:hover { color: #33210f; background: url('/art/ui/plaque.jpg') center / 100% 100% no-repeat, #efe6cf; border-color: #7a5716; filter: brightness(1.08); }
-.planning-interface .blueprint {
+.planning-interface .blueprint, .week-plan-interface .blueprint {
   background-color: #1a0f08;
   background-image:
     radial-gradient(ellipse 60% 55% at 62% 35%, rgba(255, 190, 110, 0.18), transparent 70%),

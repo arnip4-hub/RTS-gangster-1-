@@ -5,7 +5,8 @@ import { cancelOrder, clearStreetOrder, leaveVehicle, returnToBase, setWaiting }
 import { ORDERS } from '../sim/constants';
 import { cargoActivity, goodsTotal } from '../sim/cargo';
 import { restingStatus } from '../sim/transport';
-import { taggedViewApi } from './CityView';
+import { cameraApi, taggedViewApi } from './CityView';
+import { VIEW_ZOOM } from '../render/viewModes';
 import { Portrait } from './Portrait';
 import { bossInsideOffice } from '../render/characterPresentation';
 import { InterfaceButton } from './InterfaceControls';
@@ -49,6 +50,10 @@ export function TaggedWindow({id}: {id: number}) {
     : cargoActivity(w,person) ?? (order ? ORDERS[order.type].name : staff ? SPECIALIST_JOB_NAMES[staff.type] : restingStatus(w, person));
   const cargo=person.vehicleKey?w.vehicleFleet?.[person.vehicleKey]?.cargo:undefined;
   const command = (kind: 'kill' | 'assault' | 'tail' | 'goTo') => {
+    if (kind !== 'goTo' && useGame.getState().weekPlanOpen) {
+      useGame.getState().setWeekPlanOpen(false);
+      cameraApi.ref?.setZoom(VIEW_ZOOM.roof);
+    }
     setPickMode({ kind: 'streetOrder', orderType: kind, personIds: [person.id] });
     notify(kind === 'goTo' ? 'Click where they should go.' : 'Click the person to target.');
   };

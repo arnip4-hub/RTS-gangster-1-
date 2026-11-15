@@ -21,6 +21,10 @@ import { PLAN, SITE_COLORS, drawCityLandscape, drawElevatedRail, drawPlanLot, dr
 import { peopleList, buildingList } from '../sim/entityLists';
 import { cityTramLines } from '../sim/trams';
 import { blockTypeName } from './blockTypeName';
+import { cameraApi } from './CityView';
+
+/** Keyboard navigation for the live overhead plan, parallel to the 3D camera. */
+export const blueprintApi = { ref: null as { panBy(dx: number, dy: number): void } | null };
 
 /**
  * The City Plan, after the original organizer map: dark streets, rooftops seen
@@ -71,16 +75,18 @@ interface View {
 }
 
 /** Where the plan sits: to the right of the journal, unless it is folded away. */
-function mapArea(canvas: HTMLCanvasElement, journalOpen: boolean): MapArea {
+function mapArea(canvas: HTMLCanvasElement, journalOpen: boolean, live: boolean): MapArea {
   const origin = canvas.getBoundingClientRect(), width = canvas.clientWidth, height = canvas.clientHeight;
   const journal = journalOpen ? document.querySelector('.journal')?.getBoundingClientRect() : null;
   const x = journal && journal.width < width * .82 ? journal.right - origin.left + 18 : 24;
   const tabs = journalOpen ? document.querySelector('.journal-tabs')?.getBoundingClientRect() : null;
   const targetBar = !journalOpen ? document.querySelector('.order-target-bar, .plan-map-bar')?.getBoundingClientRect() : null;
   const top = tabs ?? targetBar;
-  const y = top ? top.bottom - origin.top + 14 : 24;
+  const weekBars = live ? document.querySelector('.week-bars')?.getBoundingClientRect() : null;
+  const y = Math.max(top ? top.bottom - origin.top + 14 : 24, weekBars ? weekBars.bottom - origin.top + 12 : 24);
   const controls = document.querySelector('.map-buttons')?.getBoundingClientRect();
-  const bottom = controls && controls.height > 0 ? controls.top - origin.top - 12 : height - 18;
+  const clock = live ? document.querySelector('.week-clock')?.getBoundingClientRect() : null;
+  const bottom = controls && controls.height > 0 ? controls.top - origin.top - 12 : clock ? clock.top - origin.top - 12 : height - 18;
   return { x, y, w: Math.max(100, width - x - 24), h: Math.max(160, bottom - y) };
 }
 
@@ -135,6 +141,7 @@ export function Blueprint() {
   const selectedBuildingId = useGame((s) => s.selectedBuildingId);
   const selectedTeamId = useGame((s) => s.selectedTeamId);
   const collapsed = useGame((s) => s.organizerCollapsed);
+  const organizerOpen = useGame((s) => s.organizerOpen);
   const heat = HEAT_KEYS.find(o => overlays.includes(o));
   const heatLegend = heat ? HEAT_LEGENDS[heat] : null;
   const knownGangs = useMemo(() => {
@@ -147,6 +154,25 @@ export function Blueprint() {
     }
     return Object.values(sim.world.gangs).filter(g => !g.eliminated && ids.has(g.id));
   }, [sim, version]);
+
+  const syncCityCamera = () => {
+    if (sim?.world.phase !== 'week') return;
+    const a = mapBounds.current, f = frame.current;
+    if (f.scale <= 0) return;
+    cameraApi.ref?.centerOn((a.x + a.w / 2 - f.ox) / f.scale, (a.y + a.h / 2 - f.oy) / f.scale);
+  };
+
+  useEffect(() => {
+    const controls = { panBy(dx: number, dy: number) {
+      // Keyboard deltas move the camera, opposite to dragging the paper.
+      view.current.panX -= dx;
+      view.current.panY -= dy;
+      paintBase.current();
+      syncCityCamera();
+    } };
+    blueprintApi.ref = controls;
+    return () => { if (blueprintApi.ref === controls) blueprintApi.ref = null; };
+  }, [sim]);
 
 
   // ---------------------------------------------------------------- painting
@@ -169,15 +195,34 @@ export function Blueprint() {
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const panel = mapArea(cv, !collapsed);
+      const panel = mapArea(cv, !collapsed && (w.phase === 'planning' || organizerOpen), w.phase === 'week');
       const headerH = header.current?.offsetHeight ?? 66, keyH = key.current?.offsetHeight ?? 48;
       const layout = { x: panel.x, y: panel.y, w: panel.w, footerY: panel.y + panel.h - keyH };
       setChrome(previous => previous && Object.keys(layout).every(k => previous[k as keyof MapChrome] === layout[k as keyof MapChrome]) ? previous : layout);
       const area = { x: panel.x + 18, y: panel.y + headerH + 22, w: Math.max(64, panel.w - 36), h: Math.max(64, panel.h - headerH - keyH - 42) };
+      const previousArea = mapBounds.current, previousFrame = frame.current;
+      if (w.phase === 'week' && framedWorld.current === w && previousFrame.scale > 0 &&
+        (area.x !== previousArea.x || area.y !== previousArea.y || area.w !== previousArea.w || area.h !== previousArea.h)) {
+        // Opening the Organizer or resizing the window changes the sheet's
+        // bounds. Keep the same block under its centre as the paper moves.
+        const worldX = (previousArea.x + previousArea.w / 2 - previousFrame.ox) / previousFrame.scale;
+        const worldY = (previousArea.y + previousArea.h / 2 - previousFrame.oy) / previousFrame.scale;
+        const unpanned = fit(w, area, { ...view.current, panX: 0, panY: 0 });
+        view.current.panX = area.x + area.w / 2 - unpanned.ox - worldX * unpanned.scale;
+        view.current.panY = area.y + area.h / 2 - unpanned.oy - worldY * unpanned.scale;
+      }
       mapBounds.current = area;
       if (framedWorld.current !== w) {
         framedWorld.current = w;
         view.current = openingView(w, area, gang.id);
+        if (w.phase === 'week') {
+          const target = cameraApi.ref?.getTarget();
+          if (target) {
+            const initial = fit(w, area, { ...view.current, panX: 0, panY: 0 });
+            view.current.panX = area.x + area.w / 2 - initial.ox - target.x * initial.scale;
+            view.current.panY = area.y + area.h / 2 - initial.oy - target.y * initial.scale;
+          }
+        }
       }
       const f = fit(w, area, view.current);
       frame.current = f;
@@ -394,7 +439,7 @@ export function Blueprint() {
     let active = true;
     void document.fonts.ready.then(() => { if (active) paintBase.current(); });
     return () => { active = false; ro.disconnect(); };
-  }, [sim, version, overlays, heat, jobCard, reviewOrderId, staff, pickMode, selectedBuildingId, selectedTeamId, policeAreaBlockIds, collapsed]);
+  }, [sim, version, overlays, heat, jobCard, reviewOrderId, staff, pickMode, selectedBuildingId, selectedTeamId, policeAreaBlockIds, collapsed, organizerOpen]);
 
   // ---------------------------------------------------------------- hit-testing
 
@@ -533,6 +578,7 @@ export function Blueprint() {
         view.current.panX = d.panX + (d.x1 - d.x0) * flip;
         view.current.panY = d.panY + (d.y1 - d.y0) * flip;
         paintBase.current();
+        syncCityCamera();
         return;
       }
       if (d.moved) {
@@ -587,6 +633,7 @@ export function Blueprint() {
       v.panY = ny - newBaseOy;
     }
     paintBase.current();
+    syncCityCamera();
   };
 
   const onWheel = (e: ReactWheelEvent<HTMLCanvasElement>) => zoomAt(view.current.zoom * (e.deltaY > 0 ? 1 / 1.18 : 1.18), local(e));
@@ -594,7 +641,7 @@ export function Blueprint() {
     const a = mapBounds.current;
     zoomAt(view.current.zoom * factor, { x: a.x + a.w / 2, y: a.y + a.h / 2 });
   };
-  const fitCity = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; paintBase.current(); };
+  const fitCity = () => { view.current = { zoom: 1, panX: 0, panY: 0 }; paintBase.current(); syncCityCamera(); };
   const focusHq = () => {
     if (!sim) return;
     const hq = Object.values(sim.world.buildings).find(b => b.isHQ && b.ownerGangId === sim.playerGang.id);
@@ -603,6 +650,7 @@ export function Blueprint() {
     const f = fit(sim.world, a, { zoom: 3, panX: 0, panY: 0 });
     view.current = { zoom: 3, panX: a.x + a.w / 2 - f.ox - pos.x * f.scale, panY: a.y + a.h / 2 - f.oy - pos.y * f.scale };
     paintBase.current();
+    syncCityCamera();
   };
 
   // Names in organizer reports/Clipboard centre the visible plan as well as the city camera.

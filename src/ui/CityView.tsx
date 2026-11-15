@@ -252,7 +252,11 @@ export function CityView() {
         // hold the city image instead of spending half the skip drawing it.
         if (!state.finishingWeek && !state.savingSnapshot && state.loadingSave == null) renderer.update();
         // While the blueprint is on the desk the city is under it; no need to draw it.
-        if (!state.finishingWeek && !state.savingSnapshot && state.loadingSave == null && !(s.world.phase === 'planning' && state.planningView === 'plan')) renderer.render();
+        const overheadPlan = s.world.phase === 'planning' && state.planningView === 'plan' ||
+          s.world.phase === 'week' && state.weekPlanOpen;
+        // Tagged people still need their 3D insets; otherwise the overhead
+        // plan can leave the costly main scene alone while time keeps moving.
+        if (!state.finishingWeek && !state.savingSnapshot && state.loadingSave == null && (!overheadPlan || tagged.length > 0)) renderer.render();
         for (const view of tagged) {
           const status = renderer.taggedViewStatus(view.personId);
           view.element.dataset.flipped = String(status.flipped);
@@ -419,7 +423,10 @@ export function CityView() {
     // In proportion to the turn (a trackpad sends many small deltas), and at
     // most one old wheel notch's worth per event.
     const pixels = e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 800 : 1);
-    rendererRef.current?.zoomBy(Math.exp(-Math.max(-120, Math.min(120, pixels)) * 0.0011));
+    const renderer = rendererRef.current;
+    renderer?.zoomBy(Math.exp(-Math.max(-120, Math.min(120, pixels)) * 0.0011));
+    if (renderer && useGame.getState().sim?.world.phase === 'week' && viewForZoom(renderer.getZoom()) === 'plan')
+      useGame.getState().setWeekPlanOpen(true);
   };
 
   const onClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

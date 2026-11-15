@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useGame } from '../app/store';
 import type { MessageCategory } from '../sim/types';
 import { cameraApi } from './CityView';
+import { blueprintApi } from './Blueprint';
 import { VIEW_ZOOM, viewForZoom } from '../render/viewModes';
 
 type PannableCamera = Pick<NonNullable<typeof cameraApi.ref>, 'panBy'>;
@@ -114,7 +115,7 @@ export function useGameKeyboard() {
       if (!planning) {
         // W/A/S/D follows the city on screen; arrows are included for players
         // who prefer them. These are camera controls, never orders.
-        if (!e.ctrlKey && !e.altKey && panMapWithKeys(e.key)) {
+        if (!e.ctrlKey && !e.altKey && panMapWithKeys(e.key, s.weekPlanOpen ? blueprintApi.ref : cameraApi.ref)) {
           e.preventDefault();
           return;
         }
@@ -131,6 +132,12 @@ export function useGameKeyboard() {
           const ids = (s.selectedPersonIds.length ? s.selectedPersonIds : s.selectedPersonId != null ? [s.selectedPersonId] : [])
             .filter(id => world.people[id]?.status === 'active');
           if (ids.length && ids.every((id) => world.people[id]?.gangId === gang.id)) {
+            // The overhead plan has sites but no ordinary person hit targets.
+            // Return to the 3D city before asking for a person to attack or tail.
+            if (kind !== 'goTo' && s.weekPlanOpen) {
+              s.setWeekPlanOpen(false);
+              cameraApi.ref?.setZoom(VIEW_ZOOM.roof);
+            }
             s.setPickMode({ kind: 'streetOrder', orderType: kind, personIds: ids });
             s.notify(kind === 'goTo' ? 'Click where they should go.' : 'Click the person to target.');
           } else s.notify('Pick one of your own people first.');
@@ -201,18 +208,25 @@ export function useGameKeyboard() {
           speedDown();
           break;
         case 'Insert':
+          if (planning) s.setPlanningView('plan');
+          else s.setWeekPlanOpen(true);
           cameraApi.ref?.setZoom(VIEW_ZOOM.plan);
           break;
         case 'Home':
+          if (planning) s.setPlanningView('city');
+          else s.setWeekPlanOpen(false);
           cameraApi.ref?.setZoom(VIEW_ZOOM.roof);
           break;
         case 'PageUp':
+          if (planning) s.setPlanningView('city');
+          else s.setWeekPlanOpen(false);
           cameraApi.ref?.setZoom(VIEW_ZOOM.street);
           break;
         case ' ': {
           // Leave the space bar alone when it is being used to press a button.
           if (target && (target.tagName === 'BUTTON' || target.tagName === 'A')) break;
           const z = cameraApi.ref?.getZoom() ?? 3;
+          if (!planning) s.setWeekPlanOpen(false);
           cameraApi.ref?.setZoom(viewForZoom(z) === 'street' ? VIEW_ZOOM.roof : VIEW_ZOOM.street);
           e.preventDefault();
           break;

@@ -118,6 +118,8 @@ interface GameState {
   sheet: OrganizerSheet;
   /** What the boss looks at while planning: the blueprint plan, or the city itself. */
   planningView: 'plan' | 'city';
+  /** Show the same overhead City Plan during a live working week. */
+  weekPlanOpen: boolean;
 
   speed: number;
   paused: boolean;
@@ -195,6 +197,7 @@ interface GameState {
   setOverlays: (o: OverlayKind[]) => void;
   setSheet: (s: OrganizerSheet) => void;
   setPlanningView: (v: 'plan' | 'city') => void;
+  setWeekPlanOpen: (open: boolean) => void;
 
   beginOrder: (type: OrderType, teamId: ID) => void;
   beginSpecialistOrder: (type: SpecialistJob['type'], personId?: ID) => void;
@@ -244,7 +247,7 @@ function fitJobCard(sim: Sim | null, jc: JobCard, refit = false): JobCard {
 
 const endingUi = {
   screen: 'gameOver', streetLoading: false, finishingWeek: false, paused: true,
-  jobCard: null, specialistCard: null, pickMode: null, sheet: null, organizerOpen: false, organizerCollapsed: false,
+  jobCard: null, specialistCard: null, pickMode: null, sheet: null, organizerOpen: false, organizerCollapsed: false, weekPlanOpen: false,
 } satisfies Partial<GameState>;
 
 function readMouseReversal(): boolean {
@@ -280,7 +283,7 @@ function freshWorldUi() {
     selectedStreetIds: [] as ID[], policeAreaBlockIds: [] as ID[], reviewOrderId: null,
     helpOpen: false, quitPrompt: false, jobCard: null, specialistCard: null, pickMode: null, messageBox: null,
     overlays: ['territory'] as OverlayKind[], organizerOpen: false, organizerCollapsed: false,
-    sheet: null, planningView: 'plan' as const, speed: 1, paused: false,
+    sheet: null, planningView: 'plan' as const, weekPlanOpen: false, speed: 1, paused: false,
     finishingWeek: false, savingToQuit: false, savingSnapshot: false, loadingSave: null, streetLoading: false, messageOverride: false, toast: null, cameraRequest: null,
   };
 }
@@ -316,6 +319,7 @@ export const useGame = create<GameState>((set, get) => ({
   organizerCollapsed: false,
   sheet: null,
   planningView: 'plan',
+  weekPlanOpen: false,
 
   speed: 1,
   paused: false,
@@ -643,6 +647,7 @@ export const useGame = create<GameState>((set, get) => ({
   setOrganizerCollapsed: (organizerCollapsed) => set({ organizerCollapsed }),
   setSheet: (sheet) => set({ sheet }),
   setPlanningView: (planningView) => set({ planningView }),
+  setWeekPlanOpen: (weekPlanOpen) => set({ weekPlanOpen }),
 
   beginOrder: (type, teamId) => {
     set({ specialistCard: null });
