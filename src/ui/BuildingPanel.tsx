@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArtImage } from './ArtImage';
 import { act, useGame } from '../app/store';
-import { quoteBuildingSale, recallManager, repairBuilding, sackManager, sellBuilding, setPay, setTrading, shutdownBuilding } from '../sim/api';
+import { buyFreightTruck, quoteBuildingSale, recallManager, repairBuilding, sackManager, sellBuilding, setFreightPolicy, setPay, setTrading, shutdownBuilding } from '../sim/api';
 import { businessCarryingCost } from '../sim/businessState';
 import { goodsDeliverySummary } from '../sim/goodsDelivery';
 import { BUILDING_BY_ID } from '../sim/data/buildings';
@@ -220,6 +220,17 @@ export function BuildingPanel() {
               {['jazzClub', 'movieTheater', 'theater', 'bookmaker', 'whorehouse', 'casino'].includes(b.typeId) &&
                 <div className="kv"><span>Visitors this week</span><b>{b.leisureVisits ?? 0}</b></div>}
               {deliverySummary && <div className="note">{deliverySummary}</div>}
+              {['haulageCompany', 'iceHouse', 'warehouse', 'slaughterhouse'].includes(b.typeId) && <>
+                <div className="kv"><span>Legal cargo</span><b>{b.legalStock?.meat ?? 0} meat · {b.legalStock?.ice ?? 0} ice</b></div>
+                <div className="kv"><span>Shipping</span><b>{1 + (b.freightTrucks ?? 0)} service truck(s)</b></div>
+                <div className="row wrap" style={{ gap: 6, marginTop: 8 }}>
+                  {(['fast','cheap','quiet'] as const).map(policy => <button key={policy} className={`btn sm${(b.freightPolicy ?? 'fast') === policy ? ' brass' : ''}`}
+                    title={policy === 'fast' ? 'Dispatch immediately; more exposure.' : policy === 'cheap' ? 'Wait for fuller loads and hourly dispatch.' : 'Dispatch after dark; less exposure.'}
+                    onClick={() => notify(act(s => setFreightPolicy(s.world,gang.id,b.id,policy))!)}>{policy}</button>)}
+                  {b.typeId !== 'slaughterhouse' && <button className="btn sm" disabled={(b.freightTrucks ?? 0) >= 4}
+                    onClick={() => notify(act(s => buyFreightTruck(s.world,gang.id,b.id))!)}>Buy truck · $3,000 (+$150/wk)</button>}
+                </div>
+              </>}
               {t?.produces && b.state==='trading' && b.stock[t.produces.kind]>=(t.produces.kind==='counterfeit'?15:300) && <div className="note">Production is waiting for storage space.</div>}
               <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>
                 {b.state === 'trading' && b.fbiClosedWeek == null && (

@@ -7,6 +7,7 @@ import { warehouseRoom } from '../src/sim/goodsStorage';
 import { unloadCargo } from '../src/sim/cargo';
 import { weeklyEconomy } from '../src/sim/systems/economy';
 import { BUILDING_BY_ID } from '../src/sim/data/buildings';
+import { buyFreightTruck, setFreightPolicy } from '../src/sim/api';
 import { buildingDoor, dist } from '../src/sim/world';
 import { roadPosition, vehiclePathOnRoad } from '../src/sim/vehicleNavigation';
 import * as traffic from '../src/sim/traffic';
@@ -34,6 +35,47 @@ function until(s:Fixture,done:()=>boolean){for(let i=0;i<MINUTES_PER_WEEK*2&&!do
 const total=(w:WorldState,kind:GoodsKind)=>Object.values(w.buildings).reduce((n,b)=>n+b.stock[kind],0)+Object.values(w.goodsDeliveries??{}).reduce((n,d)=>n+(d.kind===kind?d.amount:0),0);
 
 describe('automatic business deliveries',()=>{
+ it('moves real legal meat and ice loads through the same road network',()=>{
+  const s=fixture(),meat=s.make('slaughterhouse',20),butcher=s.make('butchers',100),ice=s.make('iceHouse',120);
+  s.source.state='ceased';s.store.state='ceased';s.shop.state='ceased';
+  meat.legalProduction=undefined;ice.legalProduction=undefined;
+  tick(s);
+  expect(s.w.goodsDeliveries?.[meat.id]?.kind).toBe('meat');
+  expect(s.w.goodsDeliveries?.[ice.id]?.kind).toBe('ice');
+  expect(meat.legalStock?.meat).toBe(0);
+  expect(ice.legalStock?.ice).toBe(0);
+  expect(()=>Sim.fromSave(structuredClone(s.w))).not.toThrow();
+  until(s,()=>butcher.legalStock?.meat===80&&butcher.legalStock?.ice===80);
+ });
+ it('invests in extra depot capacity and keeps both deliveries in a save',()=>{
+  const s=fixture(),fence=s.make('jewellers',100),depot=s.make('haulageCompany',120);
+  s.source.state='ceased';s.store.state='ceased';s.shop.stock.liquor=0;
+  depot.stock.liquor=60;depot.stock.stolen=50;
+  const cash=s.g.cash;
+  expect(buyFreightTruck(s.w,s.g.id,depot.id).ok).toBe(true);
+  expect(s.g.cash).toBe(cash-3000);
+  tick(s);
+  const trips=Object.values(s.w.goodsDeliveries??{}).filter(d=>d.sourceId===depot.id);
+  expect(trips).toHaveLength(2);
+  expect(new Set(trips.map(d=>d.kind))).toEqual(new Set(['liquor','stolen']));
+  expect(()=>Sim.fromSave(structuredClone(s.w))).not.toThrow();
+  until(s,()=>s.shop.stock.liquor===60&&fence.stock.stolen===50);
+ });
+ it('lets a quiet depot wait until night and records less exposure for a real legal load',()=>{
+  const s=fixture(),depot=s.make('haulageCompany',120);
+  s.w.options.continuousTime=true;
+  s.source.state='ceased';s.store.state='ceased';depot.stock.liquor=40;
+  depot.legalStock={meat:20,ice:0};
+  expect(setFreightPolicy(s.w,s.g.id,depot.id,'quiet').ok).toBe(true);
+  s.w.minute=12*60;tick(s);
+  expect(s.w.goodsDeliveries?.[depot.id]).toBeUndefined();
+  s.w.minute=19*60;tick(s);
+  const load=s.w.goodsDeliveries?.[depot.id];
+  expect(load?.manifestKind).toBe('meat');
+  expect(load?.manifestCases).toBe(20);
+  expect(depot.legalStock.meat).toBe(0);
+  expect(s.g.suspicion).toBeGreaterThan(0);
+ });
  it('stops at the shop door for the drop-off, then turns for home',()=>{
   const s=fixture();s.source.stock.liquor=50;tick(s);
   const d=s.w.goodsDeliveries![s.source.id];

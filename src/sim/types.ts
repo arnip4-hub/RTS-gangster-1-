@@ -274,6 +274,8 @@ export type BuildingClass =
   | 'residential';
 
 export type GoodsKind = 'liquor' | 'stolen' | 'counterfeit';
+export type FreightKind = GoodsKind | 'meat' | 'ice';
+export type FreightPolicy = 'fast' | 'cheap' | 'quiet';
 
 export interface BuildingType {
   id: string;
@@ -398,7 +400,15 @@ export interface Building {
   /** For a legal building: the illegal business it fronts. */
   hidesId: ID | null;
   stock: Record<GoodsKind, number>;
+  /** Legal freight is tracked separately from contraband for old saves. */
+  legalStock?: { meat: number; ice: number };
+  legalProduction?: { week: number; day: number };
+  /** Extra service trucks beyond the one included with a trading depot. */
+  freightTrucks?: number;
+  freightPolicy?: FreightPolicy;
   lastProfit: number;
+  /** Business receipts already paid during the current RTS week. */
+  interimIncome?: number;
   /** Completed leisure visits since the last weekly settlement. */
   leisureVisits?: number;
   repairCost: number;
@@ -606,7 +616,12 @@ export type VehicleId = 'coupe' | 'truck' | 'speedster';
 export interface GoodsDelivery {
   sourceId: ID;
   gangId: ID;
-  kind: GoodsKind;
+  kind: FreightKind;
+  /** Zero is the original service truck; additional slots are purchased. */
+  slot?: number;
+  /** Cases on a legitimate manifest accompanying this contraband load. */
+  manifestCases?: number;
+  manifestKind?: 'meat' | 'ice';
   amount: number;
   targetId: ID | null;
   returning: boolean;

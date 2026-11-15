@@ -14,6 +14,23 @@ import type { Rng } from '../rng';
 import type { Building, Gang, ID, Person, WorldState } from '../types';
 import { disbandTeam } from '../execution';
 import { allBuildings, gangMembers, ownedBuildings, teamsOf } from '../world';
+import { FULL_DAY_MINUTES, weekDuration } from '../calendar';
+
+/** Bank a conservative share of each day's takings; Sunday's remainder is
+ * closed in the ordinary weekly ledger. This keeps the longer RTS week funded. */
+export function dailyBusinessIncome(w: WorldState, rng: Rng): void {
+  if (!w.options.continuousTime || w.minute <= 0 || w.minute >= weekDuration(w) ||
+      w.minute % FULL_DAY_MINUTES !== 0) return;
+  for (const b of allBuildings(w)) {
+    if (b.ownerGangId == null || b.state !== 'trading') continue;
+    const gang = w.gangs[b.ownerGangId];
+    if (!gang || gang.eliminated) continue;
+    const receipt = Math.max(0, Math.floor(businessProfit(w,b,rng) * .6 / 7));
+    if (!receipt) continue;
+    receiveCash(w,gang,b.cls === 'illegal' ? 'illegal' : 'legal',receipt);
+    b.interimIncome = (b.interimIncome ?? 0) + receipt;
+  }
+}
 
 export function businessProfit(w: WorldState, b: Building, rng: Rng): number {
   const t = BUILDING_BY_ID[b.typeId];
@@ -38,6 +55,8 @@ export function businessProfit(w: WorldState, b: Building, rng: Rng): number {
     const supply = Math.min(1, b.stock.liquor / 20);
     profit *= 0.65 + supply * 0.35;
   }
+  if (t.id === 'butchers') profit *= 0.7 + Math.min(1, (b.legalStock?.meat ?? 0) / 20) * 0.3;
+  if (t.id === 'restaurant') profit *= 0.8 + Math.min(1, (b.legalStock?.meat ?? 0) / 15) * 0.2;
   if (['jazzClub', 'movieTheater', 'theater', 'bookmaker', 'whorehouse', 'casino'].includes(t.id)) {
     profit *= Math.min(1.4, 0.7 + (b.leisureVisits ?? 0) / 20);
   }
@@ -68,12 +87,14 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
     if (b.ownerGangId == null) {
       b.lastProfit = 0;
       b.leisureVisits = 0;
+      b.interimIncome = 0;
       continue;
     }
     const gang = w.gangs[b.ownerGangId];
     if (!gang) continue;
 
-    let profit = businessProfit(w, b, rng);
+    const interim = b.interimIncome ?? 0;
+    let profit = b.state === 'trading' ? businessProfit(w, b, rng) - interim : 0;
     let laundered = 0;
 
     // Speakeasies drink their way through the stock.
@@ -82,6 +103,12 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
     }
     if (b.typeId === 'jazzClub' && b.state === 'trading') {
       b.stock.liquor = Math.max(0, b.stock.liquor - 20);
+    }
+    if (b.state === 'trading' && b.legalStock) {
+      const meat = b.typeId === 'butchers' ? 25 : b.typeId === 'restaurant' ? 15 : 0;
+      const ice = ['butchers', 'restaurant', 'cafe', 'jazzClub', 'speakeasy'].includes(b.typeId) ? 10 : 0;
+      b.legalStock.meat = Math.max(0, b.legalStock.meat - meat);
+      b.legalStock.ice = Math.max(0, b.legalStock.ice - ice);
     }
     // Counterfeit money is passed off as change; stolen goods are fenced.
     const t = BUILDING_BY_ID[b.typeId];
@@ -111,7 +138,8 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
       }
     }
 
-    b.lastProfit = declared;
+    b.lastProfit = declared + interim;
+    b.interimIncome = 0;
     b.leisureVisits = 0;
     if (b.managerId != null && w.people[b.managerId]) recordTakings(w, b.managerId, profit, declared);
     if (b.cls === 'illegal') {
@@ -142,6 +170,7 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
     const closedSites = ownedBuildings(w,gang.id).filter(b=>b.state==='ceased')
       .reduce((total,b)=>total+businessCarryingCost(b),0);
     gang.lastWeekCosts.upkeep += closedSites;
+    gang.lastWeekCosts.upkeep += ownedBuildings(w, gang.id).reduce((n,b) => n + (b.freightTrucks ?? 0) * 150, 0);
     // Original city: officials are paid by their own ladder after wages
     // (0x75DA90), not with the rest of the upkeep.
     const original = !!w.cityLayout?.original;

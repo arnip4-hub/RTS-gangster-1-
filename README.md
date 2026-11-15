@@ -5,17 +5,15 @@ the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal
 to run your gang from the city itself: move crews, issue orders while time passes,
 and open the Organizer whenever you need it.
 
-This is a **work in progress**, not a finished RTS conversion. The remake's weekly
-economy, order deadlines and other simulation rules still run underneath the live
-city. We are changing those systems incrementally and testing each step.
+This is a **work in progress**, not a finished RTS conversion. Financial and court
+reports still close weekly; crews, vehicles, deliveries and live orders carry on.
 
 ## Where the project stands
 
 Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
-branch. The default `main` branch is kept as the remake baseline, with this project
-page and the Windows build workflow.
+branch. The `main` branch keeps the earlier remake baseline.
 
-- **In the latest published Windows beta:** watch the 3D city, click the minimap
+- **City and controls:** watch the 3D city, click the minimap
   to jump across town, open the Organizer with `O` or **Book**, use **Move crew**
   in the People roster, and pan the
   city with `W/A/S/D` or the arrow keys during the working week. **City plan**
@@ -43,8 +41,8 @@ page and the Windows build workflow.
   and a rival site are known. Existing orders are left in progress. Scouting
   reveals sites before the live planner targets them; there is no new district
   ownership system.
-- **On `rts-development`, awaiting the next Windows build:** the RTS clock now
-  takes 24 real minutes for a full day at normal speed, up from about seven.
+- **Time and city life:** the RTS clock now
+  takes 24 real minutes for a full day at normal speed.
   People, cars and delivery trucks keep roughly the same screen pace; the
   classic five-day mode keeps its original clock rate. The existing speed
   controls still let players accelerate the longer day. The city also has a
@@ -60,23 +58,37 @@ page and the Windows build workflow.
   on foot can now walk to a tram stop, ride a scheduled tram, and walk from the
   stop to their destination when that is faster than walking the whole way.
   This also works for a player crew member given a long **Move** order on foot.
+- **Business and freight:** a slaughterhouse produces meat and the ice house
+  produces ice on workdays. Service trucks carry these physical loads to owned
+  butchers, restaurants and other eligible shops. Haulage companies and other
+  depots include one service truck; you can buy up to four more for $3,000 each,
+  with $150 weekly upkeep per extra truck. Choose **fast**, **cheap** or **quiet**
+  dispatch at a freight business. Cheap waits for fuller loads; quiet schedules
+  night trips in RTS games. A contraband truck can carry a legitimate load and
+  manifest too, reducing but never eliminating the gang's exposure. Existing
+  saves get the included truck and empty legal stock. Profitable businesses
+  pay a conservative daily advance in RTS mode; the weekly ledger reconciles
+  those advances, wages, upkeep and taxes.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.
-  Automatic week rollover does not remove weekly rules yet.
+  Automatic week rollover does not remove all weekly rules yet. Freight trucks
+  are owned by businesses, not assigned to individual drivers; rival gangs do
+  not yet intercept cargo, and there is no manual route editor.
+
+The [RTS time audit](docs/RTS_TIME_AUDIT.md) records which systems use game
+minutes, daily boundaries and the weekly settlement.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.1)
+The current [Windows prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.2)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
-`RTS-gangster-beta-Portable.exe`. It includes the overhead City Plan,
-`W/A/S/D` movement, the seven-day clock, continuous week rollover, live police
-case reviews, and rival reactions to visible law enforcement. Existing saves
+`RTS-gangster-beta-Portable.exe`. It includes the features above. Existing saves
 keep their original five-day clock; start a new campaign to try the continuous
-calendar. Financial settlement and court proceedings still run weekly.
+calendar. The classic mode keeps its original pacing.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.

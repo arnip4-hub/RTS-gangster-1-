@@ -12,7 +12,8 @@ import {
   repeatOrder,
   sackPerson,
 } from '../../sim/api';
-import { MINUTES_PER_WEEK, ORDERS, ORDER_GROUPS } from '../../sim/constants';
+import { ORDERS, ORDER_GROUPS } from '../../sim/constants';
+import { weekDuration } from '../../sim/calendar';
 import type { ID, Order, Team, WorldState } from '../../sim/types';
 import { buildingName, money, placeName } from '../../sim/world';
 import { buildingMapIntel } from '../../sim/mapIntel';
@@ -157,7 +158,7 @@ export function LieutenantsTab() {
   }
 
   const lt = w.people[team.lieutenantId];
-  const timePct = (team.timeUsed / MINUTES_PER_WEEK) * 100;
+  const timePct = (team.timeUsed / weekDuration(w)) * 100;
   const members = team.memberIds.map((id) => w.people[id]).filter(Boolean);
   const guns = Object.entries(team.weapons).reduce((s, [id, n]) => s + (id === 'explosives' ? 0 : n), 0);
   const cars = Object.values(team.vehicles).reduce((s, n) => s + n, 0);
@@ -467,7 +468,7 @@ function LieutenantTab({ team: t, index, selected, onSelect }: { team: Team; ind
   const [dropProps, dropOver] = useResourceDrop({ kind: 'team', teamId: t.id });
   const w = sim.world, gang = sim.playerGang;
   const lt = w.people[t.lieutenantId];
-  const pct = Math.round((t.timeUsed / MINUTES_PER_WEEK) * 100);
+  const pct = Math.round((t.timeUsed / weekDuration(w)) * 100);
   return (
     <button
       aria-pressed={selected} className={`lt-tab${selected ? ' on' : ''}${lt && lt.status !== 'active' ? ' absent' : ''}${dropOver ? ' drop-over' : ''}`}

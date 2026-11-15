@@ -50,6 +50,7 @@ export const BUILDING_TYPES: BuildingType[] = [
   // ------------------------------------------------------------------ industrial
   { id: 'warehouse', name: 'Warehouse', cls: 'industrial', cost: 9000, profit: 0, storeys: 2, weight: { industrial: 12 }, stores: ['liquor', 'stolen', 'counterfeit'] },
   { id: 'haulageCompany', name: 'Haulage Company', cls: 'industrial', cost: 13500, profit: 580, storeys: 2, weight: { industrial: 9, commercial: 2 }, stores: ['liquor', 'stolen', 'counterfeit'] },
+  { id: 'slaughterhouse', name: 'Slaughterhouse', cls: 'industrial', cost: 12500, profit: 560, storeys: 2, weight: { industrial: 8 }, stores: ['liquor'] },
   { id: 'iceHouse', name: 'Ice House', cls: 'industrial', cost: 11000, profit: 420, storeys: 2, weight: { industrial: 9 }, stores: ['liquor'] },
   { id: 'foundry', name: 'Foundry', cls: 'industrial', cost: 16000, profit: 780, storeys: 3, weight: { industrial: 10 } },
   { id: 'mill', name: 'Mill', cls: 'industrial', cost: 14000, profit: 680, storeys: 3, weight: { industrial: 9 } },

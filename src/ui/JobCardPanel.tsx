@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { act, useGame } from '../app/store';
 import { defaultOptions, issueOrder, previewOrder, replaceOrder, validBuildingTarget } from '../sim/api';
 import { selectableOrderPerson, selectableOrderSite } from '../app/orderSelection';
-import { MINUTES_PER_WEEK, ORDERS, ORDER_GROUPS } from '../sim/constants';
+import { ORDERS, ORDER_GROUPS } from '../sim/constants';
+import { weekDuration } from '../sim/calendar';
 import { BUILDING_BY_ID, ILLEGAL_TYPES, ESTABLISHABLE_TYPES, coverQuality } from '../sim/data/buildings';
 import { buildingValue, expandTargets, fitsWeek, weekCharge } from '../sim/execution';
 import { SKILL_LABELS } from '../sim/types';
@@ -380,8 +381,8 @@ export function JobCardPanel() {
             <div className="row between tiny muted" style={{ borderTop: '1px dotted var(--dots)', paddingTop: 8 }}>
               <span>Crew of {people.length} · {staffing?.available ?? 0} available</span>
               <span>
-                {Math.round((committed / MINUTES_PER_WEEK) * 100)}% of the week already committed
-                {!dispatchIssue && <> · this job {estimate}{draft ? ` (${Math.max(1, Math.round((charge / MINUTES_PER_WEEK) * 100))}% of the crew's week)` : ''}{exceedsBudget ? ' · exceeds remaining week' : ''}</>}
+                {Math.round((committed / weekDuration(w)) * 100)}% of the week already committed
+                {!dispatchIssue && <> · this job {estimate}{draft ? ` (${Math.max(1, Math.round((charge / weekDuration(w)) * 100))}% of the crew's week)` : ''}{exceedsBudget ? ' · exceeds remaining week' : ''}</>}
               </span>
             </div>
           )}

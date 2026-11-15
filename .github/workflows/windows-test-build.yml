@@ -47,6 +47,6 @@ jobs:
         run: |
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta" --notes "Windows test build from ${{ github.ref_name }} at ${{ github.sha }}. Includes continuous seven-day city time, live police case reviews, and rival reactions to visible police and FBI activity. Court cases and financial settlement remain weekly."
+            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta" --notes "Windows beta build from ${{ github.ref_name }} at ${{ github.sha }}. See the release page and README for the full feature list."
           }
           gh release upload $env:TAG release/*.exe --clobber

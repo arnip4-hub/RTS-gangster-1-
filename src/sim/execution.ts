@@ -10,7 +10,7 @@ import { claimedTerritoryBlocks, distanceToTerritory } from './territory';
 import { observeTargetRace } from './targetRace';
 import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
-import { campaignMinute, stampedMinute } from './calendar';
+import { campaignMinute, stampedMinute, weekDuration } from './calendar';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
   DRIVE_MIN_DISTANCE,
@@ -351,7 +351,7 @@ export function estimateMinutes(w: WorldState, team: Team, order: Order): number
   // costs the crew's week in proportion to the men it takes.
   if (def.wholeWeek) {
     const bodies = crewPeople(w, team).filter(p => readyForPlanning(w, p)).length;
-    return Math.round((MINUTES_PER_WEEK * Math.max(1, order.opts.manpower)) / Math.max(1, bodies));
+    return Math.round((weekDuration(w) * Math.max(1, order.opts.manpower)) / Math.max(1, bodies));
   }
 
   const manpower = Math.max(1, order.opts.manpower);
@@ -432,8 +432,9 @@ export const WEEK_BUDGET = MINUTES_PER_WEEK * 1.02;
  * much however many others stand idle).
  */
 export function fitsWeek(w: WorldState, team: Team, order: Pick<Order, 'type' | 'opts' | 'estimatedMinutes'>, committed: number): boolean {
-  if (!ORDERS[order.type].wholeWeek && order.estimatedMinutes > WEEK_BUDGET) return false;
-  return committed + weekCharge(w, team, order) <= WEEK_BUDGET;
+  const budget = weekDuration(w) * 1.02;
+  if (!ORDERS[order.type].wholeWeek && order.estimatedMinutes > budget) return false;
+  return committed + weekCharge(w, team, order) <= budget;
 }
 
 // ---------------------------------------------------------------- week start
@@ -744,7 +745,7 @@ export function tickOrders(w: WorldState, rng: Rng, minutes: number, loadout: Lo
 
       if (order.state === 'executing') {
         if (def.wholeWeek) {
-          if (order.workedMinutes != null) order.workedMinutes = Math.min(MINUTES_PER_WEEK, order.workedMinutes + minutes);
+          if (order.workedMinutes != null) order.workedMinutes = Math.min(weekDuration(w), order.workedMinutes + minutes);
           tickStandingOrder(w, rng, order, actors, minutes, loadout);
           continue;
         }

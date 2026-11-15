@@ -5,6 +5,9 @@ import { FULL_DAY_MINUTES, FULL_WEEK_MINUTES, campaignMinute, weekDuration } fro
 import { CELL, MINUTES_PER_SECOND, RTS_MINUTES_PER_SECOND } from '../src/sim/constants';
 import { clearDestination, personSpeed, setDestination } from '../src/sim/movement';
 import { Sim } from '../src/sim/sim';
+import { dailyBusinessIncome, weeklyEconomy } from '../src/sim/systems/economy';
+import { fitsWeek } from '../src/sim/execution';
+import { defaultOptions } from '../src/sim/api';
 import { tickAmbient } from '../src/sim/systems/ambient';
 import { tickBuildingEmergencies } from '../src/sim/systems/buildingEmergency';
 import { recordCrime } from '../src/sim/events';
@@ -15,6 +18,25 @@ import { weekTime } from '../src/ui/WeekClock';
 const options = () => ({ ...defaultGameOptions(), continuousTime: true, seed: 404, citySize: 10 });
 
 describe('continuous RTS calendar', () => {
+  it('allows a crew job beyond the old short week and books daily trade before Sunday', () => {
+    const sim = new Sim({ ...options(), startMoney: 100000 });
+    sim.launchWeek();
+    const w = sim.world, gang = sim.playerGang, team = w.teams[gang.teamIds[0]];
+    const job = { type: 'goTo' as const, opts: defaultOptions(), estimatedMinutes: 3000 };
+    expect(fitsWeek(w, team, job, 0)).toBe(true);
+    const shop = Object.values(w.buildings).find(b => b.cls === 'commercial' && b.state === 'trading');
+    expect(shop).toBeDefined();
+    shop!.ownerGangId = gang.id;
+    const before = gang.cash;
+    w.minute = FULL_DAY_MINUTES;
+    dailyBusinessIncome(w, sim.rng);
+    expect(gang.cash).toBeGreaterThan(before);
+    const interim = shop!.interimIncome ?? 0;
+    expect(interim).toBeGreaterThanOrEqual(0);
+    weeklyEconomy(w, sim.rng);
+    expect(shop!.interimIncome).toBe(0);
+    expect(() => Sim.fromSave(structuredClone(w))).not.toThrow();
+  });
   it('takes 24 real minutes per RTS day at normal speed while preserving street pace', () => {
     const rts = new Sim(options());
     rts.launchWeek();

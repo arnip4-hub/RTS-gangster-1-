@@ -50,6 +50,7 @@ import { campaignWeeklyCost, officeEntryCheck, enterElection, withdrawFromElecti
 import type { Rng } from './rng';
 import type {
   Building,
+  FreightPolicy,
   DiplomacyLevel,
   Gang,
   ID,
@@ -64,6 +65,7 @@ import type {
   WorldState,
 } from './types';
 import { CELL, GO_STRAIGHT_ASSETS } from './constants';
+import { weekDuration } from './calendar';
 
 import { clearDestination, setDestination } from './movement';
 import { canonicalAreaBlocks, lieutenantAreaChoices } from './lieutenantAreas';
@@ -82,6 +84,28 @@ export type ApiResult =
 
 const ok = (message?: string): ApiResult => ({ ok: true, message });
 const fail = (error: string): ApiResult => ({ ok: false, error });
+
+/** A depot includes one service truck; each purchased truck adds a route slot. */
+export function buyFreightTruck(w: WorldState, gangId: ID, buildingId: ID): ApiResult {
+  const b = w.buildings[buildingId], gang = w.gangs[gangId];
+  if (!b || !gang || b.ownerGangId !== gangId || !['haulageCompany', 'iceHouse', 'warehouse'].includes(b.typeId))
+    return fail('Select one of your trading depots.');
+  if (b.state !== 'trading') return fail('The depot must be trading.');
+  if ((b.freightTrucks ?? 0) >= 4) return fail('This depot cannot hold more trucks.');
+  if (gang.cash < 3000) return fail('A service truck costs $3,000.');
+  payCash(w, gang, 'purchases', 3000, 'capital');
+  b.freightTrucks = (b.freightTrucks ?? 0) + 1;
+  return ok('A service truck has joined the depot. It costs $150 a week to run.');
+}
+
+export function setFreightPolicy(w: WorldState, gangId: ID, buildingId: ID, policy: FreightPolicy): ApiResult {
+  const b = w.buildings[buildingId];
+  if (!b || b.ownerGangId !== gangId || !['haulageCompany', 'iceHouse', 'warehouse', 'slaughterhouse'].includes(b.typeId))
+    return fail('Select one of your freight businesses.');
+  if (!['fast', 'cheap', 'quiet'].includes(policy)) return fail('Choose a valid shipping policy.');
+  b.freightPolicy = policy;
+  return ok(`Shipping policy set to ${policy}.`);
+}
 
 export function defaultOptions(overrides: Partial<OrderOptions> = {}): OrderOptions {
   return {
@@ -281,7 +305,7 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
     const his = team.orderIds.map((id) => w.orders[id]).filter((o) => o && o.id !== input.replacingOrderId && o.state === 'queued' &&
       !ORDERS[o.type].wholeWeek && o.opts.preferredHoodId === opts.preferredHoodId)
       .reduce((sum, o) => sum + o.estimatedMinutes, 0);
-    if (his + order.estimatedMinutes > MINUTES_PER_WEEK * 1.02)
+    if (his + order.estimatedMinutes > weekDuration(w) * 1.02)
       return fail(`${w.people[opts.preferredHoodId]?.name ?? 'That person'} has not got the time for another job this week. Send somebody else, or let the lieutenant choose.`);
   }
 
@@ -925,6 +949,7 @@ export function shutdownBuilding(w: WorldState, gangId: ID, buildingId: ID): Api
   delete b.fireWeek;
   delete b.repairCompleteWeek;
   b.stock = { liquor: 0, stolen: 0, counterfeit: 0 };
+  delete b.legalStock; delete b.legalProduction; delete b.freightTrucks; delete b.freightPolicy;
   return ok('The site has been closed down.');
 }
 
@@ -963,6 +988,7 @@ export function sellBuilding(w: WorldState, gangId: ID, buildingId: ID, accepted
     b.frontId = null;
   }
   b.ownerGangId = null;
+  delete b.freightTrucks; delete b.freightPolicy;
   delete b.resumeTradingWeek;
   stopBusinessGuards(w,b,'The business was sold.');
   receiveAssetCash(w, gang, value, b.acquisitionCost ?? value);
@@ -1395,6 +1421,6 @@ export function setWaiting(w: WorldState, orderId: ID, waiting: boolean): ApiRes
 }
 
 /** How much of a team's week is already committed, 0..1. */
-export function teamTimeFraction(team: Team): number {
-  return Math.min(1, team.timeUsed / MINUTES_PER_WEEK);
+export function teamTimeFraction(team: Team, w?: WorldState): number {
+  return Math.min(1, team.timeUsed / (w ? weekDuration(w) : MINUTES_PER_WEEK));
 }

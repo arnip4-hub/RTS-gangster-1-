@@ -3,7 +3,8 @@ import { MapAccess } from '../MapAccess';
 import { JobCardPanel } from '../JobCardPanel';
 import { useGame, type OrganizerTab } from '../../app/store';
 import type { OverlayKind } from '../../render/scene';
-import { MINUTES_PER_WEEK, ORDERS } from '../../sim/constants';
+import { ORDERS } from '../../sim/constants';
+import { weekDuration } from '../../sim/calendar';
 import { gangAssets, territoryCount, gangManpower, money } from '../../sim/world';
 import { cameraApi } from '../CityView';
 import { VIEW_ZOOM } from '../../render/viewModes';
@@ -187,7 +188,7 @@ export function Organizer() {
     .map((id) => w.teams[id])
     .filter(Boolean)
     .reduce((s, t) => s + t.timeUsed, 0);
-  const capacity = Math.max(1, gang.teamIds.length) * MINUTES_PER_WEEK;
+  const capacity = Math.max(1, gang.teamIds.length) * weekDuration(w);
   const pct = Math.round((totalCommitted / capacity) * 100);
   const ordersQueued = Object.values(w.orders).filter((o) => o.gangId === gang.id && o.state === 'queued').length +
     Object.values(w.specialistJobs ?? {}).filter(j => j.gangId === gang.id && j.week === w.week && j.state === 'queued').length;

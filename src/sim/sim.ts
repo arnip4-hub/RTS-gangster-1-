@@ -29,7 +29,7 @@ import { tickTramCommutes } from './tramCommute';
 import { capturePeaceFireExclusions, tickCombat } from './systems/combat';
 import { sightingCells, tickSightings } from './systems/sightings';
 import { blockClaimants } from './territory';
-import { weeklyEconomy } from './systems/economy';
+import { dailyBusinessIncome, weeklyEconomy } from './systems/economy';
 import { tickGoods } from './goodsDelivery';
 import { dispatchFbi, normalizeFbiInvestigations, tickFbi, weeklyFbi } from './systems/fbi';
 import { tickLaw, weeklyLaw } from './systems/law';
@@ -310,6 +310,7 @@ export class Sim {
     reconcileTransport(w);
     tickCombat(w, this.rng, 1, undefined, loadout, peaceFireExclusions);
     tickSightings(w, this.rng, sightingBefore);
+    dailyBusinessIncome(w, this.rng);
     // The minute's score peaks read only its closing state, which nothing but
     // the player changes before the next tick: they are taken in the first
     // sub-step after it (settleDeferred), not in this frame.

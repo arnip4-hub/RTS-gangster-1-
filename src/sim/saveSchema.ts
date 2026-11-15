@@ -4,7 +4,7 @@ import { yieldForInput } from '../yieldForInput';
 import { blockRect } from './cityLayout';
 import { cityTramLines, tramCount, tramLineValid, tramRoute } from './trams';
 import { BLOCK_MODULE_BY_ID, moduleFacing, moduleRect, moduleSetback } from './blockModules';
-import { MAX_TEAM_SIZE, MINUTES_PER_WEEK, VEHICLES } from './constants';
+import { MAX_TEAM_SIZE, VEHICLES } from './constants';
 import { weekDuration } from './calendar';
 import { onRoad, vehiclePathOnRoad } from './vehicleNavigation';
 import { peopleList, buildingList } from './entityLists';
@@ -136,8 +136,11 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
   for (const t of Object.values(w.teams)) if (!w.gangs[t.gangId] || !w.people[t.lieutenantId] || t.memberIds.some(id => !w.people[id])) throw Error('Save has a damaged crew roster.');
   const seats=new Set<number>();
   for(const [key,d] of Object.entries(w.goodsDeliveries??{})){
-    if(key!==String(d.sourceId)||!w.buildings[d.sourceId]||!w.gangs[d.gangId]||
+    if(key!==String(d.slot ? -d.sourceId*10-d.slot : d.sourceId)||!w.buildings[d.sourceId]||!w.gangs[d.gangId]||
       d.targetId!=null&&!w.buildings[d.targetId]||!Number.isSafeInteger(d.amount)||d.amount<0||d.amount>VEHICLES.truck.cargo||
+      d.slot!=null&&(!Number.isSafeInteger(d.slot)||d.slot<0||d.slot>4)||
+      d.manifestCases!=null&&(!Number.isSafeInteger(d.manifestCases)||d.manifestCases<0||d.manifestCases>40)||
+      d.manifestKind!=null&&d.manifestKind!=='meat'&&d.manifestKind!=='ice'||
       (d.returning?d.amount!==0:d.amount===0)||d.targetId==null&&d.path.length>0||
       !onRoad(w,d.pos)||!vehiclePathOnRoad(w,d.pos,d.path))throw Error('Save has invalid business delivery cargo or route.');
   }
@@ -273,6 +276,12 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     const production=b.goodsProduction;
     if(Object.values(b.stock).some(n=>n<0)||production&&(!Number.isInteger(production.week)||production.week<1||production.week>w.week||
       !Number.isInteger(production.day)||production.day<0||production.day>4||production.remainder<0||production.remainder>=1))throw Error('Save has invalid goods stock or production.');
+    const legal=b.legalProduction;
+    if (b.legalStock && Object.values(b.legalStock).some(n=>!Number.isSafeInteger(n)||n<0) ||
+      legal && (!Number.isInteger(legal.week)||legal.week<1||legal.week>w.week||!Number.isInteger(legal.day)||legal.day<0||legal.day>4) ||
+      b.freightTrucks != null && (!Number.isSafeInteger(b.freightTrucks)||b.freightTrucks<0||b.freightTrucks>4) ||
+      b.interimIncome != null && (!Number.isSafeInteger(b.interimIncome)||b.interimIncome<0))
+      throw Error('Save has invalid freight or daily business receipts.');
     if (!w.lots[b.lotId] || !w.blocks[b.blockId]) throw Error('Save has a building outside the city.');
     if (b.acquisitionCost != null && b.acquisitionCost < 0) throw Error('Save has an invalid property cost basis.');
     for (const week of [b.ceasedWeek,b.fbiDiscoveredWeek,b.fbiClosedWeek,b.fbiSearchedWeek,b.launderingWeek]) {
@@ -315,7 +324,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if(s&&(!Number.isInteger(s.week)||s.week<1||s.week>w.week||!w.people[s.victimId]||s.startMinute<earliest(s.week)||s.untilMinute<=s.startMinute))throw Error('Save has an invalid shock reaction.');
   }
   for (const o of [...Object.values(w.orders), ...w.lastWeekOrders]) {
-    if (o.workedMinutes != null && (o.workedMinutes < 0 || o.workedMinutes > MINUTES_PER_WEEK))
+    if (o.workedMinutes != null && (o.workedMinutes < 0 || o.workedMinutes > weekDuration(w)))
       throw Error('Save has an invalid order duty duration.');
     if (o.reportedCrewSize != null && (!Number.isSafeInteger(o.reportedCrewSize) || o.reportedCrewSize < 1 || o.reportedCrewSize > MAX_TEAM_SIZE))
       throw Error('Save has an invalid order crew count.');

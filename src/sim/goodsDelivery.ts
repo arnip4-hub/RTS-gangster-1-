@@ -1,15 +1,17 @@
 import { DRIVE_SPEED, MINUTES_PER_WEEK, movementScale, VEHICLES } from './constants';
 import { FULL_DAY_MINUTES } from './calendar';
 import { BUILDING_BY_ID } from './data/buildings';
-import { goodsRetailer, goodsRoom, isStorageSite } from './goodsStorage';
+import { changeFreightStock, freightStock, goodsRetailer, goodsRoom, isStorageSite, legalStock } from './goodsStorage';
 import { roadAheadBlocked, roadAheadRoom, trafficContext } from './traffic';
 import { noteDrive, previewVehicle } from './movement';
 import { roadHeading, roadPosition, vehicleRoute } from './vehicleNavigation';
 import { buildingDoor, dist } from './world';
-import type { Building, GoodsDelivery, GoodsKind, Vec2, WorldState } from './types';
+import type { Building, FreightKind, GoodsDelivery, Vec2, WorldState } from './types';
 import { buildingList } from './entityLists';
 
-const KINDS: GoodsKind[] = ['counterfeit', 'stolen', 'liquor'];
+const KINDS: FreightKind[] = ['counterfeit', 'stolen', 'liquor', 'meat', 'ice'];
+const legalKind = (kind: FreightKind): kind is 'meat' | 'ice' => kind === 'meat' || kind === 'ice';
+const slotKey = (id: number, slot: number) => slot === 0 ? id : -id * 10 - slot;
 /** Game minutes a delivery truck stays at the shop while its cases go in (playtest, 1 October). */
 export const UNLOAD_MINUTES = 8;
 export const DELIVERY_SPEED = DRIVE_SPEED * VEHICLES.truck.speed;
@@ -33,16 +35,27 @@ function produce(w: WorldState, b: Building): void {
   b.goodsProduction = { week: w.week, day, remainder: Math.max(0, exact - made) };
 }
 
-function reservedRoom(w: WorldState, b: Building, kind: GoodsKind, except?: GoodsDelivery): number {
+/** One legal daily batch makes the invoice and the load visible in the city. */
+function produceLegal(w: WorldState, b: Building): void {
+  const kind = b.typeId === 'slaughterhouse' ? 'meat' : b.typeId === 'iceHouse' ? 'ice' : null;
+  if (!kind || b.state !== 'trading' || b.ownerGangId == null) return;
+  const dayLength = w.options.continuousTime ? FULL_DAY_MINUTES : MINUTES_PER_WEEK / 5;
+  const day = Math.floor(Math.max(0, w.minute - 1) / dayLength);
+  if (day >= 5 || b.legalProduction?.week === w.week && b.legalProduction.day >= day) return;
+  changeFreightStock(b, kind, Math.min(80, Math.max(0, 300 - legalStock(b, kind))));
+  b.legalProduction = { week: w.week, day };
+}
+
+function reservedRoom(w: WorldState, b: Building, kind: FreightKind, except?: GoodsDelivery): number {
   let room = goodsRoom(b, kind);
   for (const d of Object.values(w.goodsDeliveries ?? {})) {
     if (d === except || d.targetId !== b.id) continue;
-    const sameStore = kind === d.kind || isStorageSite(b) && b.typeId !== 'iceHouse' && kind !== 'counterfeit' && d.kind !== 'counterfeit';
+    const sameStore = kind === d.kind || isStorageSite(b) && b.typeId !== 'iceHouse' && !legalKind(kind) && !legalKind(d.kind) && kind !== 'counterfeit' && d.kind !== 'counterfeit';
     if (sameStore) room -= d.amount;
   }
   return Math.max(0, room);
 }
-function destination(w: WorldState, gangId: number, kind: GoodsKind, from: Vec2,
+function destination(w: WorldState, gangId: number, kind: FreightKind, from: Vec2,
   allowWarehouse: boolean, except?: GoodsDelivery): Building | undefined {
   const sites = buildingList(w).filter(b => owns(b, gangId) && reservedRoom(w, b, kind, except) > 0);
   const retail = sites.filter(b => goodsRetailer(b, kind));
@@ -62,23 +75,38 @@ function route(w: WorldState, d: GoodsDelivery, target: Building): void {
 }
 function home(w: WorldState, d: GoodsDelivery): Building | undefined {
   const source = w.buildings[d.sourceId];
-  if (source?.ownerGangId === d.gangId && source.state !== 'destroyed') return source;
+  if (source?.ownerGangId === d.gangId && source.state !== 'destroyed' && source.cls !== 'empty') return source;
   return buildingList(w).find(b => owns(b,d.gangId) && isStorageSite(b));
 }
 function schedule(w: WorldState, source: Building): void {
   if (source.ownerGangId == null || source.state !== 'trading' || w.gangs[source.ownerGangId]?.eliminated ||
-    w.goodsDeliveries?.[source.id] || !isStorageSite(source) && !BUILDING_BY_ID[source.typeId]?.produces) return;
+    !isStorageSite(source) && !BUILDING_BY_ID[source.typeId]?.produces && source.typeId !== 'slaughterhouse') return;
+  const fleet = 1 + (isStorageSite(source) ? source.freightTrucks ?? 0 : 0);
+  const slot = Array.from({ length: fleet }, (_, i) => i).find(i => !w.goodsDeliveries?.[slotKey(source.id, i)]);
+  if (slot == null) return;
+  const policy = source.freightPolicy ?? 'fast';
+  const hour = w.options.continuousTime ? w.minute % FULL_DAY_MINUTES / 60 : 12;
+  if (policy === 'quiet' && w.options.continuousTime && hour >= 6 && hour < 19) return;
   for (const kind of KINDS) {
-    if (source.stock[kind] <= 0) continue;
+    if (freightStock(source, kind) <= 0) continue;
     const pos = roadPosition(w,buildingDoor(w,source));
     const target = destination(w,source.ownerGangId,kind,pos,!isStorageSite(source));
     if (!target || target.id === source.id) continue;
-    const amount = Math.min(source.stock[kind], VEHICLES.truck.cargo, reservedRoom(w,target,kind));
-    if (amount <= 0) continue;
-    source.stock[kind] -= amount;
+    const amount = Math.min(freightStock(source, kind), VEHICLES.truck.cargo, reservedRoom(w,target,kind));
+    if (amount <= 0 || policy === 'cheap' && amount < Math.min(80, VEHICLES.truck.cargo) && w.minute % 60 !== 1) continue;
+    changeFreightStock(source, kind, -amount);
+    const manifestKind = legalKind(kind) ? undefined : legalStock(source, 'meat') > 0 ? 'meat'
+      : legalStock(source, 'ice') > 0 ? 'ice' : undefined;
+    const manifestCases = manifestKind ? Math.min(40, legalStock(source, manifestKind), VEHICLES.truck.cargo - amount) : 0;
+    if (manifestKind) changeFreightStock(source, manifestKind, -manifestCases);
     const delivery: GoodsDelivery = {sourceId:source.id,gangId:source.ownerGangId,kind,amount,
-      pos,path:[],targetId:null,returning:false,heading:roadHeading(w,pos),halted:false};
-    (w.goodsDeliveries ??= {})[source.id] = delivery;
+      slot,manifestCases,manifestKind,pos,path:[],targetId:null,returning:false,heading:roadHeading(w,pos),halted:false};
+    (w.goodsDeliveries ??= {})[slotKey(source.id, slot)] = delivery;
+    if (!legalKind(kind)) {
+      // Low-volume legitimate trade helps, but it never makes smuggling invisible.
+      const gang = w.gangs[source.ownerGangId];
+      gang.suspicion = Math.min(100, gang.suspicion + Math.max(.08, amount / 150 * (policy === 'quiet' ? .5 : policy === 'cheap' ? .8 : 1.2) * (manifestCases ? .55 : 1)));
+    }
     route(w,delivery,target);
     return;
   }
@@ -120,10 +148,18 @@ export function tickGoods(w: WorldState, minutes: number): void {
       route(w,d,target);
     }
     if (!step(w,d,minutes)) continue;
-    if (d.returning) { delete w.goodsDeliveries![Number(key)]; continue; }
+    if (d.returning) {
+      const source = home(w,d);
+      if (source && d.manifestKind && d.manifestCases) changeFreightStock(source,d.manifestKind,d.manifestCases);
+      delete w.goodsDeliveries![Number(key)]; continue;
+    }
     if (target && owns(target,d.gangId) && dist(d.pos,roadPosition(w,buildingDoor(w,target)))<3) {
       const amount=Math.min(d.amount,goodsRoom(target,d.kind));
-      target.stock[d.kind]+=amount;d.amount-=amount;
+      changeFreightStock(target,d.kind,amount);d.amount-=amount;
+      if (d.manifestKind && d.manifestCases) {
+        const legal = Math.min(d.manifestCases, goodsRoom(target,d.manifestKind));
+        changeFreightStock(target,d.manifestKind,legal); d.manifestCases -= legal;
+      }
     }
     if (d.amount > 0) { d.targetId=null; continue; }
     d.returning=true;d.unloadLeft=UNLOAD_MINUTES;
@@ -131,8 +167,11 @@ export function tickGoods(w: WorldState, minutes: number): void {
   // Reconcile inventories at a bounded cadence. Existing trucks keep moving
   // every tick, and no scan/routing work is done by the renderer.
   if (w.minute % 10 === 1) {
-    for (const b of buildingList(w)) produce(w,b);
-    for (const b of buildingList(w)) schedule(w,b);
+    for (const b of buildingList(w)) { produce(w,b); produceLegal(w,b); }
+    for (const b of buildingList(w)) {
+      const slots = 1 + (isStorageSite(b) ? b.freightTrucks ?? 0 : 0);
+      for (let i = 0; i < slots; i++) schedule(w,b);
+    }
   }
 }
 
@@ -142,10 +181,10 @@ export function previewGoodsDelivery(d: GoodsDelivery, fraction: number): Vec2 {
 }
 
 export function goodsDeliverySummary(w: WorldState, b: Building): string | null {
-  const outbound = w.goodsDeliveries?.[b.id];
+  const outbound = Object.values(w.goodsDeliveries ?? {}).filter(d=>d.sourceId===b.id);
   const inbound = Object.values(w.goodsDeliveries ?? {}).filter(d=>d.targetId===b.id&&!d.returning).reduce((sum,d)=>sum+d.amount,0);
   const parts:string[]=[];
-  if(outbound)parts.push(outbound.returning?'Delivery truck returning':`${outbound.amount} ${outbound.kind} cases ${outbound.targetId==null?'waiting for a destination':'on delivery'}`);
+  for(const d of outbound)parts.push(d.returning?'Delivery truck returning':`${d.amount} ${d.kind} cases ${d.targetId==null?'waiting for a destination':'on delivery'}${d.manifestCases ? ` · ${d.manifestCases} legal cases on manifest` : ''}`);
   if(inbound)parts.push(`${inbound} cases arriving`);
   return parts.length?parts.join(' · '):null;
 }

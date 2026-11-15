@@ -1,6 +1,6 @@
 import { originalWeeklyStance, rollOriginalProfile, stanceOfHostility, startingHostility } from './aiStance';
 import { cityBlockAt } from './cityLayout';
-import { campaignMinute } from './calendar';
+import { campaignMinute, weekDuration } from './calendar';
 import {
   buyVehicle,
   buyWeapon,
@@ -27,7 +27,7 @@ import {
   repairBuilding,
   setTrading,
 } from './api';
-import { CELL, MAX_TEAMS, MAX_TEAM_SIZE, MINUTES_PER_WEEK, ORDERS, WEAPONS } from './constants';
+import { CELL, MAX_TEAMS, MAX_TEAM_SIZE, ORDERS, WEAPONS } from './constants';
 import { BUILDING_BY_ID, ILLEGAL_TYPES, coverQuality } from './data/buildings';
 import { isValidAreaTarget, nearestOffice } from './execution';
 import { centreLotNeedsFront, purchasablePremisesType } from './premises';
@@ -349,7 +349,7 @@ export function planGang(w: WorldState, rng: Rng, gang: Gang, autopilot = false,
 
   teams.forEach((team, idx) => {
     let guard = 0;
-    const canDoMore = () => clockTime(w, team) < MINUTES_PER_WEEK * 0.9 && guard++ < 8;
+    const canDoMore = () => clockTime(w, team) < weekDuration(w) * 0.9 && guard++ < 8;
 
     // 1. Always collect what is owed.
     if (protectedSites.length && canDoMore()) {
@@ -457,7 +457,7 @@ export function planGang(w: WorldState, rng: Rng, gang: Gang, autopilot = false,
     }
 
     // 7. Spend what is left holding the streets.
-    if (clockTime(w, team) < MINUTES_PER_WEEK * 0.45) {
+    if (clockTime(w, team) < weekDuration(w) * 0.45) {
       const mine = territoryBlocks(w, gang.id);
       if (mine.length) {
         const patrolBlocks = rng.shuffle([...mine]).slice(0, 6).map((b) => b.id);
