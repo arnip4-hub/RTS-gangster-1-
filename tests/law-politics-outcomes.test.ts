@@ -4,10 +4,12 @@ import { bribeOfficial, bribePrice, hireRecruit, sackPerson, setRunForOffice } f
 import { killPerson } from '../src/sim/execution';
 import { MINUTES_PER_WEEK } from '../src/sim/constants';
 import { Sim, MINUTES_PER_SECOND } from '../src/sim/sim';
-import { weeklyLaw } from '../src/sim/systems/law';
+import { tickLaw, weeklyLaw } from '../src/sim/systems/law';
 import { weeklyEconomy } from '../src/sim/systems/economy';
 import { campaignWeeklyCost, canRunForOffice, weeklyPolitics } from '../src/sim/systems/politics';
 import { allBuildings, typeOf } from '../src/sim/world';
+import { queueCrimeInquiry } from '../src/sim/specialistJobs';
+import { recordSqueal, reportedSquealers } from '../src/sim/squealers';
 
 afterEach(() => vi.restoreAllMocks());
 function fixture() {
@@ -40,6 +42,65 @@ function electionFixture() {
 }
 
 describe('court outcomes and lawyer actions', () => {
+  it('tracks actual police informants separately from hostile people and saves the list', () => {
+    const s = fixture();
+    const owner = Object.values(s.w.people).find(p => p.role === 'owner')!;
+    const other = Object.values(s.w.people).find(p => p.role === 'owner' && p.id !== owner.id)!;
+    other.opinion[s.gang.id] = -100;
+    recordSqueal(s.w, s.gang.id, owner);
+    expect(reportedSquealers(s.w, s.gang.id).map(p => p.id)).toEqual([owner.id]);
+    expect(reportedSquealers(Sim.fromSave(structuredClone(s.w)).world, s.gang.id).map(p => p.id)).toEqual([owner.id]);
+  });
+
+  it('lets a lawyer identify the officer on a reported crime and preserves that finding', () => {
+    const s = fixture();
+    const officer = s.w.people[s.w.policeIds[0]];
+    const crime = { id: s.w.sequences.crime++, week: s.w.week, gangId: s.gang.id,
+      perpetratorId: s.defendant.id, kind: 'extort', buildingId: null, victimId: null,
+      witnesses: [], arrestRisk: 0, reported: true, investigatorId: officer.id };
+    s.w.crimes.push(crime);
+    expect(queueCrimeInquiry(s.w, s.gang.id, crime.id).ok).toBe(true);
+    s.sim.launchWeek();
+    for (let i = 0; i < MINUTES_PER_WEEK - 1 && !('investigatorKnown' in crime); i++)
+      s.sim.advance(1 / MINUTES_PER_SECOND, 1);
+    expect(crime).toHaveProperty('investigatorKnown', true);
+    expect(Sim.fromSave(structuredClone(s.w)).world.crimes.find(c => c.id === crime.id)?.investigatorKnown).toBe(true);
+  }, 240000);
+
+  it('reduces the arrest risk only when the officer handling that file is on the gang payroll', () => {
+    const riskFor = (paid: boolean) => {
+      const sim = new Sim({ ...defaultGameOptions(), continuousTime: true, seed: 404, citySize: 10 });
+      const w = sim.world, gang = sim.playerGang, officer = w.people[w.policeIds[0]];
+      const perp = w.people[w.teams[gang.teamIds[0]].memberIds[0]];
+      sim.launchWeek();
+      w.minute = 60;
+      w.crimes.push({ id: w.sequences.crime++, week: w.week, gangId: gang.id,
+        perpetratorId: perp.id, kind: 'kill', buildingId: null, victimId: null,
+        witnesses: [officer.id], arrestRisk: 0.65, reported: true, reportedAt: 0,
+        investigatorId: officer.id });
+      if (paid) officer.employedBy = gang.id;
+      let chance = -1;
+      vi.spyOn(sim.rng, 'chance').mockImplementation(p => { chance = p; return false; });
+      tickLaw(w, sim.rng);
+      return chance;
+    };
+    const normal = riskFor(false), paid = riskFor(true);
+    expect(normal).toBeGreaterThan(0);
+    expect(paid).toBeCloseTo(normal * 0.6, 6);
+  });
+
+  it('replaces a killed juror and delays the trial without retaining the old jury list', () => {
+    const s = fixture(), court = openCase(s), oldJuror = court.jurorIds[0];
+    court.knowsJurors = true; court.weeksToTrial = 1;
+    killPerson(s.w, s.w.people[oldJuror], 'jury test');
+    s.w.week++; weeklyLaw(s.w, s.sim.rng);
+    expect(court.jurorIds).not.toContain(oldJuror);
+    expect(court.jurorIds).toHaveLength(6);
+    expect(court.knowsJurors).toBe(false);
+    expect(court.status).toBe('onTrial');
+    expect(court.weeksToTrial).toBeGreaterThan(0);
+  });
+
   it('DA bribes reveal witnesses then jurors, survive restoration, and a judge bribe dismisses the case', () => {
     const s = fixture(), court = openCase(s);
     const opening = s.gang.cash, da = s.w.people[court.daId];

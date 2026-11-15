@@ -12,6 +12,7 @@ import { reclaimStaffVehicle } from './specialists';
 import { allocateTransport, alight, availableVehicle, dismount, stepOut, orderVehicles, plannedTravelSpeed, transportPlan, reconcileTransport, releaseTransportOrder, resetWeekTransport, sendHome } from './transport';
 import { campaignMinute, stampedMinute, weekDuration } from './calendar';
 import { ensureOwnerRelative, kidnappableBy } from './officialFamilies';
+import { recordSqueal } from './squealers';
 import { freeCaptive, ransomQuote } from './captivity';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import {
@@ -87,12 +88,13 @@ function report(
 
 /** Original city: an owner whose squeal level toward the gang is above 200
  * files a crime record (rec+0x24 += 5) — 0x4CD730 ln 210-217. */
-function squealIfAbove200(w: WorldState, gang: Gang, owner: Person, building: Building, pos: Vec2, leadId: ID): void {
+function squealIfAbove200(w: WorldState, gang: Gang, owner: Person, building: Building, pos: Vec2): void {
   if (owner.status === 'dead') return;
   const influence = claimedTerritoryBlocks(w, gang.id).has(w.blocks[building.blockId]?.layout?.mergedInto ?? building.blockId);
   if (ownerSquealLevel(owner, gang.id, influence) <= 200) return;
   gang.evidence = Math.min(100, gang.evidence + 5);
-  report(w, gang.id, 'police', `${owner.name} squealed to the police about your hoods.`, pos, leadId);
+  recordSqueal(w, gang.id, owner);
+  report(w, gang.id, 'police', `${owner.name} squealed to the police about your hoods.`, pos, owner.id);
 }
 
 export function orderActors(w: WorldState, order: Order): Person[] {
@@ -1223,7 +1225,7 @@ function resolveTarget(
         refused(`${w.people[building.ownerPersonId ?? -1]?.name ?? 'The owner'} refused to pay.`, building);
         // The till-short branch (not the outright refusal) is where the original
         // owner squeals: squeal level above 200 files a record, +5 evidence.
-        if (!hostile && payer && w.cityLayout?.original) squealIfAbove200(w, gang, payer, building, here, lead.id);
+        if (!hostile && payer && w.cityLayout?.original) squealIfAbove200(w, gang, payer, building, here);
         report(
           w,
           gang.id,
@@ -1408,10 +1410,22 @@ function resolveTarget(
       if (!victim) return finishOrder(w, order, 'The target could not be found.');
       const cost = order.opts.amount ?? Math.round(300 + victim.skills.intelligence * 260);
       if (!spend(w, gang, cost)) return finishOrder(w, order, 'You could not cover the bribe.');
+      const courtTargets = Object.values(w.cases).filter(c => c.gangId === gang.id &&
+        (c.status === 'awaiting' || c.status === 'onTrial') &&
+        (c.witnessIds.includes(victim.id) || c.jurorIds.includes(victim.id)));
+      if (courtTargets.length) recordCrime(w, rng, {
+        gangId: gang.id, perpetratorId: lead.id, type: 'bribe', pos: here, victimId: victim.id,
+      });
       if (roll(rng, actors, ['intelligence'], 0.2 + Math.max(0, -(victim.opinion[gang.id] ?? 0)) / 200)) {
         victim.bribedBy = gang.id;
         // No bribe handler writes an attitude channel in the original.
         opinionShift(victim, gang.id, Math.min(100, (victim.opinion[gang.id] ?? 0) + 35) - (victim.opinion[gang.id] ?? 0), NO_ORIGINAL_CHANNEL);
+        for (const c of courtTargets) {
+          if (c.witnessIds.includes(victim.id) && !c.bribedWitnessIds?.includes(victim.id))
+            (c.bribedWitnessIds ??= []).push(victim.id);
+          if (c.jurorIds.includes(victim.id) && !c.bribedJurorIds?.includes(victim.id))
+            (c.bribedJurorIds ??= []).push(victim.id);
+        }
         say(`${victim.name} took the money.`);
       } else {
         opinionShift(victim, gang.id, -10, NO_ORIGINAL_CHANNEL);
@@ -1496,11 +1510,12 @@ function resolveTarget(
           // reports when the owner's squeal byte (+0x20) exceeds 200, which the
           // original city follows. The compact cities keep the remake's souring
           // opinion (which makes the next attempt harder) and random squeal.
-          if (w.cityLayout?.original) squealIfAbove200(w, gang, owner, building, here, lead.id);
+          if (w.cityLayout?.original) squealIfAbove200(w, gang, owner, building, here);
           else {
             opinionShift(owner, gang.id, -18, { hostility: 0, fear: 0 });
             if (rng.chance(0.22)) {
-              report(w, gang.id, 'police', `${owner.name} squealed to the police about your hoods.`, here, lead.id);
+              recordSqueal(w, gang.id, owner);
+              report(w, gang.id, 'police', `${owner.name} squealed to the police about your hoods.`, here, owner.id);
               gang.evidence = Math.min(100, gang.evidence + 3);
             }
           }

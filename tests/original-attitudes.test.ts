@@ -254,7 +254,12 @@ describe('owner squeal level (0x5A4520)', () => {
       const order = w.orders[team.orderIds.at(-1)!];
       sim.launchWeek();
       for (let i = 0; i < MINUTES_PER_WEEK - 1 && !['done', 'failed'].includes(order.state); i++) sim.advance(1 / MINUTES_PER_SECOND, 1);
-      expect(w.messages.some(m => m.text.includes('squealed to the police about your hoods'))).toBe(squeals);
+      const report = w.messages.find(m => m.text.includes('squealed to the police about your hoods'));
+      expect(!!report).toBe(squeals);
+      if (squeals) {
+        expect(report?.personId).toBe(owner.id);
+        expect(owner.squealedOn?.[gang.id]).toBeDefined();
+      }
     }
   }, 240000);
 });

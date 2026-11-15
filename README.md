@@ -102,6 +102,19 @@ branch. The `main` branch keeps the earlier remake baseline.
   missing-person report after a delay. Police must trace the safe house before
   dispatching an officer, and a visit there can supply evidence for a live
   arrest review. The family of the FBI chief draws extra Bureau attention.
+- **Police files and court interference (development branch):** a reported
+  crime has a lead officer. Open the police message's **Investigations** button
+  to reach the lawyer's panel. Send the lawyer to the courthouse to identify
+  that officer; an officer already on your payroll can identify his own file.
+  Bribing the assigned officer reduces the chance of arrest or weakens a trial,
+  while killing him leads to reassignment. The prosecutor can be bribed to
+  reveal witnesses and jurors, or targeted like other people. Once named,
+  witnesses and jurors can be bribed or marked for a planned hit. Bribed
+  witnesses withdraw from that trial; bribed jurors help the defence. A dead
+  witness cannot testify; a dead juror is replaced and the trial is delayed.
+  Every hit remains an ordinary risky crime. The **Squealers** panel now shows
+  actual police informants rather than everyone hostile to the gang, with
+  actions to add them to the hit list or prepare a Kill order.
 - **Daily paper:** in RTS mode a new edition appears at 6 a.m. each day in the
   Organizer. It carries the previous day's reported crimes, deaths, business
   moves, politics, charity appeals and period stories. Events after printing
@@ -112,10 +125,14 @@ branch. The `main` branch keeps the earlier remake baseline.
   redesign of weekly orders and accounting so the game can become a full RTS.
   Automatic week rollover does not remove all weekly rules yet. Freight trucks
   are owned by businesses, not assigned to individual drivers; rival gangs do
-  not yet intercept cargo, and there is no manual route editor.
+  not yet intercept cargo, and there is no manual route editor. Prison remains
+  a sentence timer: inmates do not yet meet, exchange limited information,
+  request protection or arrange attacks inside a prison.
 
 The [RTS time audit](docs/RTS_TIME_AUDIT.md) records which systems use game
 minutes, daily boundaries and the weekly settlement.
+The [crime and prison design](docs/CRIME_AND_PRISON.md) records the current
+court mechanics and the proposed prison contacts and information rules.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.

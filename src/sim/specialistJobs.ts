@@ -12,10 +12,10 @@ import type { Gang, ID, Person, SpecialistJob, Vec2, WorldState } from './types'
 import { allBuildings, buildingDoor, dist } from './world';
 import { quitGangPayroll } from './payrollMark';
 
-export const SPECIALIST_JOB_NAMES = { audit: 'Audit', bribeOfficials: 'Bribe Officials', employPolice: 'Employ Police' };
+export const SPECIALIST_JOB_NAMES = { audit: 'Audit', bribeOfficials: 'Bribe Officials', employPolice: 'Employ Police', investigateCrime: 'Investigate case' };
 export const specialistJobActive = (j: SpecialistJob) => ['queued', 'travelling', 'working'].includes(j.state);
 const roleFor = (j: Pick<SpecialistJob, 'type'>) => j.type === 'audit' ? 'accountant' : 'lawyer';
-const workMinutes = (j: SpecialistJob) => j.type === 'audit' ? 30 : 5;
+const workMinutes = (j: SpecialistJob) => j.type === 'investigateCrime' ? 120 : j.type === 'audit' ? 30 : 5;
 
 /** The inspection is followed by bookkeeping at HQ until Friday's report. */
 export function reservedAudit(w: WorldState, gangId: ID): SpecialistJob | undefined {
@@ -24,6 +24,7 @@ export function reservedAudit(w: WorldState, gangId: ID): SpecialistJob | undefi
 }
 
 export function specialistTargetEligible(w: WorldState, gangId: ID, type: SpecialistJob['type'], p: Person): boolean {
+  if (type === 'investigateCrime') return false;
   if (p.status !== 'active' && !(type === 'audit' && p.status === 'onTrial')) return false;
   if (type === 'bribeOfficials') return isBribableOfficial(p);
   if (type === 'employPolice') return p.role === 'police' && p.employedBy == null && !quitGangPayroll(p, gangId);
@@ -33,6 +34,7 @@ export function specialistTargetEligible(w: WorldState, gangId: ID, type: Specia
 }
 
 export function queueSpecialistJob(w: WorldState, gangId: ID, type: SpecialistJob['type'], targetPersonId: ID | null, blockIds: ID[] = []): ApiResult {
+  if (type === 'investigateCrime') return { ok: false, error: 'Choose a reported crime from the lawyer’s investigations.' };
   const gang = w.gangs[gangId];
   if (!gang) return { ok: false, error: 'No such gang.' };
   const actor = availableSpecialist(w, gang, roleFor({ type }));
@@ -57,6 +59,24 @@ export function queueSpecialistJob(w: WorldState, gangId: ID, type: SpecialistJo
   (w.specialistJobs ??= {})[job.id] = job;
   if (type === 'audit') w.auditTargets[gangId] = targetPersonId!;
   return { ok: true, message: `${SPECIALIST_JOB_NAMES[type]} scheduled for ${actor.name}${price ? '; payment is due at the visit' : ''}.` };
+}
+
+/** A named lawyer spends time at the courthouse to identify one report's lead officer. */
+export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiResult {
+  const gang = w.gangs[gangId], crime = w.crimes.find(c => c.id === crimeId);
+  if (!gang || !crime || crime.gangId !== gangId || !crime.reported || crime.charge)
+    return { ok: false, error: 'Choose a reported crime against your gang.' };
+  const actor = availableSpecialist(w, gang, 'lawyer');
+  if (!actor) return { ok: false, error: 'You need an available lawyer.' };
+  if (crime.investigatorKnown) return { ok: true, message: 'Your lawyer already identified the lead officer.' };
+  if (Object.values(w.specialistJobs ?? {}).some(j => j.gangId === gangId && j.crimeId === crimeId && specialistJobActive(j)))
+    return { ok: true, message: 'Your lawyer is already reviewing that file.' };
+  const job: SpecialistJob = { id: newId(w), gangId, actorId: actor.id, week: w.week,
+    type: 'investigateCrime', crimeId, targetPersonId: null, blockIds: [], state: 'queued',
+    quotedPrice: 0, workLeft: 0, visitedPersonIds: [], completed: 0, patrolIndex: 0,
+    targetPos: null, result: '' };
+  (w.specialistJobs ??= {})[job.id] = job;
+  return { ok: true, message: `${actor.name} will inspect the police file at the courthouse.` };
 }
 
 function home(w: WorldState, gang: Gang, actor: Person): void {
@@ -178,6 +198,29 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       const office = allBuildings(w).find(b => b.ownerGangId === gang.id && b.isHQ && dist(w.lots[b.lotId].center, actor.pos) < 2);
       if (office) actor.pos = buildingDoor(w, office);
       actor.inVehicle=false;
+    }
+    if (j.type === 'investigateCrime') {
+      const crime = w.crimes.find(c => c.id === j.crimeId && c.gangId === gang.id);
+      const courthouse = allBuildings(w).find(b => b.typeId === 'courthouse');
+      if (!crime || !courthouse) { finish(w, j, 'failed', 'The case file is no longer available.'); continue; }
+      const desk = buildingDoor(w, courthouse);
+      if (j.state === 'travelling') {
+        if (approach(w, actor, j, desk, minutes)) { j.state = 'working'; j.workLeft = workMinutes(j); }
+        continue;
+      }
+      j.workLeft = Math.max(0, j.workLeft - minutes);
+      if (j.workLeft > 0) continue;
+      if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active')
+        crime.investigatorId = w.policeIds.find(id => w.people[id]?.status === 'active');
+      crime.investigatorKnown = true;
+      for (const c of Object.values(w.cases)) if (c.sourceCrimeId === crime.id && c.gangId === gang.id) {
+        c.investigatorId = crime.investigatorId;
+        c.investigatorKnown = true;
+      }
+      const officer = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
+      finish(w, j, 'done', officer ? `Police file reviewed: ${officer.name} is handling the investigation.`
+        : 'Police file reviewed: no lead officer is currently assigned.');
+      continue;
     }
     const areaTour = j.type === 'employPolice' && j.blockIds.length > 0;
     if (j.type === 'employPolice') {

@@ -21,12 +21,21 @@ import { SpecialistJobList } from '../SpecialistJobCard';
 import { peopleList } from '../../sim/entityLists';
 import { quitGangPayroll } from '../../sim/payrollMark';
 import { officialLeverage } from '../../sim/officials';
+import { personMapPosition } from '../../sim/mapIntel';
+import { personListIds, togglePersonList } from '../../sim/personLists';
+import { reportedSquealers } from '../../sim/squealers';
+import type { OrderType } from '../../sim/types';
+import { queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
 
 export function LawyerTab() {
   const sim = useGame((s) => s.sim)!;
   const notify = useGame((s) => s.notify);
   const beginSpecialistOrder = useGame(s => s.beginSpecialistOrder);
   const requestCamera = useGame((s) => s.requestCamera);
+  const setTab = useGame((s) => s.setTab);
+  const beginOrder = useGame((s) => s.beginOrder);
+  const updateJobCard = useGame((s) => s.updateJobCard);
+  const setOrganizerOpen = useGame((s) => s.setOrganizerOpen);
   useGame((s) => s.version);
   const [officialKind, setOfficialKind] = useState<'mayor' | 'policeChief' | 'judge' | 'da' | 'police'>('mayor');
   const [sacking, setSacking] = useState(false);
@@ -37,13 +46,22 @@ export function LawyerTab() {
   const straight = canGoStraight(w, gang.id);
   const officeEntry = officeEntryCheck(w, gang.id);
   const cases = Object.values(w.cases).filter((c) => c.gangId === gang.id);
-  const squealers = peopleList(w).filter(
-    (p) => p.role === 'owner' && (p.opinion[gang.id] ?? 0) < -40 && p.status === 'active',
-  );
+  const squealers = reportedSquealers(w, gang.id);
+  const planAgainst = (type: OrderType, personId: number) => {
+    const teamId = gang.teamIds[0];
+    if (teamId == null) return;
+    setTab('lieutenants');
+    beginOrder(type, teamId);
+    updateJobCard({ personId });
+    setOrganizerOpen(true);
+  };
   const wanted = Object.values(w.people)
     .filter((p) => p.gangId === gang.id && p.wanted > 25 && p.status !== 'dead')
     .sort((a, b) => b.wanted - a.wanted);
   const crimes = w.crimes.filter((c) => c.gangId === gang.id && c.week >= w.week - 1 && !c.charge);
+  const investigations = crimes.filter(c => c.reported);
+  const lawyerInvestigating = (crimeId: number) => Object.values(w.specialistJobs ?? {}).some(j =>
+    j.crimeId === crimeId && specialistJobActive(j));
 
   const officials: Person[] = (() => {
     switch (officialKind) {
@@ -313,6 +331,29 @@ export function LawyerTab() {
         </Panel>
       )}
 
+      <Panel title="Police Investigations">
+        {investigations.length === 0 ? <Empty>No open police files against your gang.</Empty> :
+          investigations.slice(-12).map(crime => {
+            const officer = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
+            const known = !!crime.investigatorKnown || officer?.employedBy === gang.id || officer?.bribedBy === gang.id;
+            return <div key={crime.id} style={{ padding: '5px 0', borderBottom: '1px dotted #bdb094' }}>
+              <div className="tiny"><b>{crime.kind}</b> · {w.people[crime.perpetratorId]?.name ?? 'Unknown'} · {crime.investigatedAt == null ? 'police review pending' : cases.some(court => court.sourceCrimeId === crime.id && ['awaiting', 'onTrial'].includes(court.status)) ? 'court case open' : 'police review complete'}</div>
+              {known && officer ? <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
+                <span style={{ flex: 1 }}>Officer: {officer.name}{officer.employedBy === gang.id ? ' · on your payroll' : ''}</span>
+                <button className="btn sm" disabled={!lawyer} onClick={() => beginSpecialistOrder('bribeOfficials', officer.id)}>Bribe</button>
+                <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', officer.id)}>Plan hit</button>
+              </div> : <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
+                <span style={{ flex: 1 }}>Lead officer unknown</span>
+                <button className="btn sm" disabled={!lawyer || lawyerInvestigating(crime.id)}
+                  onClick={() => notify(act(s => queueCrimeInquiry(s.world, gang.id, crime.id)))}>
+                  {lawyerInvestigating(crime.id) ? 'Reviewing file' : 'Ask lawyer'}
+                </button>
+              </div>}
+            </div>;
+          })}
+        <Hint>A paid officer can identify a file he handles. Bribery may weaken its case; if an officer is killed, another takes over.</Hint>
+      </Panel>
+
       <Panel title="Legal Proceedings">
         {cases.length === 0 ? (
           <Empty>Nobody of yours is before the courts.</Empty>
@@ -329,19 +370,49 @@ export function LawyerTab() {
                 {c.crime} · Judge {w.people[c.judgeId]?.name} · DA {w.people[c.daId]?.name}
                 {c.weeksToTrial > 0 && ` · trial in ${c.weeksToTrial} week(s)`}
               </div>
+              {['awaiting', 'onTrial'].includes(c.status) && <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
+                <span style={{ flex: 1 }}>Prosecutor: {w.people[c.daId]?.name ?? 'Unknown'}</span>
+                <button className="btn sm" disabled={!lawyer} onClick={() => beginSpecialistOrder('bribeOfficials', c.daId)}>Bribe</button>
+                <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', c.daId)}>Plan hit</button>
+              </div>}
+              {c.investigatorId != null && (() => {
+                const officer = w.people[c.investigatorId];
+                return officer && (c.investigatorKnown || officer.employedBy === gang.id || officer.bribedBy === gang.id) ?
+                  <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
+                    <span style={{ flex: 1 }}>Investigating officer: {officer.name}</span>
+                    <button className="btn sm" disabled={!lawyer} onClick={() => beginSpecialistOrder('bribeOfficials', officer.id)}>Bribe</button>
+                    <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', officer.id)}>Plan hit</button>
+                  </div> : null;
+              })()}
               {c.knowsWitnesses && (
                 <div className="tiny" style={{ marginTop: 2 }}>
-                  Witnesses: {c.witnessIds.map((id) => w.people[id]?.name).filter(Boolean).join(', ') || 'none left'}
+                  <b>Witnesses</b>
+                  {c.witnessIds.filter(id => w.people[id]?.status === 'active').length === 0 && <span>: none left</span>}
+                  {c.witnessIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active').map(p => (
+                    <div key={p.id} className="row wrap" style={{ gap: 5, marginTop: 3 }}>
+                      <span style={{ flex: 1 }}>{p.name}{c.bribedWitnessIds?.includes(p.id) ? ' · bought' : ''}</span>
+                      <button className="btn sm" disabled={!gang.teamIds.length} onClick={() => planAgainst('bribe', p.id)}>Bribe</button>
+                      <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', p.id)}>Plan hit</button>
+                    </div>
+                  ))}
                 </div>
               )}
               {c.knowsJurors && (
                 <div className="tiny">
-                  Jurors: {c.jurorIds.map((id) => w.people[id]?.name).filter(Boolean).join(', ')}
+                  <b>Jurors</b>
+                  {c.jurorIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active').map(p => (
+                    <div key={p.id} className="row wrap" style={{ gap: 5, marginTop: 3 }}>
+                      <span style={{ flex: 1 }}>{p.name}{c.bribedJurorIds?.includes(p.id) ? ' · bought' : ''}</span>
+                      <button className="btn sm" disabled={!gang.teamIds.length} onClick={() => planAgainst('bribe', p.id)}>Bribe</button>
+                      <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', p.id)}>Plan hit</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           ))
         )}
+        <Hint>Bribed witnesses can withdraw; bribed jurors help the defence. Killing a juror forces a replacement and delays the hearing.</Hint>
       </Panel>
 
       <Panel title="Most Wanted">
@@ -362,17 +433,20 @@ export function LawyerTab() {
         {squealers.length === 0 ? (
           <Empty>Nobody is talking.</Empty>
         ) : (
-          squealers.slice(0, 12).map((p) => (
-            <button
-              key={p.id}
-              className="list-row"
-              onClick={() => requestCamera({ x: p.pos.x, y: p.pos.y })}
-            >
-              <span className="name tiny">{p.name}</span>
-              <Pill kind="bad">hostile</Pill>
-            </button>
-          ))
+          squealers.slice(0, 12).map((p) => {
+            const pos = personMapPosition(w, gang.id, p);
+            return <div key={p.id} className="row wrap tiny" style={{ gap: 5, padding: '3px 0' }}>
+              <button className="btn sm" style={{ flex: 1, textAlign: 'left' }} disabled={!pos}
+                onClick={() => requestCamera(pos!)}>{p.name}</button>
+              <Pill kind="bad">reported</Pill>
+              <button className="btn sm" onClick={() => notify(act(s => togglePersonList(s.world, gang.id, p.id, 'hit')))}>
+                {personListIds(w, gang.id, 'hit').includes(p.id) ? 'Unmark' : 'Hit list'}
+              </button>
+              <button className="btn sm danger" disabled={!gang.teamIds.length} onClick={() => planAgainst('kill', p.id)}>Plan hit</button>
+            </div>;
+          })
         )}
+        <Hint>These people actually reported your gang. A planned hit still needs a crew and may draw another investigation.</Hint>
       </Panel>
 
       <Panel title="Crimes — This Week">

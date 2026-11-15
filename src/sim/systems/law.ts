@@ -8,6 +8,7 @@ import type { Rng } from '../rng';
 import type { CourtCase, CrimeRecord, ID, OrderType, WorldState } from '../types';
 import { allBuildings } from '../world';
 import { peopleList } from '../entityLists';
+import { recordSqueal } from '../squealers';
 
 /**
  * Police work, arrests and the courts. Trials are a contest between your lawyer
@@ -85,6 +86,10 @@ function investigateCrimes(w: WorldState, rng: Rng, records = w.crimes): void {
     const crime = weighted[0].c;
     const gang = w.gangs[crime.gangId];
     if (!gang) continue;
+    if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active') {
+      crime.investigatorId = w.policeIds.find(id => w.people[id]?.status === 'active');
+      crime.investigatorKnown = false;
+    }
 
     // Bought officers and a friendly chief both lower the odds.
     const chief = w.people[w.policeChiefId];
@@ -92,6 +97,8 @@ function investigateCrimes(w: WorldState, rng: Rng, records = w.crimes): void {
     let risk = weighted[0].r + weighted.slice(1).reduce((a, x) => a + x.r * 0.08, 0);
     risk *= 1 - chiefOpinion / 260;
     risk *= 1 - Math.min(0.4, gang.employedPoliceIds.length * 0.04);
+    const investigator = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
+    if (investigator?.employedBy === gang.id || investigator?.bribedBy === gang.id) risk *= 0.6;
     // Men working a priority job press on regardless, and take the extra chance.
     if (perp.orderId != null && w.orders[perp.orderId]?.opts.priority) risk *= 1.25;
 
@@ -127,6 +134,7 @@ function handleSquealers(w: WorldState, rng: Rng): void {
       if (b.protection.refusing && rng.chance(0.12)) {
         gang.evidence = Math.min(100, gang.evidence + 5);
         gang.suspicion = Math.min(100, gang.suspicion + 3);
+        recordSqueal(w, gang.id, owner);
         w.weekLog.push(`${owner.name} squealed to the police about ${gang.name}.`);
         if (gang.isPlayer) {
           addMessage(w, 'police', `${owner.name} squealed to the police. Deal with him.`, owner.pos, owner.id);
@@ -170,6 +178,8 @@ function openCases(w: WorldState, rng: Rng): void {
       defendantId: p.id,
       gangId: gang.id,
       crime: worst ? describeCrime(worst.kind) : 'racketeering',
+      ...(worst ? { sourceCrimeId: worst.id, investigatorId: worst.investigatorId,
+        investigatorKnown: worst.investigatorKnown } : {}),
       judgeId: rng.pick(w.judgeIds),
       daId: rng.pick(w.daIds),
       witnessIds,
@@ -215,6 +225,27 @@ function progressCases(w: WorldState, rng: Rng): void {
       c.daId = rng.pick(w.daIds);
       reassigned = true;
     }
+    if (c.investigatorId != null && w.people[c.investigatorId]?.status !== 'active') {
+      c.investigatorId = w.policeIds.find(id => w.people[id]?.status === 'active');
+      c.investigatorKnown = false;
+      reassigned = true;
+    }
+    // A murdered or otherwise unavailable juror is replaced. Removing jurors
+    // cannot quietly empty the panel and force a verdict; the new panel must
+    // be identified and the hearing is delayed.
+    const seated = new Set(c.jurorIds);
+    for (let i = 0; i < c.jurorIds.length; i++) {
+      if (w.people[c.jurorIds[i]]?.status === 'active') continue;
+      const candidates = peopleList(w).filter(p => p.role === 'owner' && p.status === 'active' && !seated.has(p.id));
+      seated.delete(c.jurorIds[i]);
+      if (candidates.length) {
+        const replacement = rng.pick(candidates);
+        c.jurorIds[i] = replacement.id;
+        seated.add(replacement.id);
+      } else c.jurorIds.splice(i--, 1);
+      c.knowsJurors = false;
+      reassigned = true;
+    }
     // Let the next planning screen show the changed officials before the verdict.
     if (reassigned) c.weeksToTrial = Math.max(2, c.weeksToTrial);
     c.weeksToTrial--;
@@ -247,14 +278,16 @@ function progressCases(w: WorldState, rng: Rng): void {
 
     const livingWitnesses = c.witnessIds.filter((id) => {
       const wn = w.people[id];
-      return wn && wn.status === 'active' && (wn.opinion[gang.id] ?? 0) < 40;
+      return wn && wn.status === 'active' && !c.bribedWitnessIds?.includes(id) && (wn.opinion[gang.id] ?? 0) < 40;
     });
     const friendlyJurors = c.jurorIds.filter((id) => {
       const j = w.people[id];
-      return j && j.status === 'active' && (j.opinion[gang.id] ?? 0) > 25;
+      return j && j.status === 'active' && (c.bribedJurorIds?.includes(id) || (j.opinion[gang.id] ?? 0) > 25);
     });
 
     let prosecution = c.strength * 0.6 + livingWitnesses.length * 12 + daSkill * 6 + gang.evidence * 0.25;
+    const investigator = c.investigatorId == null ? undefined : w.people[c.investigatorId];
+    if (investigator?.employedBy === gang.id || investigator?.bribedBy === gang.id) prosecution *= 0.82;
     let defence = defSkill * 16 + friendlyJurors.length * 11 + 15;
     prosecution *= rng.range(0.85, 1.15);
     defence *= rng.range(0.85, 1.15);

@@ -379,7 +379,10 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       j.blockIds.some(id => !w.blocks[id]) || !ids(j.visitedPersonIds) || j.visitedPersonIds.some(id => !w.people[id]) ||
       !Number.isInteger(j.week) || j.week < 1 || j.week > w.week || j.quotedPrice < 0 || j.workLeft < 0 ||
       !Number.isInteger(j.completed) || j.completed < 0 || !Number.isInteger(j.patrolIndex) || j.patrolIndex < 0 ||
-      (j.targetPersonId == null && (j.type !== 'employPolice' || !j.blockIds.length))) throw Error('Save has an invalid specialist job.');
+      (j.type === 'investigateCrime' && (j.crimeId == null || !Number.isSafeInteger(j.crimeId) ||
+        (['queued', 'travelling', 'working'].includes(j.state) && !w.crimes.some(c => c.id === j.crimeId)))) ||
+      (j.targetPersonId == null && j.type !== 'investigateCrime' && (j.type !== 'employPolice' || !j.blockIds.length)))
+      throw Error('Save has an invalid specialist job.');
   }
   for (const [id, t] of Object.entries(w.personTakings ?? {})) {
     // Businesses can run at a loss; skimming still cannot increase what is handed over.

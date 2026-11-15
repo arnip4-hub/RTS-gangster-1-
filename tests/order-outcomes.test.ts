@@ -129,6 +129,27 @@ describe('planned orders produce real gameplay outcomes', () => {
     expect(bribed).toBe(true);
   });
 
+  it.each(['witness', 'juror'] as const)('records a successful %s bribe against the specific trial', kind => {
+    let bought = false;
+    for (const seed of [404, 405, 406, 407, 408]) {
+      const s = fixture(seed);
+      const target = Object.values(s.w.people).find(p => p.role === 'owner')!;
+      const caseId = s.w.sequences.court++;
+      s.w.cases[caseId] = { id: caseId, gangId: s.gang.id, defendantId: s.team.memberIds[0],
+        crime: 'racketeering', judgeId: s.w.judgeIds[0], daId: s.w.daIds[0],
+        witnessIds: kind === 'witness' ? [target.id] : [],
+        jurorIds: kind === 'juror' ? [target.id] : [], weeksToTrial: 3, status: 'onTrial',
+        knowsWitnesses: true, knowsJurors: true, judgeBribed: false, strength: 60 };
+      run(s, { type: 'bribe', personId: target.id, opts: { amount: 1100 } }, true);
+      if (target.bribedBy !== s.gang.id) continue;
+      expect(kind === 'witness' ? s.w.cases[caseId].bribedWitnessIds : s.w.cases[caseId].bribedJurorIds).toContain(target.id);
+      expect(s.w.crimes.some(c => c.kind === 'bribe' && c.victimId === target.id)).toBe(true);
+      bought = true;
+      break;
+    }
+    expect(bought).toBe(true);
+  }, 240000);
+
   it('intimidates a refusing protection payer and makes collection possible again', () => {
     let cowed = false;
     for (const seed of [404, 405, 406, 407, 408]) {

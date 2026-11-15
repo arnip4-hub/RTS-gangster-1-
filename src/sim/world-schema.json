@@ -2320,6 +2320,16 @@
             ]
           }
         },
+        "squealedOn": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T36"
+              }
+            ]
+          }
+        },
         "status": {
           "optional": false,
           "shape": {
@@ -5368,6 +5378,29 @@
             ]
           }
         },
+        "investigatorId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "investigatorKnown": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
         "gangId": {
           "optional": false,
           "shape": {
@@ -5474,6 +5507,39 @@
             "type": "string"
           }
         },
+        "sourceCrimeId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "investigatorId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "investigatorKnown": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
         "judgeId": {
           "optional": false,
           "shape": {
@@ -5496,6 +5562,26 @@
           "optional": false,
           "shape": {
             "ref": "T3"
+          }
+        },
+        "bribedWitnessIds": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T3"
+              }
+            ]
+          }
+        },
+        "bribedJurorIds": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T3"
+              }
+            ]
           }
         },
         "weeksToTrial": {
@@ -6079,6 +6165,19 @@
               },
               {
                 "literal": "employPolice"
+              },
+              {
+                "literal": "investigateCrime"
+              }
+            ]
+          }
+        },
+        "crimeId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
               }
             ]
           }

@@ -124,6 +124,8 @@ export interface Person {
    * change; unset entries hold the Constants.xtx creation roll (attitudes.ts). */
   hostility?: Record<ID, number>;
   fear?: Record<ID, number>;
+  /** Last time this person was identified as reporting this gang to the police. */
+  squealedOn?: Record<ID, number>;
   status: PersonStatus;
   /** The part of the coming minute already shown when a command was given (movement.ts). */
   commandFraction?: number;
@@ -510,7 +512,9 @@ export interface SpecialistJob {
   gangId: ID;
   actorId: ID;
   week: number;
-  type: 'audit' | 'bribeOfficials' | 'employPolice';
+  type: 'audit' | 'bribeOfficials' | 'employPolice' | 'investigateCrime';
+  /** A lawyer's courthouse inquiry into one reported crime. */
+  crimeId?: ID;
   targetPersonId: ID | null;
   blockIds: ID[];
   state: 'queued' | 'travelling' | 'working' | 'done' | 'failed' | 'cancelled';
@@ -832,6 +836,10 @@ export interface CrimeRecord {
   reportedAt?: number;
   /** A live police investigation gets one roll; weekly settlement must not repeat it. */
   investigatedAt?: number;
+  /** The officer handling this report, including when no car was dispatched. */
+  investigatorId?: ID;
+  /** The accused gang has obtained the officer's identity from its lawyer. */
+  investigatorKnown?: boolean;
   gangId: ID;
   perpetratorId: ID;
   kind: string;
@@ -851,10 +859,16 @@ export interface CourtCase {
   defendantId: ID;
   gangId: ID;
   crime: string;
+  sourceCrimeId?: ID;
+  investigatorId?: ID;
+  investigatorKnown?: boolean;
   judgeId: ID;
   daId: ID;
   witnessIds: ID[];
   jurorIds: ID[];
+  /** Case-specific interference; a bribe only counts for the trial it reached. */
+  bribedWitnessIds?: ID[];
+  bribedJurorIds?: ID[];
   /** Weeks until the verdict. */
   weeksToTrial: number;
   status: 'awaiting' | 'onTrial' | 'dismissed' | 'acquitted' | 'convicted';

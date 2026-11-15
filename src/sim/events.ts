@@ -239,6 +239,9 @@ export function recordCrime(w: WorldState, rng: Rng, params: CrimeParams): Crime
   };
   w.crimes.push(crime);
   const responder = dispatchWitnessedCrime(w, crime, params.pos);
+  if (reported) crime.investigatorId = responder?.id ??
+    w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active' && p.role === 'police')
+      .sort((a, b) => dist2(a.pos, params.pos) - dist2(b.pos, params.pos) || a.id - b.id)[0]?.id;
   if (responder) addMessage(w, 'police', `Witnesses reported a ${params.type}; police are responding by car.`, params.pos, responder.id);
   // The gang wronged takes it badly: the man's own gang, or the gang that
   // owns or protects the premises.
