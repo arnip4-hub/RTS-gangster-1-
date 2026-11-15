@@ -32,7 +32,7 @@
  * short dwell.
  */
 
-import { CELL, MINUTES_PER_SECOND } from './constants';
+import { CELL, MINUTES_PER_SECOND, movementScale } from './constants';
 import { campaignMinute } from './calendar';
 import { streetEdgeOpen, streetName } from './cityLayout';
 import type { Vec2, WorldState } from './types';
@@ -232,7 +232,8 @@ export function tramsAt(w: WorldState, time: number): Tram[] {
     const leg = r.length + 2 * r.overrun;
     r.phase.forEach((phase, index) => {
       const k = out.length, halted = st?.halted[k] ?? false;
-      const t = campaignMinutes(w, halted ? Math.floor(time) : time) - (st?.delay[k] ?? 0);
+      const t = (campaignMinutes(w, halted ? Math.floor(time) : time) - (st?.delay[k] ?? 0)) *
+        movementScale(!!w.options.continuousTime);
       const tau = ((phase + t) % r.period + r.period) % r.period;
       const { u, dwelling } = loopAt(r, tau);
       const outbound = u < leg;

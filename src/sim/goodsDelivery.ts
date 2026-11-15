@@ -1,4 +1,4 @@
-import { DRIVE_SPEED, MINUTES_PER_WEEK, VEHICLES } from './constants';
+import { DRIVE_SPEED, MINUTES_PER_WEEK, movementScale, VEHICLES } from './constants';
 import { FULL_DAY_MINUTES } from './calendar';
 import { BUILDING_BY_ID } from './data/buildings';
 import { goodsRetailer, goodsRoom } from './goodsStorage';
@@ -84,7 +84,7 @@ function schedule(w: WorldState, source: Building): void {
   }
 }
 function step(w: WorldState, d: GoodsDelivery, minutes: number): boolean {
-  let budget = DELIVERY_SPEED * minutes;
+  let budget = DELIVERY_SPEED * movementScale(!!w.options.continuousTime) * minutes;
   d.halted = false;
   const traffic = trafficContext(w);
   noteDrive(d, d.pos);

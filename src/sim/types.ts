@@ -213,6 +213,8 @@ export interface TramRide {
 
 export interface BurningEscape {
   week:number; buildingId:ID; startMinute:number; fatal:boolean;
+  /** Clock rate when the escape began; older saves use the classic rate. */
+  minutesPerSecond?: number;
   door:Vec2; pavement:Vec2; end:Vec2;
   gangId:ID|null; perpetratorId:ID|null;
 }

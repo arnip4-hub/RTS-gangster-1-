@@ -23,7 +23,7 @@ import { peopleList } from './entityLists';
 import { onGangPayroll } from './payrollMark';
 import { clearDestination, setDestination } from './movement';
 import { parkingSpot } from './vehicleNavigation';
-import { MINUTES_PER_SECOND } from './constants';
+import { minuteRate } from './constants';
 
 
 
@@ -138,7 +138,7 @@ function dispatchWitnessedCrime(w: WorldState, crime: CrimeRecord, pos: Vec2): P
   setDestination(w, officer, target);
   officer.emergencyResponse = {
     week: w.week, buildingId: crime.buildingId, crimeId: crime.id,
-    startMinute: w.minute, untilMinute: w.minute + 90 * MINUTES_PER_SECOND,
+    startMinute: w.minute, untilMinute: w.minute + 90 * minuteRate(!!w.options.continuousTime),
     kind: 'police', stage: 'approaching', target, lookAt: { ...pos },
     home: homePos, ...(homeBuildingId == null ? {} : { homeBuildingId }), vehicle: true,
   };

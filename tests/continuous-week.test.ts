@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { defaultGameOptions } from '../src/app/newGame';
 import { issueOrder, issueStreetOrder } from '../src/sim/api';
 import { FULL_DAY_MINUTES, FULL_WEEK_MINUTES, campaignMinute, weekDuration } from '../src/sim/calendar';
-import { CELL } from '../src/sim/constants';
-import { clearDestination, setDestination } from '../src/sim/movement';
+import { CELL, MINUTES_PER_SECOND, RTS_MINUTES_PER_SECOND } from '../src/sim/constants';
+import { clearDestination, personSpeed, setDestination } from '../src/sim/movement';
 import { Sim } from '../src/sim/sim';
 import { tickAmbient } from '../src/sim/systems/ambient';
 import { tickBuildingEmergencies } from '../src/sim/systems/buildingEmergency';
@@ -14,6 +14,26 @@ import { weekTime } from '../src/ui/WeekClock';
 const options = () => ({ ...defaultGameOptions(), continuousTime: true, seed: 404, citySize: 10 });
 
 describe('continuous RTS calendar', () => {
+  it('takes 24 real minutes per RTS day at normal speed while preserving street pace', () => {
+    const rts = new Sim(options());
+    rts.launchWeek();
+    const classic = new Sim({ ...defaultGameOptions(), seed: 404, citySize: 10 });
+    classic.launchWeek();
+    const walker = Object.values(rts.world.people).find(p => p.role === 'citizen')!;
+    const oldWalker = Object.values(classic.world.people).find(p => p.role === 'citizen')!;
+    expect(FULL_DAY_MINUTES / RTS_MINUTES_PER_SECOND / 60).toBe(24);
+    expect(personSpeed(walker, rts.world) * RTS_MINUTES_PER_SECOND)
+      .toBeCloseTo(personSpeed(oldWalker, classic.world) * MINUTES_PER_SECOND);
+    const start = rts.world.minute;
+    rts.advance(.5, 1);
+    expect(rts.world.minute).toBe(start);
+    expect(rts.subMinute).toBeCloseTo(.5);
+    rts.advance(.5, 1);
+    expect(rts.world.minute).toBe(start + 1);
+    classic.advance(1 / MINUTES_PER_SECOND, 1);
+    expect(classic.world.minute).toBe(1);
+  });
+
   it('plays full days including Saturday, Sunday and midnight', () => {
     const sim = new Sim(options());
     expect(weekDuration(sim.world)).toBe(FULL_WEEK_MINUTES);
@@ -110,7 +130,7 @@ describe('continuous RTS calendar', () => {
     expect(responding.emergencyResponse).toMatchObject({ week: 2, startMinute: -8, untilMinute: 100, arrivedMinute: -5 });
     expect(shocked.shockReaction).toMatchObject({ week: 2, startMinute: -8, untilMinute: 20 });
     expect(() => Sim.fromSave(structuredClone(w))).not.toThrow();
-    sim.advance(10, 1);
+    sim.advance(30, 1);
     expect(escaping.burningEscape).toBeUndefined();
     expect(shocked.shockReaction).toBeUndefined();
   });

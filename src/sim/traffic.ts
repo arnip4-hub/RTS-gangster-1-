@@ -1,4 +1,4 @@
-import { MINUTES_PER_SECOND } from './constants';
+import { MINUTES_PER_SECOND, movementScale } from './constants';
 /**
  * The city's traffic. The cars are scenery — nothing in the world depends on
  * them — but they are scenery the pedestrians can see, and that can see the
@@ -438,12 +438,13 @@ export function carsAt(w: WorldState, time: number): Car[] {
   const g = streetGraph(w);
   // The clock runs on from week to week: a car's drive does not restart.
   const weekStart = campaignMinute(w, 0);
+  const ambientSpeed = AMBIENT_SPEED * movementScale(!!w.options.continuousTime);
   const minute = Math.floor(time);
   const cars: Car[] = [];
   for (let k = 0; k < specs.length; k++) {
     const { truck, color } = specs[k];
     const halted = st.halted[k];
-    const distance = Math.max(0, weekStart + (halted ? minute : time) - st.delay[k]) * AMBIENT_SPEED;
+    const distance = Math.max(0, weekStart + (halted ? minute : time) - st.delay[k]) * ambientSpeed;
     const drive = driveTo(w, k, distance);
     let lo = 0, hi = drive.at.length - 1;
     while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (drive.at[mid] <= distance) lo = mid; else hi = mid; }
@@ -453,7 +454,7 @@ export function carsAt(w: WorldState, time: number): Car[] {
     const j = drive.junction[hi], jp = j >= 0 ? g.points[j] : null;
     const exit = drive.head[hi + 1] ?? head;
     cars.push({
-      axisX, line: Math.round((axisX ? y : x) / CELL), dir, truck, speed: AMBIENT_SPEED, s: axisX ? x : y, x, y, color, halted,
+      axisX, line: Math.round((axisX ? y : x) / CELL), dir, truck, speed: ambientSpeed, s: axisX ? x : y, x, y, color, halted,
       waited: st.waited[k],
       junction: jp ? { x: jp.x, y: jp.y, ahead: drive.at[hi] - distance, exit } : undefined,
     });

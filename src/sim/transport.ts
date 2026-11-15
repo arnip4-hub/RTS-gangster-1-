@@ -1,4 +1,4 @@
-import { DRIVE_MIN_DISTANCE, DRIVE_SPEED, ORDERS, VEHICLES, WALK_SPEED } from './constants';
+import { DRIVE_MIN_DISTANCE, DRIVE_SPEED, movementScale, ORDERS, VEHICLES, WALK_SPEED } from './constants';
 import { stampedMinute } from './calendar';
 import { hash32 } from './hash';
 import { cargoWarehouse, routeCargoReturn, unloadCargo } from './cargo';
@@ -39,13 +39,14 @@ function closingOnHisMan(p: Person, w?: WorldState): boolean {
     ORDERS[order.type].target === 'person';
 }
 export function transportSpeed(p: Person, w?: WorldState): number {
+  const pace = movementScale(!!w?.options.continuousTime);
   // Someone sent after a person on foot hurries, or an ambling target would
   // keep the same lead for ever at the original's walking pace.
-  if (!p.inVehicle) return p.streetOrder?.type === 'assault' || p.streetOrder?.type === 'kill' || runningCivilian(p) || closingOnHisMan(p, w) ? WALK_SPEED * PURSUIT_PACE : WALK_SPEED;
+  if (!p.inVehicle) return (p.streetOrder?.type === 'assault' || p.streetOrder?.type === 'kill' || runningCivilian(p) || closingOnHisMan(p, w) ? WALK_SPEED * PURSUIT_PACE : WALK_SPEED) * pace;
   const v = vehicleOf(w,p), driver = v?.driverId == null ? p : w?.people[v.driverId] ?? p;
   const kind = v?.kind ?? (p.role === 'accountant' || p.role === 'lawyer' ?
     w?.gangs[p.gangId!]?.staffVehicles?.[p.role] : null);
-  return DRIVE_SPEED * (kind ? VEHICLES[kind].speed : p.role === 'police' ? 1.6 : 1) * (.75 + driver.skills.driving * .1);
+  return DRIVE_SPEED * (kind ? VEHICLES[kind].speed : p.role === 'police' ? 1.6 : 1) * (.75 + driver.skills.driving * .1) * pace;
 }
 function base(w: WorldState, gangId: ID, near: Vec2): Vec2 {
   const offices = allBuildings(w).filter(b => b.ownerGangId === gangId && b.typeId === 'office' && b.state !== 'destroyed');
@@ -368,5 +369,5 @@ export function plannedTravelSpeed(w:WorldState,team:Team,people:Person[],type:O
   const plan=transportPlan(w,team,people,type);
   const speeds=plan.cars.map(c=>DRIVE_SPEED*VEHICLES[c.kind].speed*(.75+Math.max(...c.riders.map(p=>p.skills.driving))*.1));
   if(plan.walkers.length||!speeds.length)speeds.push(WALK_SPEED);
-  return Math.min(...speeds);
+  return Math.min(...speeds) * movementScale(!!w.options.continuousTime);
 }

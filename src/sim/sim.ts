@@ -16,7 +16,7 @@ import { finalScore, recordScorePeaks, scoreMeasures } from './scoring';
 import { observeTargetRace, tieRank } from './targetRace';
 import { weeklyTaxes } from './systems/taxes';
 import { buildingValue, releaseGangHoldings, standingBlocks } from './execution';
-import { MINUTES_PER_SECOND, ORDERS } from './constants';
+import { minuteRate, ORDERS } from './constants';
 import { weekDuration } from './calendar';
 import { addMessage, addNews } from './events';
 import { beginWeekOrders, disbandTeam, promoteToLieutenant, replaceLieutenant, tickOrders } from './execution';
@@ -203,9 +203,9 @@ export class Sim {
       return;
     }
 
-    this.accumulator += seconds * MINUTES_PER_SECOND * speed;
-    // 10/3 minutes a second is not exact in binary: 0.3 s × 10/3 comes to
-    // 0.9999… A millionth of a minute's tolerance keeps whole minutes whole.
+    this.accumulator += seconds * minuteRate(!!w.options.continuousTime) * speed;
+    // A millionth of a minute's tolerance keeps whole minutes whole when the
+    // elapsed seconds and clock rate are not exact in binary.
     let steps = Math.floor(this.accumulator + 1e-6);
     if (steps <= 0) { this.ambientSlices(false); w.rngState = this.rng.state; return; }
     this.accumulator = Math.max(0, this.accumulator - steps);

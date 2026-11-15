@@ -23,6 +23,13 @@ export const LANE_OFFSET = 1.95;
  * second (playtest, 30 September: match the original's pace).
  */
 export const MINUTES_PER_SECOND = 10 / 3;
+/** RTS normal speed: one game minute per real second, a 24-minute full day. */
+export const RTS_MINUTES_PER_SECOND = 1;
+export const minuteRate = (continuous: boolean): number =>
+  continuous ? RTS_MINUTES_PER_SECOND : MINUTES_PER_SECOND;
+/** Keep people and cars at their familiar on-screen pace as the RTS clock slows. */
+export const movementScale = (continuous: boolean): number =>
+  MINUTES_PER_SECOND / minuteRate(continuous);
 
 /**
  * Movement, metres per simulated minute. Walkers keep the original's on-screen

@@ -15,11 +15,9 @@ Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangst
 branch. The default `main` branch is kept as the remake baseline, with this project
 page and the Windows build workflow.
 
-- **In the latest published Windows test build:** watch the 3D city, click the
-  minimap to jump across town, open the Organizer during a working week with `O`
-  or **Book**, and use **Move crew** in the People roster to choose a destination
-  for a deployed team.
-- **Implemented on `rts-development`, awaiting the next Windows build:** pan the
+- **In the latest published Windows beta:** watch the 3D city, click the minimap
+  to jump across town, open the Organizer with `O` or **Book**, use **Move crew**
+  in the People roster, and pan the
   city with `W/A/S/D` or the arrow keys during the working week. **City plan**
   now opens the same overhead map used in the Organizer, with drag and zoom
   controls; **Rooftop** and **Street** return to the 3D city at that location.
@@ -45,6 +43,11 @@ page and the Windows build workflow.
   and a rival site are known. Existing orders are left in progress. Scouting
   reveals sites before the live planner targets them; there is no new district
   ownership system.
+- **On `rts-development`, awaiting the next Windows build:** the RTS clock now
+  takes 24 real minutes for a full day at normal speed, up from about seven.
+  People, cars and delivery trucks keep roughly the same screen pace; the
+  classic five-day mode keeps its original clock rate. The existing speed
+  controls still let players accelerate the longer day.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.

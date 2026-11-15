@@ -3,7 +3,7 @@ import { defaultGameOptions } from '../src/app/newGame';
 import { cancelOrder } from '../src/sim/api';
 import { LIVE_AI_INTERVAL, liveAiDue, planIdleCrews } from '../src/sim/ai';
 import { campaignMinute } from '../src/sim/calendar';
-import { MINUTES_PER_SECOND } from '../src/sim/constants';
+import { MINUTES_PER_SECOND, RTS_MINUTES_PER_SECOND } from '../src/sim/constants';
 import { tickOrders } from '../src/sim/execution';
 import { Sim } from '../src/sim/sim';
 import type { Team, WorldState } from '../src/sim/types';
@@ -70,8 +70,8 @@ describe('live rival crew planning', () => {
     w.minute = due - 1;
     const restored = Sim.fromSave(structuredClone(w));
 
-    sim.advance(1 / MINUTES_PER_SECOND, 1);
-    restored.advance(1 / MINUTES_PER_SECOND, 1);
+    sim.advance(1 / RTS_MINUTES_PER_SECOND, 1);
+    restored.advance(1 / RTS_MINUTES_PER_SECOND, 1);
 
     expect(team.orderIds).toHaveLength(1);
     expect(JSON.stringify(restored.world)).toBe(JSON.stringify(w));

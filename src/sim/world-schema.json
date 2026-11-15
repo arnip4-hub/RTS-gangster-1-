@@ -2758,6 +2758,16 @@
             "type": "boolean"
           }
         },
+        "minutesPerSecond": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "door": {
           "optional": false,
           "shape": {

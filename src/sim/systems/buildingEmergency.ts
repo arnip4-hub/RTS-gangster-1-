@@ -6,12 +6,9 @@ import {clearDestination,setDestination,stepPerson} from '../movement';
 import {presentPhoto} from '../presentationEvents';
 import {trafficContext} from '../traffic';
 import {buildingDoor,dist} from '../world';
-import {BURNING_TIMING,escapeSample} from '../burningEscape';
+import {escapeSample} from '../burningEscape';
 import type {Rng} from '../rng';
-import { MINUTES_PER_SECOND } from '../constants';
-
-/** On-screen durations, in simulated minutes at the current clock. */
-const secs=(seconds:number)=>seconds*MINUTES_PER_SECOND;
+import { minuteRate } from '../constants';
 import type {Building,Person,Vec2,WorldState} from '../types';
 import { peopleList, buildingList } from '../entityLists';
 
@@ -45,6 +42,8 @@ export function carryBuildingEmergencies(w: WorldState, oldWeek: number, minutes
 /** Called before damage releases managers and destroys resident associations. */
 export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fire'|'explosion',delay=0,
   culprit?:Person,forceFatal?:boolean):Person[]{
+  const rate=minuteRate(!!w.options.continuousTime);
+  const secs=(seconds:number)=>seconds*rate;
   // Those actually inside: a reporter on the newspaper's books but out on the
   // street across town is not caught in its fire.
   const inside=w.lots[b.lotId].center;
@@ -54,7 +53,7 @@ export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fir
   const facing=lot.facing??(Math.abs(pavement.x-lot.center.x)>Math.abs(pavement.y-lot.center.y)?
     pavement.x<lot.center.x?'west':'east':pavement.y<lot.center.y?'north':'south');
   const nx=facing==='east'?1:facing==='west'?-1:0,ny=facing==='south'?1:facing==='north'?-1:0;
-  const startMinute=w.minute+delay*BURNING_TIMING.minutesPerSecond;
+  const startMinute=w.minute+delay*rate;
   residents.forEach((p,i)=>{
     // Two short, unobstructed legs: through the frontage, then along its pavement.
     const end={x:pavement.x+ny*(i%2?-1:1)*(7+i),y:pavement.y-nx*(i%2?-1:1)*(7+i)};
@@ -62,6 +61,7 @@ export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fir
     else end.x=Math.max(r.x+1.5,Math.min(r.x+r.w-1.5,end.x));
     const door={x:pavement.x-nx*1.6,y:pavement.y-ny*1.6};
     p.burningEscape={week:w.week,buildingId:b.id,startMinute:startMinute+secs(.3)*i,
+      ...(w.options.continuousTime?{minutesPerSecond:rate}:{}),
       fatal:forceFatal??rng.chance(kind==='fire'?.25:.5),door,pavement:{...pavement},end,
       gangId:culprit?.gangId??null,perpetratorId:culprit?.id??null};
     p.pos={...door};p.inVehicle=false;p.orderId=null;p.streetOrder=null;clearDestination(p);
@@ -136,6 +136,7 @@ export function settleBurningEscapes(w:WorldState,rng:Rng):void{
 }
 
 export function tickBuildingEmergencies(w:WorldState,rng:Rng,minutes:number):void{
+  const secs=(seconds:number)=>seconds*minuteRate(!!w.options.continuousTime);
   const traffic=trafficContext(w);
   for(const p of Object.values(w.people)){
     const shock=p.shockReaction;
