@@ -1622,7 +1622,7 @@ function resolveTarget(
         if (victim.vehicleKey) dismount(w,victim);
         victim.inVehicle = false;
         clearDestination(victim);
-        victim.captivity={stage:'transport',officeId:office.id,startedAt:campaignMinute(w),
+        victim.captivity={stage:'transport',officeId:office.id,crimeId:crime.id,startedAt:campaignMinute(w),
           reported:crime.reported,discovered:false,searchProgress:0,nextEscapeAt:campaignMinute(w)+360};
         if (victim.familyOfId != null && w.people[victim.familyOfId])
           shiftAttitude(w.people[victim.familyOfId],gang.id,80,0);
@@ -1810,7 +1810,7 @@ function resolveTarget(
       // 5 or 11) turns the Kill into an Assault (order 0x18), whose close
       // combat never kills; only a shopkeeper is executed in his premises
       // (0x4E0220) whatever the weapon.
-      const beating = !!w.cityLayout?.original && !armed && victim.role !== 'owner';
+      const beating = !!w.cityLayout?.original && !w.options.continuousTime && !armed && victim.role !== 'owner';
       recordCrime(w, rng, {
         gangId: gang.id,
         perpetratorId: lead.id,

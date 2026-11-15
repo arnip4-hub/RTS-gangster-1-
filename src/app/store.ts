@@ -6,7 +6,6 @@ import { recordScorePeaks } from '../sim/scoring';
 import { observeTargetRace } from '../sim/targetRace';
 import { FLAT_OUT_BUDGET_MS, SPEED_STAGES, isFlatOut, nearestStage, stageIndex } from './speed';
 import { automaticRoofsPreference } from '../render/viewModes';
-import { bossInsideOffice } from '../render/characterPresentation';
 import { create } from 'zustand';
 import { fitAreaToWeek, type ApiResult } from '../sim/api';
 import { weekCharge } from '../sim/execution';
@@ -576,7 +575,7 @@ export const useGame = create<GameState>((set, get) => ({
   tagPerson: (id) => {
     const {sim, taggedPersonIds} = get();
     const person = sim?.world.people[id];
-    if (sim?.world.phase !== 'week' || !person || bossInsideOffice(person) || taggedPersonIds.includes(id)) return;
+    if (sim?.world.phase !== 'week' || !person || taggedPersonIds.includes(id)) return;
     set({taggedPersonIds: [...taggedPersonIds, id]});
   },
   closeTaggedPerson: (id) => set(s => ({taggedPersonIds: s.taggedPersonIds.filter(p => p !== id)})),

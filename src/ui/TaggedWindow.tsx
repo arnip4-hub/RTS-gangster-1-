@@ -8,9 +8,9 @@ import { restingStatus } from '../sim/transport';
 import { cameraApi, taggedViewApi } from './CityView';
 import { VIEW_ZOOM } from '../render/viewModes';
 import { Portrait } from './Portrait';
-import { bossInsideOffice } from '../render/characterPresentation';
 import { InterfaceButton } from './InterfaceControls';
 import { cancelSpecialistJob, setSpecialistWaiting, SPECIALIST_JOB_NAMES, specialistJobActive } from '../sim/specialistJobs';
+import { personProfile } from '../sim/personProfile';
 
 /** Manual pp. 78-79: a live, independent view of the selected character. */
 export function TaggedWindow({id}: {id: number}) {
@@ -24,9 +24,10 @@ export function TaggedWindow({id}: {id: number}) {
   const setPaused = useGame(s => s.setPaused);
   useGame(s => s.version);
   const [mode, setMode] = useState<'street' | 'roof'>('street');
+  const [showProfile, setShowProfile] = useState(false);
   const viewport = useRef<HTMLDivElement>(null);
   const candidate = id == null ? null : sim.world.people[id];
-  const person = candidate && !bossInsideOffice(candidate) ? candidate : null;
+  const person = candidate;
 
   useEffect(() => {
     if (!viewport.current || id == null || !person) return;
@@ -37,6 +38,7 @@ export function TaggedWindow({id}: {id: number}) {
 
   if (!person) return null;
   const w = sim.world;
+  const profile = personProfile(w, person);
   const mine = person.gangId === sim.playerGang.id;
   const order = person.orderId == null ? null : w.orders[person.orderId];
   const staff = Object.values(w.specialistJobs ?? {}).find(j => j.actorId === person.id && j.week === w.week && specialistJobActive(j) && j.state !== 'queued');
@@ -66,6 +68,8 @@ export function TaggedWindow({id}: {id: number}) {
       <h4>{person.name}</h4>
     </header>
     <div className="tagged-toolbar" aria-label="Tagged window controls">
+      <InterfaceButton label="Person profile" glyph="ⓘ" aria-pressed={showProfile} title={`Show ${person.name}'s household details`}
+        onClick={() => setShowProfile(!showProfile)}/>
       <InterfaceButton label="Center View" icon="hud/follow" title="Center the main view on this character" onClick={() => requestCamera(previewPosition(person, sim.subMinute, { x: 0, y: 0 }))}/>
       <InterfaceButton label="Toggle Display" glyph="▱" aria-pressed={mode === 'roof'} title={`Toggle Display — show ${mode==='street'?'Rooftop':'Street'} View in this window`}
         onClick={() => setMode(mode === 'street' ? 'roof' : 'street')}/>
@@ -78,6 +82,13 @@ export function TaggedWindow({id}: {id: number}) {
         <InterfaceButton label="Return to Base" glyph="⌂" onClick={() => notify(act(s => returnToBase(s.world, s.playerGang.id, person.id)))}/>
       </>}
     </div>
+    {showProfile && <div className="paper tagged-profile" aria-label={`Profile: ${person.name}`}>
+      <div><b>{person.name}</b> · {profile.age} years old</div>
+      <div>Spouse: {profile.spouse ?? 'None listed'}</div>
+      <div>Children: {profile.children} · Household: {profile.householdSize}</div>
+      {person.familyOfId != null && <div>{person.familyRelation} of {w.people[person.familyOfId]?.name ?? 'an official'}</div>}
+      <small>Children and unlinked spouses live off the city map.</small>
+    </div>}
     <div className="paper tagged-status">
       <b>{mine && active ? (paused ? 'Paused · ' : waiting ? 'Waiting · ' : '') + orderName + (pursuit ? ` · ${pursuit}` : '') : person.status}</b>
       <span>{Math.round(person.hp)} hp{person.inVehicle ? ' · In vehicle' : ''}{cargo?` · ${goodsTotal(cargo.goods)} cases`:''}</span>

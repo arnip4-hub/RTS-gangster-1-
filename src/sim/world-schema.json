@@ -3295,6 +3295,16 @@
             ]
           }
         },
+        "crimeId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "officeId": {
           "optional": false,
           "shape": {

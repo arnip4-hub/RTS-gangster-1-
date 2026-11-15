@@ -188,6 +188,7 @@ export interface Person {
   captivity?: {
     /** The victim remains with the moving crew until delivered to this office. */
     stage: 'transport' | 'held';
+    crimeId?: ID;
     officeId: ID;
     startedAt: number;
     /** Only a discovered address permits a police or rival rescue. */

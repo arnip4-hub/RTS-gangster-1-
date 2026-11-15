@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { defaultGameOptions } from '../src/app/newGame';
 import { selectableOrderPerson } from '../src/app/orderSelection';
-import { issueOrder } from '../src/sim/api';
+import { issueOrder, killPrisoner } from '../src/sim/api';
 import { campaignMinute } from '../src/sim/calendar';
 import { demandRansom, policeRescueArrival, pressureOfficial, ransomQuote, tickCaptivity } from '../src/sim/captivity';
 import { bribePrice } from '../src/sim/officials';
+import { personProfile } from '../src/sim/personProfile';
 import { Sim } from '../src/sim/sim';
 import { buildingDoor } from '../src/sim/world';
+import type { CrimeRecord } from '../src/sim/types';
 
 const make = (seed=406) => new Sim({...defaultGameOptions(),continuousTime:true,seed,citySize:10,startMoney:100000,startHoods:8});
 
@@ -24,6 +26,24 @@ describe('civilian kidnapping and official families',()=>{
     expect(selectableOrderPerson(w,g.id,'kidnap',citizen)).toBe(true);
     const restored=Sim.fromSave(structuredClone(w));
     expect(restored.world.people[relative.id].familyOfId).toBe(official.id);
+  });
+
+  it('shows consistent household details for every character and linked spouses',()=>{
+    const sim=make(),w=sim.world;
+    const relative=Object.values(w.people).find(p=>p.familyRelation==='spouse')!;
+    const official=w.people[relative.familyOfId!];
+    const a=personProfile(w,relative),b=personProfile(w,official);
+    expect(a.spouse).toBe(official.name);
+    expect(b.spouse).toBe(relative.name);
+    expect(a.children).toBe(b.children);
+    expect(Math.abs(a.age-b.age)).toBeLessThanOrEqual(6);
+    const restored=Sim.fromSave(structuredClone(w));
+    expect(personProfile(restored.world,relative)).toEqual(a);
+    for(const p of Object.values(w.people)) {
+      const profile=personProfile(w,p);
+      expect(profile.age).toBeGreaterThanOrEqual(18);
+      expect(profile.householdSize).toBeGreaterThanOrEqual(1);
+    }
   });
 
   it('takes a civilian along on the actual crew journey before custody',()=>{
@@ -73,6 +93,21 @@ describe('civilian kidnapping and official families',()=>{
     expect(()=>Sim.fromSave(structuredClone(w))).not.toThrow();
   });
 
+  it('allows an ordinary civilian captive to be executed and raises police evidence',()=>{
+    const sim=make(),w=sim.world,g=sim.playerGang;
+    const victim=Object.values(w.people).find(p=>p.role==='citizen'&&p.familyOfId==null)!;
+    const office=Object.values(w.buildings).find(b=>b.isHQ&&b.ownerGangId===g.id)!;
+    victim.status='kidnapped';victim.capturedBy=g.id;
+    victim.captivity={stage:'held',officeId:office.id,startedAt:0,reported:true,
+      discovered:false,searchProgress:0,nextEscapeAt:360};
+    g.prisonerIds.push(victim.id);
+    const before=g.evidence;
+    expect(killPrisoner(w,g.id,victim.id).ok).toBe(true);
+    expect(victim.status).toBe('dead');
+    expect(g.prisonerIds).not.toContain(victim.id);
+    expect(g.evidence).toBeGreaterThan(before);
+  });
+
   it('requires clues before a police car is sent to a safe house',()=>{
     const sim=make(),w=sim.world,g=sim.playerGang;
     const victim=Object.values(w.people).find(p=>p.familyOfId!=null)!;
@@ -94,6 +129,33 @@ describe('civilian kidnapping and official families',()=>{
     policeRescueArrival(w,sim.rng,victim.id);
     expect(victim.status).toBe('active');
     expect(g.prisonerIds).not.toContain(victim.id);
+  });
+
+  it('opens an unwitnessed missing-person search before revealing the address and files raid evidence',()=>{
+    const sim=make(),w=sim.world,g=sim.playerGang;
+    const victim=Object.values(w.people).find(p=>p.familyOfId!=null)!;
+    const office=Object.values(w.buildings).find(b=>b.isHQ&&b.ownerGangId===g.id)!;
+    const crime:CrimeRecord={id:9876,week:w.week,gangId:g.id,perpetratorId:g.bossId,kind:'kidnap',
+      buildingId:null,victimId:victim.id,witnesses:[],arrestRisk:.05,reported:false};
+    w.crimes.push(crime);w.phase='week';w.minute=720;
+    victim.status='kidnapped';victim.capturedBy=g.id;
+    victim.captivity={stage:'held',officeId:office.id,crimeId:crime.id,startedAt:600,
+      reported:false,discovered:false,searchProgress:0,nextEscapeAt:2000};
+    g.prisonerIds.push(victim.id);
+    tickCaptivity(w,sim.rng);
+    expect(victim.captivity.reported).toBe(false);
+    w.minute=780;
+    tickCaptivity(w,sim.rng);
+    expect(victim.captivity.reported).toBe(true);
+    expect(victim.captivity.discovered).toBe(false);
+    expect(crime.reported).toBe(false);
+    expect(w.messages.at(-1)?.pos).toBeNull();
+    victim.captivity.discovered=true;
+    vi.spyOn(sim.rng,'chance').mockReturnValue(false);
+    policeRescueArrival(w,sim.rng,victim.id);
+    expect(crime.reported).toBe(true);
+    expect(crime.arrestRisk).toBeGreaterThanOrEqual(.42);
+    expect(crime.reportedAt).toBe(780);
   });
 
   it('keeps the hostage address hidden from rivals until their own search finds it',()=>{

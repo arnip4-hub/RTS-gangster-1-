@@ -76,6 +76,17 @@ export function tickCaptivity(w: WorldState, rng: Rng): void {
       hold.nextEscapeAt=now+360;
       if (rng.chance(guards ? .04 : .16)) { freeCaptive(w,p,`${p.name} escaped from captivity.`); continue; }
     }
+    // A witnessed abduction is already on the desk. Otherwise the household
+    // must notice the absence before a missing-person investigation begins.
+    if (!hold.reported && now-hold.startedAt >= (p.familyOfId != null ? 180 : 720)) {
+      hold.reported=true;
+      if (p.familyOfId != null) {
+        const official=w.people[p.familyOfId];
+        if (official?.role==='fbiHead') w.gangs[p.capturedBy].suspicion=Math.min(100,w.gangs[p.capturedBy].suspicion+8);
+      }
+      if (w.gangs[p.capturedBy]?.isPlayer || p.gangId!=null && w.gangs[p.gangId]?.isPlayer)
+        addMessage(w,'police',`${p.name} has been reported missing. Investigators are looking for leads.`);
+    }
     if (p.gangId!=null && !hold.rivalDiscovered) {
       hold.rivalSearchProgress=(hold.rivalSearchProgress??0)+(hold.reported?10:6);
       if (hold.rivalSearchProgress>=100) {
@@ -84,11 +95,12 @@ export function tickCaptivity(w: WorldState, rng: Rng): void {
         if (w.gangs[p.gangId]?.isPlayer) addMessage(w,'waiting',`Your people traced ${p.name} to a safe house. A raid can bring them home.`,buildingDoor(w,office),p.id);
       }
     }
-    if (!hold.discovered && (hold.reported || p.familyOfId!=null || now-hold.startedAt>=720)) {
-      hold.searchProgress+=hold.reported ? p.familyOfId!=null?12:8 : p.familyOfId!=null?5:p.gangId!=null?5:2;
+    if (!hold.discovered && hold.reported) {
+      hold.searchProgress+=p.familyOfId!=null?12:8;
       if (hold.searchProgress>=100) {
         hold.discovered=true;
-        addMessage(w,'police',`Investigators found the place where ${p.name} is held.`,buildingDoor(w,office),p.id);
+        if (w.gangs[p.capturedBy]?.isPlayer || p.gangId!=null && w.gangs[p.gangId]?.isPlayer)
+          addMessage(w,'police',`Investigators found the place where ${p.name} is held.`,buildingDoor(w,office),p.id);
       }
     }
     if (p.gangId!=null && hold.rivalDiscovered && !w.gangs[p.gangId]?.isPlayer && !hold.rescuerId &&
@@ -122,9 +134,22 @@ export function tickCaptivity(w: WorldState, rng: Rng): void {
   }
 }
 
+/** A safe-house visit supplies a link to the abductors even if nobody saw the
+ * street snatch. The ordinary live law review decides whether it is enough. */
+function fileSafeHouseEvidence(w: WorldState, p: Person): void {
+  const crime=p.captivity?.crimeId == null ? undefined : w.crimes.find(c=>c.id===p.captivity?.crimeId);
+  if (!crime || crime.investigatedAt != null) return;
+  crime.reported=true;
+  crime.reportedAt=campaignMinute(w);
+  crime.arrestRisk=Math.max(crime.arrestRisk,.42);
+  const gang=w.gangs[p.capturedBy!];
+  if (gang) gang.evidence=Math.min(100,gang.evidence+8);
+}
+
 export function policeRescueArrival(w: WorldState, rng: Rng, victimId: ID): void {
   const p=w.people[victimId],hold=p?.captivity,office=hold && w.buildings[hold.officeId];
   if (!p || p.status!=='kidnapped' || hold?.stage!=='held' || !office) return;
+  fileSafeHouseEvidence(w,p);
   const guards=office.guardIds.filter(id=>id>=0 && w.people[id]?.status==='active').length;
   if (rng.chance(guards ? .4 : .9)) freeCaptive(w,p,`Police rescued ${p.name} from the safe house.`);
   else {hold.policeDispatched=false;hold.nextPoliceAt=campaignMinute(w)+360;}

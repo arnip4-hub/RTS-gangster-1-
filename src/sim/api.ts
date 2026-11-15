@@ -1162,13 +1162,14 @@ export function killPrisoner(w: WorldState, gangId: ID, personId: ID): ApiResult
   const gang = w.gangs[gangId];
   const p = w.people[personId];
   if (!gang || !p || p.capturedBy !== gangId) return fail('You hold no such prisoner.');
+  if (p.captivity?.stage === 'transport') return fail('The captive has not reached the safe house.');
   gang.evidence = Math.min(100, gang.evidence + (p.familyOfId != null ? 30 : 12));
   const rivalId = p.gangId;
   killPerson(w, p, `killed in custody by ${gang.name}`);
   gang.prisonerIds = gang.prisonerIds.filter((id) => id !== personId);
   // Word gets around, and the rival takes it badly (the player decides for himself).
   provoke(w, rivalId, gangId, INCIDENT_HOSTILITY.kill);
-  return ok(`${p.name} will not be missed.`);
+  return ok(`${p.name} was executed. The risk of discovery has risen.`);
 }
 
 export function releasePrisoner(w: WorldState, gangId: ID, personId: ID): ApiResult {

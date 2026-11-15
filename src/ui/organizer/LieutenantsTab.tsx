@@ -578,7 +578,7 @@ function ReportsPanel({ teamId }: { teamId: ID }) {
                   Assault
                 </button>
                 <button className="btn sm danger" onClick={() => notify(act((s) => killPrisoner(s.world, gang.id, p.id))!)}>
-                  Kill
+                  Execute
                 </button>
                 <button className="btn sm" onClick={() => notify(act((s) => releasePrisoner(s.world, gang.id, p.id))!)}>
                   Release
