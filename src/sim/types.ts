@@ -187,6 +187,15 @@ export interface Person {
   diedWeek: number;
   /** Absolute RTS minute of death for the next morning's obituary. */
   diedAt?: number;
+  /** Street death scene. A responding officer covers the body; the coroner's
+   *  vehicle follows a saved road route before taking it away. */
+  bodyRecovery?: {
+    coveredAt?: number;
+    hearseStartAt?: number;
+    hearseArriveAt?: number;
+    collectedAt?: number;
+    hearseRoute?: Vec2[];
+  } | null;
   /** Saved doorway escape and corpse pose; the clock also drives its animation. */
   burningEscape?: BurningEscape;
   emergencyResponse?: EmergencyResponse;

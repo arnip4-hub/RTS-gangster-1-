@@ -1,13 +1,18 @@
 import * as THREE from 'three';
-import type { Person } from '../sim/types';
+import type { Person, WeaponId } from '../sim/types';
 import { InstancePool } from './pool';
 import { patchInstancedUv } from './materialUv';
 import { appearanceIndex, personSkinGroup } from './personAppearance';
+import { illustratedPose } from './illustratedAction';
+import type { CharacterAction } from './characterActions';
 
 const IMAGE = `${import.meta.env.BASE_URL}art/city/illustrated-people-atlas.png`;
-const WALK_IMAGE = `${import.meta.env.BASE_URL}art/city/illustrated-people-walk-atlas.png`;
 const CELL = 128, COLUMNS = 4, ROWS = 32, HEIGHT = 2.58;
-const WALK_ROWS = 12;
+const WALK_CELL = 80, WALK_PER_PAGE = 11, WALK_PAGES = 3;
+const ICON_IMAGE = `${import.meta.env.BASE_URL}art/city/illustrated-action-effects.png`;
+const ICON_CELL = 64, ICON_COLUMNS = 4, ICON_ROWS = 3;
+const walkRows = (page: number) => Math.min(WALK_PER_PAGE, ROWS - page * WALK_PER_PAGE) * 4;
+const walkImage = (page: number) => `${import.meta.env.BASE_URL}art/city/illustrated-people-walk-${page + 1}.png`;
 
 /** Stable costume choice without adding visual state to the save format. */
 export function illustratedPersonRow(person: Pick<Person, 'id' | 'portrait' | 'female' | 'role'>): number {
@@ -53,21 +58,26 @@ export function illustratedScreenDirection(facing: number, camera: THREE.Camera)
   return screenDirection(facing, towardCamera.x, towardCamera.z, right.x, right.z);
 }
 
-interface Figure { person: Pick<Person, 'id' | 'portrait' | 'female' | 'role'>; x: number; y: number; z: number; facing: number; phase: number; moving: boolean }
+interface FigureOptions { action?: CharacterAction; heldWeapon?: WeaponId; carrying?: boolean; rowOverride?: number }
+interface Figure { person: Pick<Person, 'id' | 'portrait' | 'female' | 'role'>; x: number; y: number; z: number; facing: number; phase: number; moving: boolean; options: FigureOptions }
 
 /** Painted, camera-facing people in one draw batch; actors remain for special animations. */
 export class IllustratedPeople {
   readonly sprites: InstancePool;
-  readonly walkingSprites: InstancePool;
+  readonly walkingSprites: InstancePool[];
+  readonly effects: InstancePool;
   readonly shadows: InstancePool;
   ready = false;
   error: string | null = null;
   private figures: Figure[] = [];
   private texture: THREE.Texture | null = null;
-  private walkTexture: THREE.Texture | null = null;
+  private walkTextures: THREE.Texture[] = [];
+  private iconTexture: THREE.Texture | null = null;
   private disposed = false;
   private spriteDummy = new THREE.Object3D();
   private shadowDummy = new THREE.Object3D();
+  private effectDummy = new THREE.Object3D();
+  private tint = new THREE.Color();
   private uv = new THREE.Vector4();
   private cameraUp = new THREE.Vector3();
   private cameraBack = new THREE.Vector3();
@@ -77,17 +87,31 @@ export class IllustratedPeople {
     const material = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, alphaTest: .24, depthWrite: true });
     patchInstancedUv(material);
     const plane = new THREE.PlaneGeometry(1, 1);
-    this.sprites = new InstancePool(plane, material, capacity, { uv: true, dynamic: true });
-    const walkMaterial = material.clone();
-    patchInstancedUv(walkMaterial);
-    this.walkingSprites = new InstancePool(plane, walkMaterial, capacity, { uv: true, dynamic: true });
+    this.sprites = new InstancePool(plane, material, capacity, { uv: true, color: true, dynamic: true });
+    this.walkingSprites = Array.from({ length: WALK_PAGES }, (_, page) => {
+      const walkMaterial = material.clone();
+      patchInstancedUv(walkMaterial);
+      const pool = new InstancePool(plane, walkMaterial, capacity, { uv: true, color: true, dynamic: true });
+      pool.mesh.name = `illustrated-people-walking-${page + 1}`;
+      pool.mesh.visible = false;
+      scene.add(pool.mesh);
+      return pool;
+    });
     plane.dispose();
     this.sprites.mesh.name = 'illustrated-people';
-    this.walkingSprites.mesh.name = 'illustrated-people-walking';
     this.sprites.mesh.visible = false;
-    this.walkingSprites.mesh.visible = false;
     scene.add(this.sprites.mesh);
-    scene.add(this.walkingSprites.mesh);
+
+    const iconMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, alphaTest: .18,
+      transparent: true, depthWrite: false });
+    patchInstancedUv(iconMaterial);
+    const effectPlane = new THREE.PlaneGeometry(1, 1);
+    this.effects = new InstancePool(effectPlane, iconMaterial, capacity * 2,
+      { uv: true, dynamic: true });
+    effectPlane.dispose();
+    this.effects.mesh.name = 'illustrated-people-action-effects';
+    this.effects.mesh.visible = false;
+    scene.add(this.effects.mesh);
 
     const shade = new THREE.CircleGeometry(1, 16);
     shade.rotateX(-Math.PI / 2);
@@ -100,39 +124,53 @@ export class IllustratedPeople {
 
   async load(): Promise<void> {
     let texture: THREE.Texture | null = null;
-    let walkTexture: THREE.Texture | null = null;
+    let walkTextures: THREE.Texture[] = [];
+    let iconTexture: THREE.Texture | null = null;
     try {
-      [texture, walkTexture] = await Promise.all([
-        new THREE.TextureLoader().loadAsync(IMAGE), new THREE.TextureLoader().loadAsync(WALK_IMAGE),
-      ]);
-      if (this.disposed) { texture.dispose(); walkTexture.dispose(); return; }
+      [texture, ...walkTextures] = await Promise.all([IMAGE, ...Array.from({ length: WALK_PAGES }, (_, page) => walkImage(page)), ICON_IMAGE]
+        .map(path => new THREE.TextureLoader().loadAsync(path)));
+      iconTexture = walkTextures.pop() ?? null;
+      if (this.disposed) { texture.dispose(); walkTextures.forEach(image => image.dispose()); iconTexture?.dispose(); return; }
       if (texture.image.width !== CELL * COLUMNS || texture.image.height !== CELL * ROWS)
         throw Error('Illustrated people atlas has an unexpected size');
-      if (walkTexture.image.width !== CELL * COLUMNS || walkTexture.image.height !== CELL * WALK_ROWS)
-        throw Error('Illustrated walk atlas has an unexpected size');
-      for (const image of [texture, walkTexture]) {
+      for (let page = 0; page < WALK_PAGES; page++)
+        if (walkTextures[page].image.width !== WALK_CELL * COLUMNS ||
+            walkTextures[page].image.height !== WALK_CELL * walkRows(page))
+          throw Error(`Illustrated walk atlas ${page + 1} has an unexpected size`);
+      if (!iconTexture || iconTexture.image.width !== ICON_CELL * ICON_COLUMNS ||
+          iconTexture.image.height !== ICON_CELL * ICON_ROWS)
+        throw Error('Illustrated action icon atlas has an unexpected size');
+      for (const image of [texture, ...walkTextures, iconTexture]) {
         image.colorSpace = THREE.SRGBColorSpace;
         image.minFilter = image.magFilter = THREE.LinearFilter;
         image.generateMipmaps = false;
       }
       (this.sprites.mesh.material as THREE.MeshBasicMaterial).map = texture;
       (this.sprites.mesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
-      (this.walkingSprites.mesh.material as THREE.MeshBasicMaterial).map = walkTexture;
-      (this.walkingSprites.mesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
+      for (let page = 0; page < WALK_PAGES; page++) {
+        const material = this.walkingSprites[page].mesh.material as THREE.MeshBasicMaterial;
+        material.map = walkTextures[page];
+        material.needsUpdate = true;
+      }
+      (this.effects.mesh.material as THREE.MeshBasicMaterial).map = iconTexture;
+      (this.effects.mesh.material as THREE.MeshBasicMaterial).needsUpdate = true;
       this.texture = texture;
-      this.walkTexture = walkTexture;
+      this.walkTextures = walkTextures;
+      this.iconTexture = iconTexture;
       this.ready = true;
       this.onReady();
     } catch (error) {
       texture?.dispose();
-      walkTexture?.dispose();
+      walkTextures.forEach(image => image.dispose());
+      iconTexture?.dispose();
       if (!this.disposed) this.error = String(error);
     }
   }
 
   setVisible(visible: boolean): void {
     this.sprites.mesh.visible = visible && this.ready;
-    this.walkingSprites.mesh.visible = visible && this.ready;
+    for (const pool of this.walkingSprites) pool.mesh.visible = visible && this.ready;
+    this.effects.mesh.visible = visible && this.ready;
     this.shadows.mesh.visible = visible && this.ready;
   }
 
@@ -140,59 +178,85 @@ export class IllustratedPeople {
     const material = this.sprites.mesh.material as THREE.MeshBasicMaterial;
     const strength = 1 - .55 * dusk;
     material.color.setRGB(strength, strength * (1 - .07 * dusk), strength * (1 - .12 * dusk));
-    (this.walkingSprites.mesh.material as THREE.MeshBasicMaterial).color.copy(material.color);
+    for (const pool of this.walkingSprites)
+      (pool.mesh.material as THREE.MeshBasicMaterial).color.copy(material.color);
   }
 
   reset(): void { this.figures.length = 0; }
 
-  push(person: Figure['person'], x: number, y: number, z: number, facing: number, phase: number, moving: boolean): void {
+  push(person: Figure['person'], x: number, y: number, z: number, facing: number, phase: number, moving: boolean,
+    options: FigureOptions = {}): void {
     if (this.ready && this.figures.length < this.sprites.capacity)
-      this.figures.push({ person, x, y, z, facing, phase, moving });
+      this.figures.push({ person, x, y, z, facing, phase, moving, options });
   }
 
   /** Recompute orientation for each main or Tagged camera. */
   draw(camera: THREE.Camera): void {
     if (!this.ready) return;
-    this.sprites.reset(); this.walkingSprites.reset(); this.shadows.reset();
+    this.sprites.reset(); this.walkingSprites.forEach(pool => pool.reset()); this.shadows.reset(); this.effects.reset();
     this.cameraUp.set(0, 1, 0).applyQuaternion(camera.quaternion);
     this.cameraBack.set(0, 0, 1).applyQuaternion(camera.quaternion);
     this.cameraBack.y = 0;
     this.cameraBack.normalize();
     this.cameraRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
     for (const figure of this.figures) {
-      const row = illustratedPersonRow(figure.person);
+      const row = figure.options.rowOverride ?? illustratedPersonRow(figure.person);
       const column = screenDirection(figure.facing, this.cameraBack.x, this.cameraBack.z,
         this.cameraRight.x, this.cameraRight.z);
-      const walkKind = figure.moving && row <= 2 ? row : -1;
-      const bounce = walkKind < 0 && figure.moving ? Math.abs(Math.sin(figure.phase)) * .035 : 0;
-      this.spriteDummy.position.set(figure.x, figure.y + (.975 - .5) * HEIGHT * this.cameraUp.y + bounce, figure.z);
+      const pose = illustratedPose(figure.options.action, figure.options.heldWeapon, figure.options.carrying);
+      const walkKind = figure.moving && pose.collapse === 0 ? row : -1;
+      const standLift = (.975 - .5) * HEIGHT * this.cameraUp.y;
+      this.spriteDummy.position.set(figure.x, figure.y + standLift * (1 - pose.collapse) + .2 * pose.collapse, figure.z);
       this.spriteDummy.quaternion.copy(camera.quaternion);
+      this.spriteDummy.rotateZ(pose.tilt);
       this.spriteDummy.scale.set(HEIGHT, HEIGHT, 1);
       this.spriteDummy.updateMatrix();
+      const color = this.tint.setRGB(pose.darken, pose.darken * (figure.options.action?.kind === 'burnDeath' ? .74 : 1),
+        pose.darken * (figure.options.action?.kind === 'burnDeath' ? .58 : 1));
       if (walkKind >= 0) {
-        const walkRow = walkKind * 4 + column;
-        this.uv.set(1 / COLUMNS, 1 / WALK_ROWS, illustratedWalkFrame(figure.phase) / COLUMNS,
-          (WALK_ROWS - 1 - walkRow) / WALK_ROWS);
-        this.walkingSprites.push(this.spriteDummy.matrix, undefined, this.uv);
+        const page = Math.floor(walkKind / WALK_PER_PAGE);
+        const rows = walkRows(page), walkRow = (walkKind % WALK_PER_PAGE) * 4 + column;
+        this.uv.set(1 / COLUMNS, 1 / rows, illustratedWalkFrame(figure.phase) / COLUMNS,
+          (rows - 1 - walkRow) / rows);
+        this.walkingSprites[page].push(this.spriteDummy.matrix, color, this.uv);
       } else {
         this.uv.set(1 / COLUMNS, 1 / ROWS, column / COLUMNS, (ROWS - 1 - row) / ROWS);
-        this.sprites.push(this.spriteDummy.matrix, undefined, this.uv);
+        this.sprites.push(this.spriteDummy.matrix, color, this.uv);
       }
+      // Action marks belong at the hands/body. Large hovering symbols looked
+      // like UI icons and broke the painted street-figure illusion.
+      if (pose.burst != null) this.pushEffect(figure, pose.burst, camera,
+        pose.burst === 8 ? 0 : .3, pose.burst === 8 ? 1 : 1.22,
+        pose.burst === 8 ? .6 : .28);
       this.shadowDummy.position.set(figure.x, figure.y + .02, figure.z);
       this.shadowDummy.rotation.set(0, 0, 0);
       this.shadowDummy.scale.set(.42, 1, .31);
       this.shadowDummy.updateMatrix();
       this.shadows.push(this.shadowDummy.matrix);
     }
-    this.sprites.commit(); this.walkingSprites.commit(); this.shadows.commit();
+    this.sprites.commit(); this.walkingSprites.forEach(pool => pool.commit()); this.shadows.commit(); this.effects.commit();
+  }
+
+  private pushEffect(figure: Figure, icon: number, camera: THREE.Camera, right: number, up: number, size: number): void {
+    this.effectDummy.position.set(figure.x + this.cameraRight.x * right + this.cameraUp.x * up,
+      figure.y + this.cameraRight.y * right + this.cameraUp.y * up,
+      figure.z + this.cameraRight.z * right + this.cameraUp.z * up);
+    this.effectDummy.quaternion.copy(camera.quaternion);
+    this.effectDummy.scale.set(size, size, 1);
+    this.effectDummy.updateMatrix();
+    this.uv.set(1 / ICON_COLUMNS, 1 / ICON_ROWS, (icon % ICON_COLUMNS) / ICON_COLUMNS,
+      (ICON_ROWS - 1 - Math.floor(icon / ICON_COLUMNS)) / ICON_ROWS);
+    this.effects.push(this.effectDummy.matrix, undefined, this.uv);
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.sprites.mesh.removeFromParent(); this.walkingSprites.mesh.removeFromParent(); this.shadows.mesh.removeFromParent();
-    this.sprites.dispose(); this.walkingSprites.dispose(); this.shadows.dispose();
+    this.sprites.mesh.removeFromParent(); this.shadows.mesh.removeFromParent(); this.effects.mesh.removeFromParent();
+    this.walkingSprites.forEach(pool => { pool.mesh.removeFromParent(); pool.dispose(); });
+    this.sprites.dispose(); this.shadows.dispose(); this.effects.dispose();
     this.texture?.dispose();
-    this.walkTexture?.dispose();
+    this.walkTextures.forEach(image => image.dispose());
+    this.iconTexture?.dispose();
   }
 }

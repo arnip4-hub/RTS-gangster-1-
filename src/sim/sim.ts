@@ -1,4 +1,5 @@
 import {carryBuildingEmergencies, settleBurningEscapes, tickBuildingEmergencies} from './systems/buildingEmergency';
+import { tickBodyRecovery } from './bodyRecovery';
 import { driveFrom, earlySteps, finishMovementTick, repairVehicleRoutes } from './movement';
 import { reconcileTransport, resetWeekTransport, restoreLegacyTransport } from './transport';
 import { recoverExportGoods } from './exportGoods';
@@ -315,6 +316,7 @@ export class Sim {
     tickStreetOrders(w, this.rng, 1, loadout);
     if (this.resolveImmediateOutcome()) return;
     tickBuildingEmergencies(w, this.rng, 1);
+    tickBodyRecovery(w);
     if (this.resolveImmediateOutcome()) return;
     tickFbi(w, this.rng, 1);
     tickLaw(w, this.rng);

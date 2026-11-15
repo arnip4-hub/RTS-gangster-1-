@@ -2006,6 +2006,7 @@ export function killPerson(w: WorldState, p: Person, reason: string): void {
   // Shot in a car, he falls on the pavement beside it, not under it in the lane.
   alight(w,p);
   if (p.status === 'dead') return;
+  const diedOnStreet = (p.status === 'active' || p.status === 'beaten') && p.buildingId == null && !p.captivity;
   if(!p.burningEscape?.fatal)presentDeath(w,p);
   p.status = 'dead';
   p.hp = 0;
@@ -2014,7 +2015,11 @@ export function killPerson(w: WorldState, p: Person, reason: string): void {
   p.orderId = null;
   p.streetOrder = null;
   p.diedWeek = w.week;
-  if (w.options.continuousTime) p.diedAt=campaignMinute(w);
+  if (w.options.continuousTime) {
+    p.diedAt=campaignMinute(w);
+    // Custody and indoor deaths do not leave a body on the public street.
+    p.bodyRecovery = diedOnStreet ? {} : null;
+  }
   // A member's death leaves the rest of the gang more afraid of it (0x48D0B0).
   if (p.gangId != null && w.gangs[p.gangId]) {
     for (const q of peopleList(w))

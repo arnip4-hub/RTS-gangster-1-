@@ -79,8 +79,8 @@ function merge(parts: Part[]): THREE.BufferGeometry {
 }
 
 /** Period coachwork: separate bonnet, cabin, glass, mudguards and running boards. Forward is +X. */
-export function vehicleGeometry(kind: VehicleId): THREE.BufferGeometry {
-  const truck = kind === 'truck', open = kind === 'speedster';
+export function vehicleGeometry(kind: VehicleId | 'hearse'): THREE.BufferGeometry {
+  const truck = kind === 'truck' || kind === 'hearse', hearse = kind === 'hearse', open = kind === 'speedster';
   const parts: Part[] = [];
   const axles: [number, number] = truck ? [-1.80, 1.81] : [-1.42, 1.47];
   const wheelRadius = truck ? .43 : .35;
@@ -97,13 +97,19 @@ export function vehicleGeometry(kind: VehicleId): THREE.BufferGeometry {
       parts.push(box(.105, .61, .05, .36, 1.64, side * .817, 0xf2efdf, true));
       parts.push(box(.15, .025, .044, .46, 1.21, side * .819, CHROME, false, .008));
     }
-    parts.push(box(3.35, .19, 1.84, -1.04, .87, 0, 0x66513c));
-    parts.push(box(3.23, 1.24, 1.77, -1.06, 1.61, 0, 0x968d6f, false, .08));
-    parts.push(box(3.29, .22, 1.83, -1.06, 2.29, 0, 0xa49a7a, false, .10));
+    parts.push(box(3.35, .19, 1.84, -1.04, .87, 0, hearse ? 0x181a1e : 0x66513c));
+    parts.push(box(3.23, 1.24, 1.77, -1.06, 1.61, 0, hearse ? 0x20232a : 0x968d6f, false, .08));
+    parts.push(box(3.29, .22, 1.83, -1.06, 2.29, 0, hearse ? 0x111319 : 0xa49a7a, false, .10));
     for (const side of [-1, 1]) {
-      for (let i = 0; i < 5; i++) parts.push(box(.035, 1.27, .027, -2.40 + i * .67, 1.61, side * .897, 0x736d58, false, .004));
-      parts.push(box(3.24, .065, .042, -1.06, 1.18, side * .905, 0x655541));
+      if (hearse) {
+        parts.push(box(1.25, .33, .026, -1.06, 1.85, side * .898, 0x3b454b, false, .02));
+        parts.push(box(3.15, .035, .04, -1.06, 1.17, side * .92, CHROME));
+      } else {
+        for (let i = 0; i < 5; i++) parts.push(box(.035, 1.27, .027, -2.40 + i * .67, 1.61, side * .897, 0x736d58, false, .004));
+        parts.push(box(3.24, .065, .042, -1.06, 1.18, side * .905, 0x655541));
+      }
     }
+    if (hearse) parts.push(box(.055, 1.00, 1.68, -2.72, 1.60, 0, 0x1b1d22));
     parts.push(...nose(2.49, .99, .86, .66));
   } else {
     parts.push(box(3.88, open ? .15 : .52, 1.48, -.02, open ? .605 : .79, 0, 0xf4f1e9, true, .06));

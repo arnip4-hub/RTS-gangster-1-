@@ -61,27 +61,74 @@ await sharp({ create: { width: 4 * CELL, height: SHEETS * 4 * CELL, channels: 4,
   .composite(atlasCells).png({ compressionLevel: 9 })
   .toFile('public/art/city/illustrated-people-atlas.png');
 
-// Four gait frames in each direction for the first common silhouettes.
-// The generated right-side view is cropped at the edge; mirror the complete
-// left side just as the static atlas does.
-const walkKinds = ['man', 'woman', 'police'], walkCells = [];
-for (let kind = 0; kind < walkKinds.length; kind++) {
-  const file = join(source, `walk-${walkKinds[kind]}-01.png`);
+// Three cycles are individually painted. For the remaining silhouettes,
+// separate the lower body into counter-moving halves and shift the coat/hem
+// with the stride. This produces four distinct 2D frames per direction while
+// preserving the exact costume, skin and face from the standing art. The
+// generated cycles are a baseline for later hand-painted animation passes.
+const WALK_CELL = 80, WALK_PER_PAGE = 11;
+const handDrawn = new Map([[0, 'man'], [1, 'woman'], [2, 'police']]);
+async function paintedWalkCell(kind, direction, frame) {
+  const file = join(source, `walk-${kind}-01.png`);
   const { width, height } = await sharp(file).metadata();
   if (!width || !height) throw Error(`Missing ${file}`);
-  for (let direction = 0; direction < 4; direction++) for (let frame = 0; frame < 4; frame++) {
-    const sourceRow = direction === 3 ? 2 : direction;
-    const left = Math.round(frame * width / 4) + 3;
-    const top = Math.round(sourceRow * height / 4) + 3;
-    const right = Math.round((frame + 1) * width / 4) - 3;
-    const bottom = Math.round((sourceRow + 1) * height / 4) - 3;
-    let tile = sharp(file).extract({ left, top, width: right - left, height: bottom - top });
-    if (direction === 3) tile = tile.flop();
-    const sprite = await tile.resize(CELL - 16, CELL - 8, { fit: 'contain', background: '#00000000' }).png().toBuffer();
-    walkCells.push({ input: sprite, left: frame * CELL + 8, top: (kind * 4 + direction) * CELL + 8 });
-  }
+  const sourceRow = direction === 3 ? 2 : direction;
+  const left = Math.round(frame * width / 4) + 3;
+  const top = Math.round(sourceRow * height / 4) + 3;
+  const right = Math.round((frame + 1) * width / 4) - 3;
+  const bottom = Math.round((sourceRow + 1) * height / 4) - 3;
+  let tile = sharp(file).extract({ left, top, width: right - left, height: bottom - top });
+  if (direction === 3) tile = tile.flop();
+  return tile.resize(WALK_CELL - 4, WALK_CELL - 4, { fit: 'contain', background: '#00000000' }).png().toBuffer();
 }
-await sharp({ create: { width: 4 * CELL, height: walkKinds.length * 4 * CELL, channels: 4, background: '#00000000' } })
-  .composite(walkCells).png({ compressionLevel: 9 })
-  .toFile('public/art/city/illustrated-people-walk-atlas.png');
-console.log(`Illustrated people: ${[...counts.values()].reduce((a, b) => a + b, 0)} painted portraits, ${SHEETS * 4} directional sprite rows, ${walkKinds.length} walk cycles`);
+
+function walkWarp(data, width, height, direction, frame) {
+  const output = Buffer.alloc(data.length);
+  const step = [1, .22, -1, -.22][frame];
+  const bounce = frame % 2 ? -1.2 : .6;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const down = Math.max(0, (y / height - .43) / .57);
+    const split = Math.tanh((x - width * .5) / 8);
+    const coat = Math.sin(Math.PI * Math.min(1, down)) * step * 1.3;
+    const legs = down * down * step * split * (direction < 2 ? 5.2 : 7.2);
+    const sx = Math.max(0, Math.min(width - 1, Math.round(x - coat - legs)));
+    const sy = Math.max(0, Math.min(height - 1, Math.round(y - bounce * down)));
+    const from = (sy * width + sx) * 4, to = (y * width + x) * 4;
+    output[to] = data[from]; output[to + 1] = data[from + 1];
+    output[to + 2] = data[from + 2]; output[to + 3] = data[from + 3];
+  }
+  return output;
+}
+
+const staticAtlas = 'public/art/city/illustrated-people-atlas.png';
+for (let page = 0; page < Math.ceil(SHEETS * 4 / WALK_PER_PAGE); page++) {
+  const start = page * WALK_PER_PAGE;
+  const count = Math.min(WALK_PER_PAGE, SHEETS * 4 - start);
+  const cells = [];
+  for (let local = 0; local < count; local++) {
+    const kind = start + local;
+    for (let direction = 0; direction < 4; direction++) {
+      let standing;
+      if (!handDrawn.has(kind)) {
+        const result = await sharp(staticAtlas).extract({ left: direction * CELL, top: kind * CELL,
+          width: CELL, height: CELL }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        standing = result.data;
+      }
+      for (let frame = 0; frame < 4; frame++) {
+        const tile = handDrawn.has(kind)
+          ? await paintedWalkCell(handDrawn.get(kind), direction, frame)
+          : await sharp(walkWarp(standing, CELL, CELL, direction, frame), {
+            raw: { width: CELL, height: CELL, channels: 4 },
+          }).resize(WALK_CELL - 4, WALK_CELL - 4).png().toBuffer();
+        cells.push({ input: tile, left: frame * WALK_CELL + 2,
+          top: (local * 4 + direction) * WALK_CELL + 2 });
+      }
+    }
+  }
+  await sharp({ create: { width: 4 * WALK_CELL, height: count * 4 * WALK_CELL,
+    channels: 4, background: '#00000000' } }).composite(cells).png({ compressionLevel: 9 })
+    .toFile(`public/art/city/illustrated-people-walk-${page + 1}.png`);
+}
+await sharp(join(source, 'action-effects.svg')).png({ compressionLevel: 9 })
+  .toFile('public/art/city/illustrated-action-effects.png');
+console.log(`Illustrated people: ${[...counts.values()].reduce((a, b) => a + b, 0)} painted portraits, ${SHEETS * 4} directional sprite rows, ${SHEETS * 4} walk cycles (3 hand-painted)`);

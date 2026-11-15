@@ -7,6 +7,8 @@ import { portraitUrl } from '../src/ui/art';
 import { appearanceIndex, COMPOSED_FACE_COUNT, personSkinGroup } from '../src/render/personAppearance';
 import { PortraitDrawn } from '../src/ui/Portrait';
 import type { Person } from '../src/sim/types';
+import { illustratedPose } from '../src/render/illustratedAction';
+import type { CharacterActionKind } from '../src/render/characterActions';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -60,7 +62,10 @@ describe('illustrated street people', () => {
   it('renders moving common silhouettes from gait frames and leaves still figures in the base atlas', async () => {
     const load = vi.spyOn(THREE.TextureLoader.prototype, 'loadAsync').mockImplementation(async path => {
       const image = new THREE.Texture();
-      image.image = { width: 512, height: String(path).includes('walk') ? 1536 : 4096 };
+      const page = Number(String(path).match(/walk-(\d)/)?.[1] ?? 0);
+      image.image = String(path).includes('action-effects') ? { width: 256, height: 192 }
+        : page ? { width: 320, height: (page === 3 ? 10 : 11) * 320 }
+          : { width: 512, height: 4096 };
       return image;
     });
     const scene = new THREE.Scene(), people = new IllustratedPeople(scene, 8, () => {});
@@ -71,14 +76,29 @@ describe('illustrated street people', () => {
     expect(illustratedWalkFrame(Math.PI)).toBe(2);
     expect(illustratedWalkFrame(3 * Math.PI / 2)).toBe(3);
     const p = { id: 0, portrait: 0, female: false, role: 'boss' as const };
-    people.push(p, 0, 0, 0, 0, Math.PI, true);
+    people.push(p, 0, 0, 0, 0, Math.PI, true, { action: { kind: 'shoot', time: .24, weapon: 'pistol' } });
     people.push(p, 2, 0, 0, 0, 0, false);
+    people.push(p, 4, 0, 0, 0, 0, true, { rowOverride: 30 });
     people.draw(camera(1));
-    expect(people.walkingSprites.count).toBe(1);
+    expect(people.walkingSprites.map(pool => pool.count)).toEqual([1, 0, 1]);
     expect(people.sprites.count).toBe(1);
-    expect(people.shadows.count).toBe(2);
+    expect(people.effects.count).toBe(1);
+    expect(people.shadows.count).toBe(3);
     people.dispose();
     load.mockRestore();
+  });
+
+  it('has a readable 2D pose or prop for every active presentation action', () => {
+    const kinds: CharacterActionKind[] = ['shoot', 'strike', 'hit', 'death', 'burnDeath', 'fleeBurning',
+      'shock', 'firefight', 'photo', 'throw', 'draw', 'holster', 'ready'];
+    for (const kind of kinds) {
+      const pose = illustratedPose({ kind, time: .24, weapon: 'pistol' });
+      expect(Number.isFinite(pose.tilt)).toBe(true);
+      expect(pose.tilt !== 0 || pose.collapse !== 0 || pose.darken !== 1 || pose.burst != null,
+        kind).toBe(true);
+    }
+    expect(illustratedPose({ kind: 'death', time: 2 }).collapse).toBe(1);
+    expect(illustratedPose(undefined, undefined, true).tilt).toBeGreaterThan(0);
   });
 
   it('uses distinct illustrated portraits for crews, police and the FBI', () => {

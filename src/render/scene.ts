@@ -66,6 +66,8 @@ import { graphicsPixelRatio, LIGHT_DETAILED_STREET_CHARACTERS, readGraphicsQuali
 import { readVisualStyle } from './visualStyle';
 import { previewActorMotion, previewStreetPosition, type PreviewActorMotion } from './previewActorMotion';
 import { kerbside, roadHeading } from '../sim/vehicleNavigation';
+import { campaignMinute } from '../sim/calendar';
+import { hearseAt } from '../sim/bodyRecovery';
 import { previewVehicle } from '../sim/movement';
 import { specialistParticipants } from '../sim/specialistJobs';
 import { vehicleDriver, atOffice, officeDoors } from '../sim/transport';
@@ -332,7 +334,7 @@ export class CityRenderer {
 
   // --- movers
   /** People at the wheel this frame, drawn as cars once the traffic is in. */
-  private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; moving?: boolean }[] = [];
+  private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; moving?: boolean; coroner?: boolean }[] = [];
   private actors!: ActorLayer;
   private illustratedPeople: IllustratedPeople | null = null;
   private actorMotion = new ActorMotion();
@@ -357,6 +359,7 @@ export class CityRenderer {
   private arrestMarks!: InstancePool;
   private sedans!: InstancePool;
   private trucks!: InstancePool;
+  private hearses!: InstancePool;
   private speedsters!: InstancePool;
   private headlamps!: InstancePool;
   private vehicleSprites: VehicleSpriteLayer | null = null;
@@ -986,12 +989,16 @@ export class CityRenderer {
       castShadow: true,
       dynamic: true,
     });
+    this.hearses = new InstancePool(vehicleGeometry('hearse'), carMat, 256, {
+      color: true, castShadow: true, dynamic: true,
+    });
     this.speedsters = new InstancePool(vehicleGeometry('speedster'), carMat, MAX_AGENTS, { color: true, castShadow: true, dynamic: true });
     this.sedans.mesh.name = 'vehicle-coupe';
     this.trucks.mesh.name = 'vehicle-truck';
+    this.hearses.mesh.name = 'vehicle-police-coroner';
     this.speedsters.mesh.name = 'vehicle-speedster';
     this.headlamps = new InstancePool(vehicleLightGeometry(), this.headlampMat, capacity, { dynamic: true });
-    for (const p of [this.sedans, this.trucks, this.speedsters, this.headlamps]) this.scene.add(p.mesh);
+    for (const p of [this.sedans, this.trucks, this.hearses, this.speedsters, this.headlamps]) this.scene.add(p.mesh);
     // Delivered models are the default. Explicit switches retain the audit/fallback views.
     this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
       new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
@@ -1029,6 +1036,7 @@ export class CityRenderer {
     this.sculptModels?.setVisible(this.streetsOpen && this.sculptModelsActive);
     this.sedans.mesh.visible = this.streetsOpen && !active && !this.sculptModelsActive;
     this.trucks.mesh.visible = this.streetsOpen && !active && !this.sculptModelsActive;
+    this.hearses.mesh.visible = this.streetsOpen;
     // The open car's seated 3D driver currently protrudes through the billboard
     // in one camera view. Keep that pairing intact until a matching rider exists.
     this.speedsters.mesh.visible = this.streetsOpen && !this.sculptModelsActive && !(active && this.reviewSpeedsterSprite);
@@ -2148,8 +2156,10 @@ export class CityRenderer {
       // Closed cabins conceal their occupants. Picking uses the vehicle-sized
       // envelope above, so no standing miniature protrudes through its roof.
       if (!driving) {
-        const illustrated = !!this.illustratedPeople?.ready && !action && !burn && !shuttle && p.status === 'active';
-        if (illustrated) this.illustratedPeople!.push(p, pos.x, surface, pos.y, facing, motion.phase, walking);
+        const illustrated = !!this.illustratedPeople?.ready &&
+          (p.status === 'active' || p.status === 'beaten' || !!action);
+        if (illustrated) this.illustratedPeople!.push(p, pos.x, surface, pos.y, facing, motion.phase, walking,
+          { action, heldWeapon: burn ? undefined : this.characterActions.heldWeapon(p.id), carrying: !!shuttle?.carrying });
         const detailed = !illustrated && hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
           this.dummy.matrix, motion.phase, walking,
           {role:p.role,coat:hex,firefighting:action?.kind==='firefight',charred:burn&&escape!.fatal?Math.min(1,.25+burn.time/(BURNING_TIMING.flee+2)):0,weapon:burn||response||action?.kind==='strike'||action?.kind==='throw'?undefined:this.characterActions.heldWeapon(p.id),
@@ -2207,6 +2217,13 @@ export class CityRenderer {
     }
     for (const driver of deliveryDrivers) {
       const motion = this.actorMotion.sample(driver.id, driver.pos.x, driver.pos.y, driver.walking, driver.facing);
+      if (this.illustratedPeople?.ready) {
+        this.illustratedPeople.push({ id: driver.id, portrait: 0, female: false, role: 'citizen' },
+          driver.pos.x, streetSurfaceHeight(this.world, driver.pos.x, driver.pos.y) + .008,
+          driver.pos.y, driver.facing, motion.phase, driver.walking,
+          { rowOverride: 4, carrying: driver.carrying });
+        continue;
+      }
       this.dummy.position.set(driver.pos.x, streetSurfaceHeight(this.world, driver.pos.x, driver.pos.y) + .008, driver.pos.y);
       this.dummy.rotation.set(0, driver.facing, 0); this.dummy.scale.setScalar(CHARACTER_SCALE); this.dummy.updateMatrix();
       this.sculptModels?.pushCharacter(driver.id, 'worker', this.dummy.matrix, motion.phase, driver.walking,
@@ -2219,6 +2236,14 @@ export class CityRenderer {
       // Unloading, or waiting for somewhere to go: in to the kerb.
       this.pullIn(`delivery:${delivery.sourceId}`,pos,!delivery.path.length);
       this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:0x4e5647,kind:'truck'});
+    }
+    const bodyTime = campaignMinute(w, w.minute + this.subMinute);
+    for (const p of Object.values(w.people)) {
+      if (p.status !== 'dead' || !p.bodyRecovery) continue;
+      const hearse = hearseAt(p, bodyTime);
+      if (!hearse || Math.abs(hearse.pos.x - cx) > reach || Math.abs(hearse.pos.y - cz) > reach) continue;
+      this.drivers.push({ x: hearse.pos.x, z: hearse.pos.y, facing: hearse.facing,
+        hex: 0x1c1e23, kind: 'truck', moving: true, coroner: true });
     }
     this.burningPeople?.commit();
     this.emergencyHoses?.commit();
@@ -2292,6 +2317,7 @@ export class CityRenderer {
 
     this.sedans.reset();
     this.trucks.reset();
+    this.hearses.reset();
     this.speedsters.reset();
     this.sculptModels?.resetVehicles();
     this.headlamps.reset();
@@ -2342,7 +2368,8 @@ export class CityRenderer {
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
       this.colorScratch.setHex(d.hex);
-      if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
+      if (d.coroner) this.hearses.push(this.dummy.matrix, this.colorScratch);
+      else if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
         this.vehicleSprites!.push(d.kind, d.x, d.z, d.facing - Math.PI / 2);
       else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix)) { /* Detailed vehicle */ }
       else (d.kind === 'truck' ? this.trucks : d.kind === 'speedster' ? this.speedsters : this.sedans).push(this.dummy.matrix, this.colorScratch);
@@ -2357,6 +2384,7 @@ export class CityRenderer {
 
     this.sedans.commit();
     this.trucks.commit();
+    this.hearses.commit();
     this.speedsters.commit();
     this.sculptModels?.commitVehicles();
     this.vehicleSprites?.commit();
@@ -3260,6 +3288,7 @@ export class CityRenderer {
       this.arrestMarks,
       this.sedans,
       this.trucks,
+      this.hearses,
       this.speedsters,
       this.headlamps,
     ]) {

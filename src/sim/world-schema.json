@@ -171,43 +171,43 @@
         "gangs": {
           "optional": false,
           "shape": {
-            "ref": "T58"
+            "ref": "T59"
           }
         },
         "teams": {
           "optional": false,
           "shape": {
-            "ref": "T75"
+            "ref": "T76"
           }
         },
         "orders": {
           "optional": false,
           "shape": {
-            "ref": "T77"
+            "ref": "T78"
           }
         },
         "lastWeekOrders": {
           "optional": false,
           "shape": {
-            "ref": "T86"
+            "ref": "T87"
           }
         },
         "crimes": {
           "optional": false,
           "shape": {
-            "ref": "T87"
+            "ref": "T88"
           }
         },
         "cases": {
           "optional": false,
           "shape": {
-            "ref": "T89"
+            "ref": "T90"
           }
         },
         "election": {
           "optional": false,
           "shape": {
-            "ref": "T91"
+            "ref": "T92"
           }
         },
         "electionWinnerGangId": {
@@ -226,7 +226,7 @@
         "news": {
           "optional": false,
           "shape": {
-            "ref": "T98"
+            "ref": "T99"
           }
         },
         "lastNewspaperMinute": {
@@ -242,7 +242,7 @@
         "messages": {
           "optional": false,
           "shape": {
-            "ref": "T100"
+            "ref": "T101"
           }
         },
         "traffic": {
@@ -250,7 +250,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T102"
+                "ref": "T103"
               }
             ]
           }
@@ -260,7 +260,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T104"
+                "ref": "T105"
               }
             ]
           }
@@ -365,7 +365,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T105"
+                "ref": "T106"
               }
             ]
           }
@@ -375,7 +375,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T107"
+                "ref": "T108"
               }
             ]
           }
@@ -385,7 +385,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T111"
+                "ref": "T112"
               }
             ]
           }
@@ -395,7 +395,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T113"
+                "ref": "T114"
               }
             ]
           }
@@ -403,7 +403,7 @@
         "auditResults": {
           "optional": false,
           "shape": {
-            "ref": "T115"
+            "ref": "T116"
           }
         },
         "weekLog": {
@@ -2646,17 +2646,20 @@
             ]
           }
         },
-        "burningEscape": {
+        "bodyRecovery": {
           "optional": true,
           "shape": {
             "union": [
+              {
+                "literal": null
+              },
               {
                 "ref": "T51"
               }
             ]
           }
         },
-        "emergencyResponse": {
+        "burningEscape": {
           "optional": true,
           "shape": {
             "union": [
@@ -2666,12 +2669,22 @@
             ]
           }
         },
-        "shockReaction": {
+        "emergencyResponse": {
           "optional": true,
           "shape": {
             "union": [
               {
                 "ref": "T53"
+              }
+            ]
+          }
+        },
+        "shockReaction": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T54"
               }
             ]
           }
@@ -2700,7 +2713,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T54"
+                "ref": "T55"
               }
             ]
           }
@@ -2713,7 +2726,7 @@
                 "literal": null
               },
               {
-                "ref": "T55"
+                "ref": "T56"
               }
             ]
           }
@@ -2753,7 +2766,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T56"
+                "ref": "T57"
               }
             ]
           }
@@ -2763,7 +2776,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T57"
+                "ref": "T58"
               }
             ]
           }
@@ -3115,6 +3128,60 @@
     },
     "T51": {
       "object": {
+        "coveredAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "hearseStartAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "hearseArriveAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "collectedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "hearseRoute": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T17"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "T52": {
+      "object": {
         "week": {
           "optional": false,
           "shape": {
@@ -3195,7 +3262,7 @@
         }
       }
     },
-    "T52": {
+    "T53": {
       "object": {
         "week": {
           "optional": false,
@@ -3333,7 +3400,7 @@
         }
       }
     },
-    "T53": {
+    "T54": {
       "object": {
         "week": {
           "optional": false,
@@ -3386,7 +3453,7 @@
         }
       }
     },
-    "T54": {
+    "T55": {
       "object": {
         "stage": {
           "optional": false,
@@ -3548,7 +3615,7 @@
         }
       }
     },
-    "T55": {
+    "T56": {
       "object": {
         "type": {
           "optional": false,
@@ -3610,7 +3677,7 @@
         }
       }
     },
-    "T56": {
+    "T57": {
       "object": {
         "tram": {
           "optional": false,
@@ -3657,7 +3724,7 @@
         }
       }
     },
-    "T57": {
+    "T58": {
       "object": {
         "line": {
           "optional": false,
@@ -3765,13 +3832,13 @@
         }
       }
     },
-    "T58": {
+    "T59": {
       "object": {},
       "values": {
-        "ref": "T59"
+        "ref": "T60"
       }
     },
-    "T59": {
+    "T60": {
       "object": {
         "id": {
           "optional": false,
@@ -3877,7 +3944,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T60"
+                "ref": "T61"
               }
             ]
           }
@@ -3939,13 +4006,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T61"
+            "ref": "T62"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T62"
+            "ref": "T63"
           }
         },
         "staffVehicles": {
@@ -3953,7 +4020,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T63"
+                "ref": "T64"
               }
             ]
           }
@@ -3961,13 +4028,13 @@
         "offered": {
           "optional": false,
           "shape": {
-            "ref": "T64"
+            "ref": "T65"
           }
         },
         "known": {
           "optional": false,
           "shape": {
-            "ref": "T64"
+            "ref": "T65"
           }
         },
         "evadingTax": {
@@ -4127,7 +4194,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T65"
+                "ref": "T66"
               }
             ]
           }
@@ -4155,7 +4222,7 @@
         "history": {
           "optional": false,
           "shape": {
-            "ref": "T67"
+            "ref": "T68"
           }
         },
         "scorePeaks": {
@@ -4163,7 +4230,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T69"
+                "ref": "T70"
               }
             ]
           }
@@ -4171,13 +4238,13 @@
         "lastWeekIncome": {
           "optional": false,
           "shape": {
-            "ref": "T70"
+            "ref": "T71"
           }
         },
         "lastWeekCosts": {
           "optional": false,
           "shape": {
-            "ref": "T71"
+            "ref": "T72"
           }
         },
         "finances": {
@@ -4185,7 +4252,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T72"
+                "ref": "T73"
               }
             ]
           }
@@ -4195,14 +4262,14 @@
           "shape": {
             "union": [
               {
-                "ref": "T72"
+                "ref": "T73"
               }
             ]
           }
         }
       }
     },
-    "T60": {
+    "T61": {
       "object": {
         "kind": {
           "optional": false,
@@ -4273,7 +4340,7 @@
         }
       }
     },
-    "T61": {
+    "T62": {
       "object": {
         "explosives": {
           "optional": false,
@@ -4313,7 +4380,7 @@
         }
       }
     },
-    "T62": {
+    "T63": {
       "object": {
         "coupe": {
           "optional": false,
@@ -4335,7 +4402,7 @@
         }
       }
     },
-    "T63": {
+    "T64": {
       "object": {
         "accountant": {
           "optional": false,
@@ -4377,7 +4444,7 @@
         }
       }
     },
-    "T64": {
+    "T65": {
       "object": {},
       "values": {
         "union": [
@@ -4399,13 +4466,13 @@
         ]
       }
     },
-    "T65": {
+    "T66": {
       "object": {},
       "values": {
-        "ref": "T66"
+        "ref": "T67"
       }
     },
-    "T66": {
+    "T67": {
       "object": {
         "prisonId": {
           "optional": false,
@@ -4434,12 +4501,12 @@
         }
       }
     },
-    "T67": {
+    "T68": {
       "array": {
-        "ref": "T68"
+        "ref": "T69"
       }
     },
-    "T68": {
+    "T69": {
       "object": {
         "week": {
           "optional": false,
@@ -4501,7 +4568,7 @@
         }
       }
     },
-    "T69": {
+    "T70": {
       "object": {
         "cash": {
           "optional": false,
@@ -4523,7 +4590,7 @@
         }
       }
     },
-    "T70": {
+    "T71": {
       "object": {
         "legal": {
           "optional": false,
@@ -4551,7 +4618,7 @@
         }
       }
     },
-    "T71": {
+    "T72": {
       "object": {
         "wages": {
           "optional": false,
@@ -4573,7 +4640,7 @@
         }
       }
     },
-    "T72": {
+    "T73": {
       "object": {
         "week": {
           "optional": false,
@@ -4596,13 +4663,13 @@
         "income": {
           "optional": false,
           "shape": {
-            "ref": "T73"
+            "ref": "T74"
           }
         },
         "costs": {
           "optional": false,
           "shape": {
-            "ref": "T74"
+            "ref": "T75"
           }
         },
         "partial": {
@@ -4653,7 +4720,7 @@
         }
       }
     },
-    "T73": {
+    "T74": {
       "object": {
         "legal": {
           "optional": false,
@@ -4681,7 +4748,7 @@
         }
       }
     },
-    "T74": {
+    "T75": {
       "object": {
         "wages": {
           "optional": false,
@@ -4709,13 +4776,13 @@
         }
       }
     },
-    "T75": {
+    "T76": {
       "object": {},
       "values": {
-        "ref": "T76"
+        "ref": "T77"
       }
     },
-    "T76": {
+    "T77": {
       "object": {
         "id": {
           "optional": false,
@@ -4750,13 +4817,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T61"
+            "ref": "T62"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T62"
+            "ref": "T63"
           }
         },
         "allocatedBlockIds": {
@@ -4779,13 +4846,13 @@
         }
       }
     },
-    "T77": {
+    "T78": {
       "object": {},
       "values": {
-        "ref": "T78"
+        "ref": "T79"
       }
     },
-    "T78": {
+    "T79": {
       "object": {
         "id": {
           "optional": false,
@@ -4928,7 +4995,7 @@
         "opts": {
           "optional": false,
           "shape": {
-            "ref": "T79"
+            "ref": "T80"
           }
         },
         "assignedIds": {
@@ -4994,7 +5061,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T80"
+                "ref": "T81"
               }
             ]
           }
@@ -5105,7 +5172,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T82"
+                "ref": "T83"
               }
             ]
           }
@@ -5115,7 +5182,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T83"
+                "ref": "T84"
               }
             ]
           }
@@ -5125,7 +5192,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T84"
+                "ref": "T85"
               }
             ]
           }
@@ -5135,7 +5202,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T85"
+                "ref": "T86"
               }
             ]
           }
@@ -5257,7 +5324,7 @@
         }
       }
     },
-    "T79": {
+    "T80": {
       "object": {
         "repeat": {
           "optional": false,
@@ -5360,12 +5427,12 @@
         }
       }
     },
-    "T80": {
+    "T81": {
       "array": {
-        "ref": "T81"
+        "ref": "T82"
       }
     },
-    "T81": {
+    "T82": {
       "object": {
         "line": {
           "optional": false,
@@ -5381,7 +5448,7 @@
         }
       }
     },
-    "T82": {
+    "T83": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5419,7 +5486,7 @@
         }
       }
     },
-    "T83": {
+    "T84": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5429,7 +5496,7 @@
         }
       }
     },
-    "T84": {
+    "T85": {
       "object": {
         "officeId": {
           "optional": false,
@@ -5445,7 +5512,7 @@
         }
       }
     },
-    "T85": {
+    "T86": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5461,17 +5528,17 @@
         }
       }
     },
-    "T86": {
-      "array": {
-        "ref": "T78"
-      }
-    },
     "T87": {
       "array": {
-        "ref": "T88"
+        "ref": "T79"
       }
     },
     "T88": {
+      "array": {
+        "ref": "T89"
+      }
+    },
+    "T89": {
       "object": {
         "id": {
           "optional": false,
@@ -5602,13 +5669,13 @@
         }
       }
     },
-    "T89": {
+    "T90": {
       "object": {},
       "values": {
-        "ref": "T90"
+        "ref": "T91"
       }
     },
-    "T90": {
+    "T91": {
       "object": {
         "id": {
           "optional": false,
@@ -5775,7 +5842,7 @@
         }
       }
     },
-    "T91": {
+    "T92": {
       "object": {
         "active": {
           "optional": false,
@@ -5792,7 +5859,7 @@
         "candidates": {
           "optional": false,
           "shape": {
-            "ref": "T92"
+            "ref": "T93"
           }
         },
         "lastResultWeek": {
@@ -5806,7 +5873,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T94"
+                "ref": "T95"
               }
             ]
           }
@@ -5829,19 +5896,19 @@
           "shape": {
             "union": [
               {
-                "ref": "T95"
+                "ref": "T96"
               }
             ]
           }
         }
       }
     },
-    "T92": {
+    "T93": {
       "array": {
-        "ref": "T93"
+        "ref": "T94"
       }
     },
-    "T93": {
+    "T94": {
       "object": {
         "id": {
           "optional": false,
@@ -5886,7 +5953,7 @@
         }
       }
     },
-    "T94": {
+    "T95": {
       "object": {
         "personId": {
           "optional": false,
@@ -5902,7 +5969,7 @@
         }
       }
     },
-    "T95": {
+    "T96": {
       "object": {
         "week": {
           "optional": false,
@@ -5919,17 +5986,17 @@
         "candidates": {
           "optional": false,
           "shape": {
-            "ref": "T96"
+            "ref": "T97"
           }
         }
       }
     },
-    "T96": {
+    "T97": {
       "array": {
-        "ref": "T97"
+        "ref": "T98"
       }
     },
-    "T97": {
+    "T98": {
       "object": {
         "id": {
           "optional": false,
@@ -5974,12 +6041,12 @@
         }
       }
     },
-    "T98": {
+    "T99": {
       "array": {
-        "ref": "T99"
+        "ref": "T100"
       }
     },
-    "T99": {
+    "T100": {
       "object": {
         "week": {
           "optional": false,
@@ -6133,12 +6200,12 @@
         }
       }
     },
-    "T100": {
+    "T101": {
       "array": {
-        "ref": "T101"
+        "ref": "T102"
       }
     },
-    "T101": {
+    "T102": {
       "object": {
         "sound": {
           "optional": true,
@@ -6215,7 +6282,7 @@
         }
       }
     },
-    "T102": {
+    "T103": {
       "object": {
         "delay": {
           "optional": false,
@@ -6226,7 +6293,7 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T103"
+            "ref": "T104"
           }
         },
         "waited": {
@@ -6237,12 +6304,12 @@
         }
       }
     },
-    "T103": {
+    "T104": {
       "array": {
         "type": "boolean"
       }
     },
-    "T104": {
+    "T105": {
       "object": {
         "delay": {
           "optional": false,
@@ -6253,18 +6320,18 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T103"
+            "ref": "T104"
           }
         }
       }
     },
-    "T105": {
+    "T106": {
       "object": {},
       "values": {
-        "ref": "T106"
+        "ref": "T107"
       }
     },
-    "T106": {
+    "T107": {
       "object": {
         "id": {
           "optional": false,
@@ -6427,13 +6494,13 @@
         }
       }
     },
-    "T107": {
+    "T108": {
       "object": {},
       "values": {
-        "ref": "T108"
+        "ref": "T109"
       }
     },
-    "T108": {
+    "T109": {
       "object": {
         "kind": {
           "optional": false,
@@ -6567,7 +6634,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T109"
+                "ref": "T110"
               }
             ]
           }
@@ -6577,7 +6644,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T110"
+                "ref": "T111"
               }
             ]
           }
@@ -6594,7 +6661,7 @@
         }
       }
     },
-    "T109": {
+    "T110": {
       "object": {
         "goods": {
           "optional": false,
@@ -6652,7 +6719,7 @@
         }
       }
     },
-    "T110": {
+    "T111": {
       "object": {
         "buildingId": {
           "optional": false,
@@ -6668,13 +6735,13 @@
         }
       }
     },
-    "T111": {
+    "T112": {
       "object": {},
       "values": {
-        "ref": "T112"
+        "ref": "T113"
       }
     },
-    "T112": {
+    "T113": {
       "object": {
         "sourceId": {
           "optional": false,
@@ -6804,13 +6871,13 @@
         }
       }
     },
-    "T113": {
+    "T114": {
       "object": {},
       "values": {
-        "ref": "T114"
+        "ref": "T115"
       }
     },
-    "T114": {
+    "T115": {
       "object": {
         "week": {
           "optional": false,
@@ -6832,7 +6899,7 @@
         }
       }
     },
-    "T115": {
+    "T116": {
       "object": {},
       "values": {
         "union": [
@@ -6840,12 +6907,12 @@
             "literal": null
           },
           {
-            "ref": "T116"
+            "ref": "T117"
           }
         ]
       }
     },
-    "T116": {
+    "T117": {
       "object": {
         "personId": {
           "optional": false,
