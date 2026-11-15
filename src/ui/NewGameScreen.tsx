@@ -14,10 +14,11 @@ import { Icon } from './common';
 import { Plaque } from './Plaque';
 import { audio } from '../audio/audio';
 import { Portrait } from './Portrait';
+import { readVisualStyle } from '../render/visualStyle';
 
-/** Step through the selected 64-male or 32-female pool, preserving the name sentinel. */
+/** Step through the current portrait pool, preserving the name sentinel. */
 function stepPortrait(current: number, dir: 1 | -1, female: boolean): number {
-  const n = female ? 32 : 64;
+  const n = readVisualStyle() === 'illustrated' ? 6 : female ? 32 : 64;
   return ((current + dir + n) % n) || n;
 }
 
@@ -122,6 +123,7 @@ export function NewGameScreen() {
   };
   const preview = {
     name: bossName(options.playerName || 'The Boss', options.playerNickname),
+    role: 'boss',
     female: options.playerFemale,
     portrait: options.playerPortrait || portraitFromName(options.playerName),
     face: options.playerHeritage ? bossFace(options.playerHeritage, options.playerFemale, sitter) : undefined,

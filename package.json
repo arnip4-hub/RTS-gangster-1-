@@ -19,6 +19,7 @@
     "test:long": "vitest run tests/playthrough.test.ts tests/integrity.test.ts",
     "test:watch": "vitest",
     "schema:check": "node scripts/build-save-schema.mjs --check",
+    "art:people": "node scripts/build-illustrated-people.mjs",
     "desktop": "npm run build && electron .",
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "package": "npm run build:release && node scripts/package-desktop.mjs",

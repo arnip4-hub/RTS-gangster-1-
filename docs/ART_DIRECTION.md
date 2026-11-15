@@ -9,10 +9,20 @@ The original game's images are not part of this project.
 
 **Game Options → City artwork → Illustrated 1930s (preview)** keeps the
 remake's own canvas-painted facades, storefronts, pavement, roof and road.
-It also requests the remake's eight-direction vehicle sprite atlas and uses
-its simpler character presentation. The perspective, simulation, selection
-and day/night cycle stay intact. This option applies when the city next opens.
+It requests eight-direction car art, twelve four-direction people silhouettes,
+and forty-eight new illustrated portraits. Police wear navy uniforms; federal
+agents wear civilian suits and fedoras. Special character actions still use
+the existing animated 3D figures. The perspective, simulation, selection and
+day/night cycle stay intact. The city style applies when the city next opens.
 It is a visual experiment, not a finished replacement art set.
+
+The original illustration sheets are in `art-source/illustrated`; run
+`npm run art:people` to rebuild the portrait tiles and street atlas. These
+are original assets for this remake, with no graphics from the 1998 game.
+
+Examples: [gang portraits](../art-source/illustrated/portraits-04.png) ·
+[police and federal portraits](../art-source/illustrated/portraits-02.png) ·
+[street silhouettes](../art-source/illustrated/people-03.png).
 
 ![First illustrated street preview](images/illustrated-street-preview.png)
 
@@ -29,9 +39,10 @@ new art and composition, not only a colour filter.
    corner buildings and industrial buildings with varied silhouettes. First
    test one residential block and one commercial block at street and rooftop
    zoom. Keep walls and roofs readable at the camera's actual pixel scale.
-2. **People:** replace the current fallback figures with directional drawn
-   sprites for walking, waiting and entering a vehicle. Distinguish civilians,
-   police and gangs by silhouette and clothing before adding tiny detail.
+2. **People:** add drawn walking and action frames to the new directional
+   sprites. The first pass holds still images and a slight walking bob; complex
+   actions deliberately fall back to the working 3D animation. Keep expanding
+   silhouettes and clothing without obscuring faction and role cues.
 3. **Street:** redraw the road, pavement, tram and street furniture as a
    coherent palette, with clear separation between walkable space and buildings.
 4. **Lighting and overlays:** tune day and night colours around that art; soften

@@ -1,5 +1,6 @@
 import type { Person } from '../sim/types';
 import thickenedIcons from '../../public/art/icons-small/index.json';
+import { readVisualStyle } from '../render/visualStyle';
 
 /**
  * Where the delivered artwork lives and how the interface names it. Every
@@ -27,8 +28,24 @@ const MALE_PORTRAITS = 64;
 const FEMALE_PORTRAITS = 32;
 
 /** The painted sitter for a person: the portrait number picks from the fixed pool. */
-export function portraitUrl(person: Pick<Person, 'portrait' | 'female'>): string {
+export function portraitUrl(person: Pick<Person, 'portrait' | 'female'> & Partial<Pick<Person, 'role'>>): string {
   const n = Math.abs(person.portrait | 0);
+  if (readVisualStyle() === 'illustrated') {
+    const role = person.role;
+    if (role === 'police' || role === 'policeChief') {
+      const count = person.female ? 1 : 3;
+      const index = role === 'policeChief' && !person.female ? 2 : 1 + n % count;
+      return art(`portraits/illustrated/police-${person.female ? 'f' : 'm'}-${String(index).padStart(2, '0')}.png`);
+    }
+    if (role === 'fbi' || role === 'fbiHead') {
+      const count = person.female ? 1 : 3;
+      const index = role === 'fbiHead' && !person.female ? 3 : 1 + n % count;
+      return art(`portraits/illustrated/fbi-${person.female ? 'f' : 'm'}-${String(index).padStart(2, '0')}.png`);
+    }
+    if (role === 'boss' || role === 'lieutenant' || role === 'hood')
+      return art(`portraits/illustrated/gang-${person.female ? 'f' : 'm'}-${String(1 + n % 6).padStart(2, '0')}.png`);
+    return art(`portraits/illustrated/${person.female ? 'f' : 'm'}-${String(1 + n % 14).padStart(2, '0')}.png`);
+  }
   if (person.female) return art(`portraits/f/f-${String(1 + (n % FEMALE_PORTRAITS)).padStart(2, '0')}.png`);
   return art(`portraits/m/m-${String(1 + (n % MALE_PORTRAITS)).padStart(2, '0')}.png`);
 }

@@ -3,18 +3,19 @@ import { GANG_COLORS } from '../sim/constants';
 import type { Gang, Person } from '../sim/types';
 import { bossPortraitUrl, portraitUrl } from './art';
 import { useArtStatus } from './useArtStatus';
+import { readVisualStyle } from '../render/visualStyle';
 
 /**
  * A studio portrait for everybody in the city. The painted library in
- * public/art/portraits is used when it is there — sixty-four men, thirty-two
- * women, keyed by the person's portrait number and bearing so the same hood
+ * public/art/portraits is used when it is there — with a separate illustrated
+ * set for the illustrated city, keyed by the person's portrait number so a hood
  * always has the same face — and the drawn portrait below stands in if a file
  * cannot be loaded. The gang strip along the bottom and the greyscale of the
  * dead are applied here, not baked into the paintings.
  */
 export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   // A boss's own painting when it has been delivered; the pool face otherwise.
-  const boss = bossPortraitUrl(person.face);
+  const boss = readVisualStyle() === 'illustrated' ? undefined : bossPortraitUrl(person.face);
   const bossStatus = useArtStatus(boss);
   const pool = portraitUrl(person);
   const poolStatus = useArtStatus(pool);

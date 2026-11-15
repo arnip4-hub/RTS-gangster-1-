@@ -207,8 +207,9 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated keeps the game's hand-painted city textures and uses drawn cars. It is an early visual experiment,
-          not artwork from the 1998 game. Save and reopen the city to apply it; graphics quality is a separate setting.
+          Illustrated keeps the game's painted city textures and uses drawn people, cars and portraits.
+          Special action animations still use 3D figures. It is new artwork, not images from the 1998 game.
+          Save and reopen the city to apply the street style; graphics quality is separate.
         </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>

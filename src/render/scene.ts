@@ -72,6 +72,7 @@ import { vehicleDriver, atOffice, officeDoors } from '../sim/transport';
 import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
 import { VehicleSpriteLayer } from './vehicleSpriteLayer';
+import { IllustratedPeople } from './illustratedPeople';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
 import { FACING_YAW, lotFacing, profileForLot, profileFor } from './profile';
@@ -333,6 +334,7 @@ export class CityRenderer {
   /** People at the wheel this frame, drawn as cars once the traffic is in. */
   private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; moving?: boolean }[] = [];
   private actors!: ActorLayer;
+  private illustratedPeople: IllustratedPeople | null = null;
   private actorMotion = new ActorMotion();
   private characterActions:CharacterActions;
   private cityEffects?:CityEffects;
@@ -929,6 +931,16 @@ export class CityRenderer {
 
   private buildAgents(): void {
     this.actors = new ActorLayer(this.scene, MAX_AGENTS);
+    if (this.visualStyle === 'illustrated') {
+      const people = new IllustratedPeople(this.scene, MAX_AGENTS, () => {
+        if (!this.disposed) {
+          people.setVisible(this.streetsOpen);
+          this.preparationRevision++;
+        }
+      });
+      this.illustratedPeople = people;
+      void people.load();
+    }
     for (const mesh of this.actors.meshes) mesh.userData.actorRootHeight = KERB_H + .008;
     const mat = new THREE.MeshBasicMaterial({ visible: false });
     const agentGeo = new THREE.BoxGeometry(.68, 1.97, .66);
@@ -1964,6 +1976,7 @@ export class CityRenderer {
     this.burningPeople?.reset();
     this.emergencyHoses?.reset();
     this.actors.reset();
+    this.illustratedPeople?.reset();
     this.sculptModels?.resetCharacters();
     this.drivers.length = 0;
     this.standingCars.length = 0;
@@ -2135,12 +2148,14 @@ export class CityRenderer {
       // Closed cabins conceal their occupants. Picking uses the vehicle-sized
       // envelope above, so no standing miniature protrudes through its roof.
       if (!driving) {
-        const detailed = hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
+        const illustrated = !!this.illustratedPeople?.ready && !action && !burn && !shuttle && p.status === 'active';
+        if (illustrated) this.illustratedPeople!.push(p, pos.x, surface, pos.y, facing, motion.phase, walking);
+        const detailed = !illustrated && hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
           this.dummy.matrix, motion.phase, walking,
           {role:p.role,coat:hex,firefighting:action?.kind==='firefight',charred:burn&&escape!.fatal?Math.min(1,.25+burn.time/(BURNING_TIMING.flee+2)):0,weapon:burn||response||action?.kind==='strike'||action?.kind==='throw'?undefined:this.characterActions.heldWeapon(p.id),
             carriedProp:shuttle?.carrying?'crate':!burn&&action?.kind!=='throw'&&carriesExplosives(w,p)?'explosives':undefined,throwable:action?.kind==='throw'?action.throwable:undefined},
           {clock:this.simClock,delta:this.actionDelta,action,previewActions:this.actionsEnabled||action?.kind==='shoot',posture:p.closeCombat?.posture,...(shuttle ? (shuttle.carrying ? {gait:'carry' as const} : {}) : dailyMotion(w,p))});
-        if (!detailed)
+        if (!detailed && !illustrated)
           this.actors.push(p, this.dummy.matrix, this.colorScratch, motion.phase, walking ? 1 : 0,action);
         if(burn&&escape!.fatal)this.burningPeople?.push(pos.x,surface,pos.y,burn.time,burn.deathTime,
           detailed?this.sculptModels?.burningAnchors(p.id):undefined,p.id,
@@ -2209,6 +2224,7 @@ export class CityRenderer {
     this.emergencyHoses?.commit();
     this.agentMesh.count = i;
     this.actors.commit();
+    this.illustratedPeople?.draw(this.camera);
     this.sculptModels?.commitCharacters();
     this.actorMotion.retain(new Set(this.agentIds));
     this.personHalo.visible = haloShown;
@@ -2576,6 +2592,7 @@ export class CityRenderer {
     this.preparationRevision++;
     this.agentMesh.visible = open;
     this.actors.setVisible(open);
+    this.illustratedPeople?.setVisible(open);
     this.sculptModels?.setVisible(open && this.sculptModelsActive);
     if (!open) this.personHalo.visible = false;
     for (const p of [this.footRings, this.waitMarks, this.arrestMarks]) p.mesh.visible = open;
@@ -2589,6 +2606,8 @@ export class CityRenderer {
       this.emergencyHoses?.reset();
       this.emergencyHoses?.commit();
       this.actorMotion.clear();
+      this.illustratedPeople?.reset();
+      this.illustratedPeople?.draw(this.camera);
     } else {
       this.updateCamera();
     }
@@ -2915,6 +2934,7 @@ export class CityRenderer {
       this.buildingsDirty = false;
     }
     const dusk = this.applyTimeOfDay();
+    this.illustratedPeople?.setDusk(dusk);
     for (const [id, view] of this.tagged.views) {
       const watched = this.world.people[id];
       if (!watched) { this.tagged.views.delete(id); continue; }
@@ -2990,6 +3010,7 @@ export class CityRenderer {
     this.renderer.render(this.scene, this.camera);
     this.buildingOutline.render(this.renderer, this.camera);
     for (const view of this.tagged.views.values()) this.renderTaggedView(view);
+    if (this.illustratedPeople && this.tagged.views.size) this.illustratedPeople.draw(this.camera);
   }
 
   private clearBuildingViews(): void {
@@ -3117,6 +3138,7 @@ export class CityRenderer {
       shadowCamera.updateProjectionMatrix();
       this.selectionRing.visible = false;
       if (this.vehicleSpritesActive) this.refreshTraffic(this.headlampMat.opacity / .9, t.camera);
+      this.illustratedPeople?.draw(t.camera);
       this.renderer.setViewport(r.x, this.height - r.y - r.height, r.width, r.height);
       this.renderer.setScissor(left, this.height - bottom, right - left, bottom - top);
       this.renderer.setScissorTest(true);
@@ -3214,6 +3236,7 @@ export class CityRenderer {
     this.ownedTextures.dispose();
     this.sun?.shadow.dispose();
     this.vehicleSprites?.dispose();
+    this.illustratedPeople?.dispose();
     this.sculptModels?.dispose();
     this.cityEffects?.dispose();
     this.deathMarks?.dispose();
