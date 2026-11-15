@@ -37,6 +37,9 @@ const root = shape(checker.getTypeAtLocation(declaration));
 const json = JSON.stringify({ root, defs }, null, 2) + '\n';
 const output = 'src/sim/world-schema.json';
 if (process.argv.includes('--check')) {
-  if (fs.readFileSync(output, 'utf8') !== json) throw Error('Save schema is stale; run node scripts/build-save-schema.mjs');
+  // A Windows checkout may have CRLF in this committed JSON even though the
+  // generator always writes LF. The schema's data is identical, so compare
+  // normalized line endings before declaring it stale.
+  if (fs.readFileSync(output, 'utf8').replace(/\r\n/g, '\n') !== json) throw Error('Save schema is stale; run node scripts/build-save-schema.mjs');
 } else fs.writeFileSync(output, json);
 console.log(`Save schema ${process.argv.includes('--check') ? 'verified' : 'generated'} (${Object.keys(defs).length} shapes).`);
