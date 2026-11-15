@@ -7,10 +7,7 @@ import { VIEW_ZOOM, viewForZoom } from '../render/viewModes';
 
 type PannableCamera = Pick<NonNullable<typeof cameraApi.ref>, 'panBy'>;
 
-/**
- * RTS-style camera motion.  These are screen-space deltas, so CityRenderer
- * keeps the movement useful at every zoom level and with either camera side.
- */
+/** Direction the player wants to travel on screen. */
 const MAP_PAN_KEYS: Record<string, readonly [number, number]> = {
   w: [0, -52], ArrowUp: [0, -52],
   a: [-52, 0], ArrowLeft: [-52, 0],
@@ -18,11 +15,14 @@ const MAP_PAN_KEYS: Record<string, readonly [number, number]> = {
   d: [52, 0], ArrowRight: [52, 0],
 };
 
-/** Handle one RTS map-navigation key. Exported so the controls stay testable. */
-export function panMapWithKeys(key: string, camera: PannableCamera | null = cameraApi.ref): boolean {
+/** Handle one RTS map-navigation key. The 3D camera's panBy takes drag
+ * deltas, which run opposite to keyboard navigation; the plan already accepts
+ * navigation deltas. */
+export function panMapWithKeys(key: string, camera: PannableCamera | null = cameraApi.ref, view: 'city' | 'plan' = 'city'): boolean {
   const delta = MAP_PAN_KEYS[key.length === 1 ? key.toLowerCase() : key];
   if (!delta) return false;
-  camera?.panBy(delta[0], delta[1]);
+  const direction = view === 'city' ? -1 : 1;
+  camera?.panBy(delta[0] * direction, delta[1] * direction);
   return true;
 }
 
@@ -115,7 +115,7 @@ export function useGameKeyboard() {
       if (!planning) {
         // W/A/S/D follows the city on screen; arrows are included for players
         // who prefer them. These are camera controls, never orders.
-        if (!e.ctrlKey && !e.altKey && panMapWithKeys(e.key, s.weekPlanOpen ? blueprintApi.ref : cameraApi.ref)) {
+        if (!e.ctrlKey && !e.altKey && panMapWithKeys(e.key, s.weekPlanOpen ? blueprintApi.ref : cameraApi.ref, s.weekPlanOpen ? 'plan' : 'city')) {
           e.preventDefault();
           return;
         }
