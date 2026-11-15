@@ -1,7 +1,7 @@
 import { DRIVE_SPEED, MINUTES_PER_WEEK, movementScale, VEHICLES } from './constants';
 import { FULL_DAY_MINUTES } from './calendar';
 import { BUILDING_BY_ID } from './data/buildings';
-import { goodsRetailer, goodsRoom } from './goodsStorage';
+import { goodsRetailer, goodsRoom, isStorageSite } from './goodsStorage';
 import { roadAheadBlocked, roadAheadRoom, trafficContext } from './traffic';
 import { noteDrive, previewVehicle } from './movement';
 import { roadHeading, roadPosition, vehicleRoute } from './vehicleNavigation';
@@ -37,7 +37,7 @@ function reservedRoom(w: WorldState, b: Building, kind: GoodsKind, except?: Good
   let room = goodsRoom(b, kind);
   for (const d of Object.values(w.goodsDeliveries ?? {})) {
     if (d === except || d.targetId !== b.id) continue;
-    const sameStore = kind === d.kind || b.typeId === 'warehouse' && kind !== 'counterfeit' && d.kind !== 'counterfeit';
+    const sameStore = kind === d.kind || isStorageSite(b) && b.typeId !== 'iceHouse' && kind !== 'counterfeit' && d.kind !== 'counterfeit';
     if (sameStore) room -= d.amount;
   }
   return Math.max(0, room);
@@ -49,7 +49,7 @@ function destination(w: WorldState, gangId: number, kind: GoodsKind, from: Vec2,
   retail.sort((a,b) => dist(from,buildingDoor(w,a))-dist(from,buildingDoor(w,b)) || a.id-b.id);
   if (retail.length) return retail[0];
   if (!allowWarehouse) return;
-  const stores = sites.filter(b => b.typeId === 'warehouse');
+  const stores = sites.filter(isStorageSite);
   // Counterfeit goes to the first available warehouse; stolen goods to the
   // nearest. Liquor likewise uses the nearest available surplus store.
   stores.sort((a,b) => kind === 'counterfeit' ? a.id-b.id
@@ -63,15 +63,15 @@ function route(w: WorldState, d: GoodsDelivery, target: Building): void {
 function home(w: WorldState, d: GoodsDelivery): Building | undefined {
   const source = w.buildings[d.sourceId];
   if (source?.ownerGangId === d.gangId && source.state !== 'destroyed') return source;
-  return buildingList(w).find(b => owns(b,d.gangId) && b.typeId === 'warehouse');
+  return buildingList(w).find(b => owns(b,d.gangId) && isStorageSite(b));
 }
 function schedule(w: WorldState, source: Building): void {
   if (source.ownerGangId == null || source.state !== 'trading' || w.gangs[source.ownerGangId]?.eliminated ||
-    w.goodsDeliveries?.[source.id] || source.typeId !== 'warehouse' && !BUILDING_BY_ID[source.typeId]?.produces) return;
+    w.goodsDeliveries?.[source.id] || !isStorageSite(source) && !BUILDING_BY_ID[source.typeId]?.produces) return;
   for (const kind of KINDS) {
     if (source.stock[kind] <= 0) continue;
     const pos = roadPosition(w,buildingDoor(w,source));
-    const target = destination(w,source.ownerGangId,kind,pos,source.typeId !== 'warehouse');
+    const target = destination(w,source.ownerGangId,kind,pos,!isStorageSite(source));
     if (!target || target.id === source.id) continue;
     const amount = Math.min(source.stock[kind], VEHICLES.truck.cargo, reservedRoom(w,target,kind));
     if (amount <= 0) continue;

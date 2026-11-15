@@ -29,6 +29,9 @@ export const BUILDING_TYPES: BuildingType[] = [
   { id: 'healthCenter', name: 'Health Center', cls: 'commercial', cost: 9000, profit: 430, storeys: 3, weight: { downtown: 5, commercial: 5 } },
   { id: 'massageParlor', name: 'Massage Parlor', cls: 'commercial', cost: 8400, profit: 420, storeys: 2, weight: { commercial: 5, downtown: 4 } },
   { id: 'danceStudio', name: 'Dance Studio', cls: 'commercial', cost: 8000, profit: 400, storeys: 2, weight: { downtown: 5, commercial: 5 } },
+  { id: 'jazzClub', name: 'Jazz Club', cls: 'commercial', cost: 13000, profit: 760, storeys: 3, weight: { downtown: 7, commercial: 5 }, stores: ['liquor', 'counterfeit'] },
+  { id: 'movieTheater', name: 'Movie Theater', cls: 'commercial', cost: 16000, profit: 820, storeys: 4, weight: { downtown: 6, commercial: 5 }, stores: ['counterfeit'] },
+  { id: 'theater', name: 'Theater', cls: 'commercial', cost: 14000, profit: 700, storeys: 4, weight: { downtown: 5, commercial: 4 }, stores: ['counterfeit'] },
   { id: 'barbers', name: 'Barbers', cls: 'commercial', cost: 4800, profit: 220, storeys: 2, weight: { commercial: 8, residential: 8 } },
   { id: 'laundry', name: 'Laundry', cls: 'commercial', cost: 5400, profit: 250, storeys: 2, weight: { commercial: 7, residential: 8, industrial: 5 }, stores: ['counterfeit'] },
   { id: 'hardwareStore', name: 'Hardware Store', cls: 'commercial', cost: 6600, profit: 310, storeys: 2, weight: { commercial: 7, industrial: 6 }, stores: ['stolen'] },
@@ -46,6 +49,8 @@ export const BUILDING_TYPES: BuildingType[] = [
 
   // ------------------------------------------------------------------ industrial
   { id: 'warehouse', name: 'Warehouse', cls: 'industrial', cost: 9000, profit: 0, storeys: 2, weight: { industrial: 12 }, stores: ['liquor', 'stolen', 'counterfeit'] },
+  { id: 'haulageCompany', name: 'Haulage Company', cls: 'industrial', cost: 13500, profit: 580, storeys: 2, weight: { industrial: 9, commercial: 2 }, stores: ['liquor', 'stolen', 'counterfeit'] },
+  { id: 'iceHouse', name: 'Ice House', cls: 'industrial', cost: 11000, profit: 420, storeys: 2, weight: { industrial: 9 }, stores: ['liquor'] },
   { id: 'foundry', name: 'Foundry', cls: 'industrial', cost: 16000, profit: 780, storeys: 3, weight: { industrial: 10 } },
   { id: 'mill', name: 'Mill', cls: 'industrial', cost: 14000, profit: 680, storeys: 3, weight: { industrial: 9 } },
   { id: 'cannery', name: 'Cannery', cls: 'industrial', cost: 13000, profit: 640, storeys: 3, weight: { industrial: 9 }, stores: ['liquor'] },
@@ -101,6 +106,11 @@ export const BUILDING_TYPES: BuildingType[] = [
     produces: { kind: 'liquor', amount: 90 }, stores: ['liquor'],
   },
   {
+    id: 'brewery', name: 'Illegal Brewery', cls: 'illegal', cost: 16500, profit: 0, storeys: 2, weight: {},
+    fronts: ['cannery', 'iceHouse', 'haulageCompany', 'warehouse'],
+    produces: { kind: 'liquor', amount: 260 }, stores: ['liquor'],
+  },
+  {
     id: 'casino', name: 'Casino', cls: 'illegal', cost: 18000, profit: 4200, storeys: 1, weight: {},
     fronts: ['bankLarge', 'bankSmall', 'hotelLarge', 'departmentStore', 'restaurant'],
   },
@@ -115,6 +125,10 @@ export const BUILDING_TYPES: BuildingType[] = [
   {
     id: 'gamblingDen', name: 'Gambling Den', cls: 'illegal', cost: 6500, profit: 1600, storeys: 1, weight: {},
     fronts: ['poolHall', 'cafe', 'hotelSmall'],
+  },
+  {
+    id: 'bookmaker', name: 'Bookmaker', cls: 'illegal', cost: 7500, profit: 1750, storeys: 1, weight: {},
+    fronts: ['poolHall', 'jazzClub', 'hotelSmall', 'haulageCompany'],
   },
   {
     id: 'prizeFight', name: 'Prizefight Ring', cls: 'illegal', cost: 7000, profit: 1750, storeys: 1, weight: {},
@@ -142,8 +156,8 @@ export const BUILDING_TYPES: BuildingType[] = [
     fronts: ['convenienceStore', 'grocers', 'barbers', 'bakers'],
   },
   {
-    id: 'whorehouse', name: 'Whorehouse', cls: 'illegal', cost: 11000, profit: 2400, storeys: 1, weight: {},
-    fronts: ['massageParlor', 'danceStudio', 'hotelSmall', 'hotelLarge', 'healthCenter'],
+    id: 'whorehouse', name: 'Brothel', cls: 'illegal', cost: 11000, profit: 2400, storeys: 1, weight: {},
+    fronts: ['massageParlor', 'danceStudio', 'hotelSmall', 'hotelLarge', 'healthCenter', 'jazzClub'],
   },
   {
     id: 'teamsters', name: 'Teamsters', cls: 'illegal', cost: 8500, profit: 1100, storeys: 1, weight: {},

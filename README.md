@@ -47,7 +47,16 @@ page and the Windows build workflow.
   takes 24 real minutes for a full day at normal speed, up from about seven.
   People, cars and delivery trucks keep roughly the same screen pace; the
   classic five-day mode keeps its original clock rate. The existing speed
-  controls still let players accelerate the longer day.
+  controls still let players accelerate the longer day. The city also has a
+  haulage company, jazz club, movie theater, theater, ice house, bookmaker and
+  larger illegal brewery. The existing brothel is now labelled **Brothel**.
+  Haulage companies and ice houses hold stock and send goods by truck; jazz
+  clubs buy liquor. Residents, officials and off-duty police take individual
+  leisure trips, especially at weekends. A rotating police shift remains on
+  call, while new routine FBI investigations pause over the weekend. Actual
+  visitors affect weekly venue income. An official seen inside a gang-owned
+  brothel or casino gives that gang a one-week discount on a lawyer-arranged
+  bribe; the leverage is used up when the bribe is paid.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.

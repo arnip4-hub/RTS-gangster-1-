@@ -11,6 +11,7 @@ const BY_NAME: Record<string, string> = {
   'Accountants': 'accountancy', 'Auto Dealers': 'autoShop', 'Bakery': 'bakers', 'Barbers': 'barbers',
   'Book Store': 'bookStore', 'Breakfast Bar': 'breakfastBar', 'Butchers': 'butchers', 'Cafe': 'cafe',
   'Convenience Store': 'convenienceStore', 'Local Store': 'convenienceStore', 'Dance Studio': 'danceStudio',
+  'Cab Company': 'haulageCompany', 'Movie Theater': 'movieTheater', 'Theater': 'theater',
   'Department Store': 'departmentStore', 'Drug Store': 'drugStore', 'Finance Company': 'financeCompany',
   'Fur Store': 'furrier', 'Gas Station/Mechanic': 'autoShop', 'Grocery Store': 'grocers', 'Fruit and Veg. Store': 'grocers',
   'Gym': 'gym', 'Hardware Store': 'hardwareStore', 'Health Center': 'healthCenter', 'Jewelers': 'jewellers',
@@ -22,7 +23,8 @@ const BY_NAME: Record<string, string> = {
   // Industrial and special kinds.
   'Cannery': 'cannery', 'Docks': 'docks', 'Newspaper': 'newspaper', 'Radio Station': 'radioStation',
   'Steel Mill': 'foundry', 'Fabricators': 'foundry', 'Engineers': 'foundry', 'Sheet Workers': 'foundry',
-  'Paper Mill': 'mill', 'Textiles': 'mill', 'Weavers': 'mill', 'Freight Forwarding': 'garageDepot',
+  'Paper Mill': 'mill', 'Textiles': 'mill', 'Weavers': 'mill', 'Freight Forwarding': 'haulageCompany',
+  'Removals Company': 'haulageCompany', 'Ice House': 'iceHouse',
   'Wheelwrights': 'garageDepot', 'Warehouse': 'warehouse',
   // Charity, municipal and residential.
   'Soup kitchen': 'soupKitchen', 'Church': 'church', 'Orphanage': 'orphanage', 'City Hall': 'cityHall',

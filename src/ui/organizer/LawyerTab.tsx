@@ -20,6 +20,7 @@ import { VEHICLES, VEHICLE_ORDER } from '../../sim/constants';
 import { SpecialistJobList } from '../SpecialistJobCard';
 import { peopleList } from '../../sim/entityLists';
 import { quitGangPayroll } from '../../sim/payrollMark';
+import { officialLeverage } from '../../sim/officials';
 
 export function LawyerTab() {
   const sim = useGame((s) => s.sim)!;
@@ -210,6 +211,7 @@ export function LawyerTab() {
                       <Pill kind={view > 20 ? 'good' : view < -20 ? 'bad' : undefined}>
                         {view > 20 ? 'friendly' : view < -20 ? 'hostile' : 'neutral'}
                       </Pill>
+                      {officialLeverage(w, p, gang.id) && <Pill kind="good">Leverage</Pill>}
                       <span className="muted tiny mono">{money(bribePrice(w, p, gang.id))}</span>
                       <button
                         className="btn sm"

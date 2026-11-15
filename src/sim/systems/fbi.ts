@@ -10,7 +10,9 @@ import { dismount } from '../transport';
 import { onRoad, pavementBeside } from '../vehicleNavigation';
 import { accountantSkillByte } from './taxes';
 import { WAREHOUSE_CASH_CAP, WAREHOUSE_GOODS_CAP } from '../constants';
+import { isWeekend } from '../duty';
 import { BUILDING_BY_ID } from '../data/buildings';
+import { isStorageSite } from '../goodsStorage';
 import { describeCrime } from './law';
 import { skillByte } from '../fireRoll';
 import type { Rng } from '../rng';
@@ -133,6 +135,9 @@ export function dispatchFbi(w: WorldState, rng: Rng): void {
     else if (!assignmentValid(w,p) || n >= (job.kind === 'arrest' ? ARREST_SQUAD : 1)) releaseAssignment(p);
     else claimed.set(job.buildingId, n+1);
   }
+  // New routine investigations wait until Monday. Existing work and urgent
+  // responses already under way keep their real routes and finish normally.
+  if (w.options.continuousTime && isWeekend(w)) return;
   const agents = w.fbiIds.map(id => w.people[id]).filter(p => p && available(w,p) && !p.fbiAssignment);
   if (!agents.length) return;
   // Original city: a boss's raid takes the squad before any search.
@@ -529,11 +534,12 @@ function dismissOfficer(w: WorldState, gang: Gang, o: Person): void {
  * counterfeit cases, a speakeasy's 120 cases of liquor, a fence's 60 stolen
  * cases and a counterfeit outlet's 6 (`goodsRoom`'s buffers). */
 function storeRoom(b: Building): { liquor: boolean; stolen: boolean; counterfeit: number; goods: number } {
-  const warehouse = b.typeId === 'warehouse', stores = BUILDING_BY_ID[b.typeId]?.stores ?? [];
-  const liquor = warehouse || b.typeId === 'speakeasy';
-  const stolen = warehouse || stores.includes('stolen');
-  const counterfeit = warehouse ? WAREHOUSE_CASH_CAP : stores.includes('counterfeit') ? 6 : 0;
-  const goods = warehouse ? WAREHOUSE_GOODS_CAP : liquor ? 120 : stolen ? 60 : 0;
+  const storage = isStorageSite(b), stores = BUILDING_BY_ID[b.typeId]?.stores ?? [];
+  const liquor = storage || ['speakeasy', 'jazzClub', 'brewery', 'moonshineStill'].includes(b.typeId);
+  const stolen = storage && b.typeId !== 'iceHouse' || stores.includes('stolen');
+  const counterfeit = storage ? b.typeId === 'iceHouse' ? 0 : WAREHOUSE_CASH_CAP : stores.includes('counterfeit') ? 6 : 0;
+  const goods = b.typeId === 'iceHouse' ? 450 : storage || b.typeId === 'brewery' || b.typeId === 'moonshineStill'
+    ? WAREHOUSE_GOODS_CAP : liquor ? 120 : stolen ? 60 : 0;
   return { liquor, stolen, counterfeit, goods };
 }
 

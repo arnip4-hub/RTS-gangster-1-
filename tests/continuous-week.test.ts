@@ -8,6 +8,7 @@ import { Sim } from '../src/sim/sim';
 import { tickAmbient } from '../src/sim/systems/ambient';
 import { tickBuildingEmergencies } from '../src/sim/systems/buildingEmergency';
 import { recordCrime } from '../src/sim/events';
+import { policeOnDuty } from '../src/sim/duty';
 import { buildingDoor, dayIndex, dayPhase, dist } from '../src/sim/world';
 import { weekTime } from '../src/ui/WeekClock';
 
@@ -212,7 +213,8 @@ describe('continuous RTS calendar', () => {
       delete p.emergencyResponse;
     }
     for (let i = 0; i < 4; i++) { w.minute++; tickAmbient(w, sim.rng, 1); }
-    expect(officers.every(p => !p.dest && !p.inVehicle && !p.emergencyResponse)).toBe(true);
+    expect(officers.every(p => !p.inVehicle && !p.emergencyResponse)).toBe(true);
+    expect(officers.filter(p => policeOnDuty(w, p))).toHaveLength(1);
 
     const perp = w.people[sim.playerGang.bossId];
     const police = officers[0];

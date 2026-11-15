@@ -1,5 +1,7 @@
 import { BLOCK_SIZE, CELL, DRIVE_MIN_DISTANCE } from '../constants';
-import { FULL_DAY_MINUTES, hourOfDay } from '../calendar';
+import { FULL_DAY_MINUTES, campaignMinute, hourOfDay } from '../calendar';
+import { isWeekend, policeOnDuty } from '../duty';
+import { addMessage } from '../events';
 import { presentPhoto } from '../presentationEvents';
 import { specialistParticipants, specialistVisitTargets } from '../specialistJobs';
 import { clearDestination, earlySteps, setDestination, stepPerson } from '../movement';
@@ -83,11 +85,10 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
           // a destination in the evening.
           const restart = night ? p.role === 'snitch' ? .18 : .1 : CIVILIAN_RESTART;
           if (rng.chance(Math.min(1, restart * minutes))) {
-            if (night && nightOut(w, p)) goToNightVenue(w, p);
-            else if (!night) wanderTo(w, rng, p, 5);
+            if (!night) wanderTo(w, rng, p, 5);
           }
         } else {
-          if (stepPerson(p, minutes, traffic) && night) enterNightVenue(w, p);
+          stepPerson(p, minutes, traffic);
         }
         break;
       }
@@ -162,10 +163,18 @@ const NIGHT_HOME_ROLES = new Set<PersonRole>([
 ]);
 const NIGHTLIFE_TYPES = new Set([
   'cafe', 'restaurant', 'poolHall', 'hotelSmall', 'hotelLarge', 'danceStudio', 'speakeasy',
-  'casino', 'cardGames', 'diceGame', 'gamblingDen', 'prizeFight', 'whorehouse',
+  'jazzClub', 'movieTheater', 'theater', 'casino', 'cardGames', 'diceGame', 'gamblingDen',
+  'prizeFight', 'whorehouse', 'bookmaker',
 ]);
+const LEISURE_TYPES: Record<NonNullable<Person['leisureProfile']>, string[]> = {
+  social: ['jazzClub', 'danceStudio', 'cafe', 'restaurant', 'speakeasy'],
+  culture: ['movieTheater', 'theater', 'jazzClub', 'restaurant'],
+  games: ['poolHall', 'prizeFight', 'bookmaker', 'cardGames', 'diceGame'],
+  vice: ['casino', 'whorehouse', 'gamblingDen', 'speakeasy', 'jazzClub'],
+  quiet: ['movieTheater', 'restaurant', 'cafe', 'hotelSmall', 'hotelLarge'],
+};
 const residentialCache = new WeakMap<WorldState, Building[]>();
-const nightlifeCache = new WeakMap<WorldState, Building[]>();
+const nightlifeCache = new WeakMap<WorldState, {day: number; venues: Building[]}>();
 const policeStationCache = new WeakMap<WorldState, Building | null>();
 
 function residential(b: Building): boolean {
@@ -189,21 +198,30 @@ function homeFor(w: WorldState, p: Person): Building | undefined {
   return home;
 }
 
-function nightOut(w: WorldState, p: Person): boolean {
-  const day = Math.floor(w.minute / FULL_DAY_MINUTES);
-  const threshold = p.role === 'snitch' ? 32 : p.role === 'police' ? 8 : 10;
-  return hash32(p.id * 2246822519 + day * 3266489917) % 100 < threshold;
+function leisureProfile(p: Person): NonNullable<Person['leisureProfile']> {
+  if (p.leisureProfile) return p.leisureProfile;
+  const choices: NonNullable<Person['leisureProfile']>[] = ['social', 'culture', 'games', 'vice', 'quiet'];
+  // Individual skills tilt the preference, while the stable id breaks ties.
+  const score = hash32(p.id * 2246822519 + Math.round(p.skills.intelligence * 17 + p.skills.business * 11));
+  p.leisureProfile = choices[p.role === 'mayor' || p.role === 'judge' || p.role === 'da'
+    ? [3, 1, 4, 0, 2][score % 5] : score % 5];
+  return p.leisureProfile;
 }
 
-function nightVenue(w: WorldState, p: Person): Building | undefined {
-  let venues = nightlifeCache.get(w);
-  if (!venues) {
-    venues = allBuildings(w).filter(b => NIGHTLIFE_TYPES.has(b.typeId)).sort((a, b) => a.id - b.id);
-    nightlifeCache.set(w, venues);
+function nightVenue(w: WorldState, p: Person, day: number): Building | undefined {
+  let cached = nightlifeCache.get(w);
+  if (!cached || cached.day !== day) {
+    cached = { day, venues: allBuildings(w).filter(b => NIGHTLIFE_TYPES.has(b.typeId)).sort((a, b) => a.id - b.id) };
+    nightlifeCache.set(w, cached);
   }
+  const venues = cached.venues;
   if (!venues.length) return undefined;
-  const day = Math.floor(w.minute / FULL_DAY_MINUTES);
   const start = hash32(p.id * 668265263 + day * 374761393) % venues.length;
+  const preference = LEISURE_TYPES[leisureProfile(p)];
+  for (let i = 0; i < venues.length; i++) {
+    const venue = venues[(start + i) % venues.length];
+    if (venue.state === 'trading' && preference.includes(venue.typeId)) return venue;
+  }
   for (let i = 0; i < venues.length; i++) {
     const venue = venues[(start + i) % venues.length];
     if (venue.state === 'trading') return venue;
@@ -279,25 +297,37 @@ function goHome(w: WorldState, p: Person, home: Building, minutes: number, traff
   return true;
 }
 
-function goToNightVenue(w: WorldState, p: Person): void {
-  const venue = nightVenue(w, p);
-  if (!venue) return;
-  if (p.buildingId != null) p.buildingId = null;
+function goToNightVenue(w: WorldState, p: Person, venue: Building): void {
+  if (p.buildingId != null) {
+    const previous = w.buildings[p.buildingId];
+    if (previous) p.pos = buildingDoor(w, previous);
+    p.buildingId = null;
+  }
   if (p.inVehicle) alight(w, p);
   clearDestination(p);
+  if (['mayor', 'policeChief', 'judge', 'da', 'fbiHead'].includes(p.role) &&
+      dist(p.pos, buildingDoor(w, venue)) > DRIVE_MIN_DISTANCE) p.inVehicle = true;
   setDestination(w, p, buildingDoor(w, venue));
 }
 
-function enterNightVenue(w: WorldState, p: Person): void {
-  const venue = nightVenue(w, p);
-  if (venue && dist(p.pos, buildingDoor(w, venue)) < 5) {
+function enterNightVenue(w: WorldState, p: Person, venue: Building): void {
+  if (dist(p.pos, buildingDoor(w, venue)) < 5) {
     clearDestination(p);
+    p.inVehicle = false;
     p.buildingId = venue.id;
     p.pos = { ...w.lots[venue.lotId].center };
+    venue.leisureVisits = (venue.leisureVisits ?? 0) + 1;
+    if (['mayor', 'policeChief', 'judge', 'da', 'police'].includes(p.role) &&
+        (venue.typeId === 'whorehouse' || venue.typeId === 'casino') && venue.ownerGangId != null) {
+      const gangId = venue.ownerGangId;
+      p.leverage ??= {};
+      p.leverage[gangId] = { venueId: venue.id, untilMinute: campaignMinute(w) + 7 * FULL_DAY_MINUTES };
+      if (w.gangs[gangId]?.isPlayer) addMessage(w, 'waiting', `${p.name} visited your ${venue.typeId === 'whorehouse' ? 'brothel' : 'casino'}. Your lawyer can use this leverage for a cheaper bribe.`, buildingDoor(w, venue), p.id);
+    }
   }
 }
 
-/** Returns true when the night schedule owns this person's ambient movement. */
+/** Returns true while home, on weekend leave, or taking a leisure trip. */
 function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
   traffic: ReturnType<typeof trafficContext>): boolean {
   if (!NIGHT_HOME_ROLES.has(p.role)) return false;
@@ -305,15 +335,17 @@ function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
   const official = p.role === 'mayor' || p.role === 'policeChief' || p.role === 'judge' || p.role === 'da' || p.role === 'fbiHead';
   if (!home) return false;
   const station = p.role === 'police' ? policeStation(w) : undefined;
-  if (!night) {
+  const weekend = isWeekend(w);
+  const offDuty = weekend || night || hourOfDay(w.minute, true) >= 18;
+  if (station && policeOnDuty(w, p) && offDuty) return goToPoliceStation(w, p, station, minutes, traffic);
+  if (!offDuty) {
     // Finish a long official car ride even if dawn arrives before the car
     // reaches its kerb; otherwise the morning role pass would leave the car
     // flag stranded on the road.
     if (official && p.inVehicle && p.dest) return goHome(w, p, home, minutes, traffic);
     if (p.buildingId === home.id) leaveHome(w, p, home);
     else if (station && p.buildingId === station.id) leaveHome(w, p, station);
-    else if (p.role === 'citizen' && p.buildingId != null) {
-      // A citizen's only other indoor location is last night's venue.
+    else if (p.buildingId != null && w.buildings[p.buildingId]?.ownerPersonId !== p.id) {
       const venue = w.buildings[p.buildingId];
       p.buildingId = null;
       p.pos = venue ? buildingDoor(w, venue) : buildingDoor(w, home);
@@ -321,17 +353,33 @@ function homeAtNight(w: WorldState, p: Person, night: boolean, minutes: number,
     return false;
   }
 
-  if (station && nightOut(w, p)) return goToPoliceStation(w, p, station, minutes, traffic);
-  const social = p.role === 'citizen' || p.role === 'snitch';
-  if (social && nightOut(w, p)) {
-    if (p.buildingId != null && p.buildingId !== home.id) return true;
-    if (p.buildingId === home.id) leaveHome(w, p, home);
-    const venue = nightVenue(w, p);
-    if (!venue) return goHome(w, p, home, minutes, traffic);
-    if (p.buildingId == null && venue && (!p.dest || dist(p.dest, buildingDoor(w, venue)) > 1)) goToNightVenue(w, p);
-    return false;
+  const day = Math.floor(campaignMinute(w) / FULL_DAY_MINUTES);
+  const clock = w.minute % FULL_DAY_MINUTES;
+  if (p.leisureVisit?.day !== day) delete p.leisureVisit;
+  if (!p.leisureVisit) {
+    const chosen = hash32(p.id * 2246822519 + day * 3266489917) % 100;
+    const chance = weekend ? p.role === 'citizen' || p.role === 'snitch' ? 72 : 55
+      : p.role === 'citizen' || p.role === 'snitch' ? 22 : 15;
+    const start = (weekend ? 10 : 18) * 60 + hash32(p.id * 668265263 + day) % (weekend ? 9 * 60 : 4 * 60);
+    const end = Math.min(23 * 60, start + 120 + hash32(p.id + day * 374761393) % 150);
+    if (chosen < chance && clock >= start && clock < end) {
+      const venue = nightVenue(w, p, day);
+      if (venue) p.leisureVisit = { day, venueId: venue.id, startMinute: start, endMinute: end };
+    }
   }
-  if (p.buildingId != null && p.buildingId !== home.id) p.buildingId = null;
+  const visit = p.leisureVisit;
+  const venue = visit ? w.buildings[visit.venueId] : undefined;
+  if (visit && venue?.state === 'trading' && clock >= visit.startMinute && clock < visit.endMinute) {
+    if (p.buildingId === venue.id) return true;
+    if (!p.dest || dist(p.dest, buildingDoor(w, venue)) > 1) goToNightVenue(w, p, venue);
+    if (stepPerson(p, minutes, traffic)) enterNightVenue(w, p, venue);
+    return true;
+  }
+  if (p.buildingId != null && p.buildingId !== home.id) {
+    const previous = w.buildings[p.buildingId];
+    if (previous) p.pos = buildingDoor(w, previous);
+    p.buildingId = null;
+  }
   return goHome(w, p, home, minutes, traffic);
 }
 

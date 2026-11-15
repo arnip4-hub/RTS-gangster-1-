@@ -215,7 +215,10 @@ export function BuildingPanel() {
                 </div>
               )}
 
-              {b.typeId==='warehouse' && <div className="kv"><span>Storage capacity</span><b>300 liquor / stolen cases combined · 15 counterfeit</b></div>}
+              {(b.typeId==='warehouse' || b.typeId==='haulageCompany') && <div className="kv"><span>Storage capacity</span><b>300 liquor / stolen cases combined · 15 counterfeit</b></div>}
+              {b.typeId==='iceHouse' && <div className="kv"><span>Storage capacity</span><b>450 liquor cases</b></div>}
+              {['jazzClub', 'movieTheater', 'theater', 'bookmaker', 'whorehouse', 'casino'].includes(b.typeId) &&
+                <div className="kv"><span>Visitors this week</span><b>{b.leisureVisits ?? 0}</b></div>}
               {deliverySummary && <div className="note">{deliverySummary}</div>}
               {t?.produces && b.state==='trading' && b.stock[t.produces.kind]>=(t.produces.kind==='counterfeit'?15:300) && <div className="note">Production is waiting for storage space.</div>}
               <div className="row wrap" style={{ gap: 6, marginTop: 10 }}>

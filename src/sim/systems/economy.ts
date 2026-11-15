@@ -34,6 +34,13 @@ export function businessProfit(w: WorldState, b: Building, rng: Rng): number {
     const supply = Math.min(1, b.stock.liquor / 40);
     profit *= 0.25 + supply * 0.75;
   }
+  if (t.id === 'jazzClub') {
+    const supply = Math.min(1, b.stock.liquor / 20);
+    profit *= 0.65 + supply * 0.35;
+  }
+  if (['jazzClub', 'movieTheater', 'theater', 'bookmaker', 'whorehouse', 'casino'].includes(t.id)) {
+    profit *= Math.min(1.4, 0.7 + (b.leisureVisits ?? 0) / 20);
+  }
 
   if (b.ownerGangId != null && b.managerId != null && profit > 0) {
     const mgr = w.people[b.managerId];
@@ -60,6 +67,7 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
   for (const b of allBuildings(w)) {
     if (b.ownerGangId == null) {
       b.lastProfit = 0;
+      b.leisureVisits = 0;
       continue;
     }
     const gang = w.gangs[b.ownerGangId];
@@ -71,6 +79,9 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
     // Speakeasies drink their way through the stock.
     if (b.typeId === 'speakeasy' && b.state === 'trading') {
       b.stock.liquor = Math.max(0, b.stock.liquor - 40);
+    }
+    if (b.typeId === 'jazzClub' && b.state === 'trading') {
+      b.stock.liquor = Math.max(0, b.stock.liquor - 20);
     }
     // Counterfeit money is passed off as change; stolen goods are fenced.
     const t = BUILDING_BY_ID[b.typeId];
@@ -101,6 +112,7 @@ export function weeklyEconomy(w: WorldState, rng: Rng): void {
     }
 
     b.lastProfit = declared;
+    b.leisureVisits = 0;
     if (b.managerId != null && w.people[b.managerId]) recordTakings(w, b.managerId, profit, declared);
     if (b.cls === 'illegal') {
       receiveCash(w, gang, 'illegal', declared);

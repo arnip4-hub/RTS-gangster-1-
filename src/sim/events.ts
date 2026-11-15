@@ -24,6 +24,7 @@ import { onGangPayroll } from './payrollMark';
 import { clearDestination, setDestination } from './movement';
 import { parkingSpot } from './vehicleNavigation';
 import { minuteRate } from './constants';
+import { policeOnDuty } from './duty';
 
 
 
@@ -117,7 +118,7 @@ const OWNER_SILENT = new Set<CrimeParams['type']>(['extort', 'intimidate', 'assa
 function dispatchWitnessedCrime(w: WorldState, crime: CrimeRecord, pos: Vec2): Person | undefined {
   if (w.phase !== 'week' || !w.options.continuousTime || !crime.reported || !crime.witnesses.length) return undefined;
   const officer = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p &&
-    p.status === 'active' && p.role === 'police' && !p.emergencyResponse && !p.dest &&
+    p.status === 'active' && p.role === 'police' && policeOnDuty(w, p) && !p.emergencyResponse &&
     !p.streetOrder && p.orderId == null && !p.inVehicle)
     .sort((a, b) => dist2(a.pos, pos) - dist2(b.pos, pos))[0];
   if (!officer) return undefined;

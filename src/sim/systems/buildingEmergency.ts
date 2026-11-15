@@ -9,6 +9,7 @@ import {buildingDoor,dist} from '../world';
 import {escapeSample} from '../burningEscape';
 import type {Rng} from '../rng';
 import { minuteRate } from '../constants';
+import { policeOnDuty } from '../duty';
 import type {Building,Person,Vec2,WorldState} from '../types';
 import { peopleList, buildingList } from '../entityLists';
 
@@ -94,7 +95,7 @@ export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fir
   const available=(p:Person)=>p.status==='active'&&!p.emergencyResponse&&p.burningEscape?.week!==w.week&&
     !p.streetOrder&&p.orderId==null&&!p.inVehicle;
   const nearest=(people:Person[])=>people.filter(available).sort((a,c)=>dist(a.pos,pavement)-dist(c.pos,pavement));
-  const police=nearest(w.policeIds.map(id=>w.people[id]).filter(Boolean)).slice(0,1);
+  const police=nearest(w.policeIds.map(id=>w.people[id]).filter((p):p is Person=>!!p&&policeOnDuty(w,p))).slice(0,1);
   const reporters=nearest(peopleList(w).filter(p=>p.role==='reporter'&&
     (p.buildingId==null||w.buildings[p.buildingId]?.ownerPersonId!==p.id))).slice(0,1);
   const responders=[...police,...nearest(firemen).slice(0,2),...reporters];

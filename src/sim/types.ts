@@ -103,6 +103,11 @@ export interface Person {
   buildingId: ID | null;
   /** Stable home used by the continuous-time city schedule. Optional for old saves. */
   homeBuildingId?: ID;
+  /** Stable leisure preference and today's planned visit (RTS schedule). */
+  leisureProfile?: 'social' | 'culture' | 'games' | 'vice' | 'quiet';
+  leisureVisit?: { day: number; venueId: ID; startMinute: number; endMinute: number };
+  /** A gang saw this official enter one of its vice venues; expires after a week. */
+  leverage?: Record<ID, { venueId: ID; untilMinute: number }>;
   pay: number;
   payDemand: number;
   /** 0..100. Falls with unpaid wages, refused raises, deaths at HQ. */
@@ -376,6 +381,8 @@ export interface Building {
   hidesId: ID | null;
   stock: Record<GoodsKind, number>;
   lastProfit: number;
+  /** Completed leisure visits since the last weekly settlement. */
+  leisureVisits?: number;
   repairCost: number;
   /** Saved fire damage: smoke lasts through this week, scorch persists until repaired. */
   fireWeek?: number;

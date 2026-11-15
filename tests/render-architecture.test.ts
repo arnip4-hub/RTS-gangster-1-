@@ -15,8 +15,8 @@ function building(type: (typeof BUILDING_TYPES)[number], id = 404): Building {
 }
 
 describe('architecture candidate invariants', () => {
-  it('preserves full-view footprint and public frontage when lowered for all 80 types', () => {
-    expect(BUILDING_TYPES.length).toBe(80);
+  it('preserves full-view footprint and public frontage when lowered for every type', () => {
+    expect(BUILDING_TYPES.length).toBeGreaterThanOrEqual(87);
     for (const type of BUILDING_TYPES) for (const edge of [false, true]) for (const seed of [1, 404, 938]) {
       const b = building(type, seed), profile = profileFor(b, type);
       const before = structuredClone(profile);
