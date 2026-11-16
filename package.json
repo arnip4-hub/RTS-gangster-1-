@@ -1,7 +1,7 @@
 {
   "name": "original-gangster",
   "private": true,
-  "version": "0.2.0-beta.4",
+  "version": "0.2.0-beta.5",
   "type": "module",
   "engines": {
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
@@ -80,12 +80,12 @@
       ]
     },
     "nsis": {
-      "artifactName": "RTS-gangster-beta-Setup.${ext}",
+      "artifactName": "RTS-gangster-beta-Setup-${version}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
     "portable": {
-      "artifactName": "RTS-gangster-beta-Portable.${ext}"
+      "artifactName": "RTS-gangster-beta-Portable-${version}.${ext}"
     },
     "mac": {
       "target": [

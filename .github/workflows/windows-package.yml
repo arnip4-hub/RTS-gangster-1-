@@ -1,0 +1,49 @@
+name: Windows beta package
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Optional prerelease tag to publish (blank: artifact only)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build Windows installer and portable app
+        run: npm run package:win -- --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rts-gangster-beta-windows
+          path: release/RTS-gangster-beta-*.exe
+          if-no-files-found: error
+
+      - name: Publish Windows packages to prerelease
+        if: inputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta" --notes-file docs/releases/rts-beta-20261116.3.md
+          }
+          gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber

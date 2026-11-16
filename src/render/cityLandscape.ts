@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { activeBlocks, blockRect, cityStreetInset } from '../sim/cityLayout';
 import { CELL } from '../sim/constants';
 import { riverBank, riverCrossing } from './riverBanks';
-import type { WorldState } from '../sim/types';
+import type { Block, WorldState } from '../sim/types';
 import { KERB_H, paveWidth, r01 } from './util';
 import { TREE_KINDS, type TreePlacement } from './sculptTrees';
 import { PondWaterMaterial } from './pondWater';
@@ -11,6 +11,15 @@ import { ElevatedTrains } from './elevatedTrains';
 import { StreetTrams } from './streetTrams';
 import { cityTramLines } from '../sim/trams';
 import { BLOCK_MODULE_BY_ID, modulePoint, moduleRect } from '../sim/blockModules';
+
+/** Width of the planted strip down the middle of an avenue, in metres. */
+export const AVENUE_MEDIAN = 14;
+
+/** Orientation of an avenue cell in the original city layout. */
+export function avenueAxes(b: Block): ('x' | 'z')[] {
+  const content = b.original?.content;
+  return content === 36 ? ['x', 'z'] : content === 35 ? ['z'] : ['x'];
+}
 
 /** Static, batched municipal grounds and inset tram rails, with the trams that run on them. */
 export class CityLandscape {
@@ -27,9 +36,9 @@ export class CityLandscape {
     this.group.name = 'parks-civic-grounds-and-tramways';
     if (!w.cityLayout) return;
     // 12: the original city's river, one continuous surface. 13: the elevated
-    // railway's dark riveted iron.
+    // railway's dark riveted iron. 14: worn off-white avenue lane paint.
     const materials = [0x7f9067, 0xb9b29b, 0x416b69, 0x414c43, 0x695847, 0x394b35, 0x526347, 0x7e817a, 0x414c43,
-      0x8a8576, 0x75695b, 0xaaa18d, 0x416b69, 0x2c302d]
+      0x8a8576, 0x75695b, 0xaaa18d, 0x416b69, 0x2c302d, 0xc9c3ad]
       .map((color, i) => i === 2 ? new PondWaterMaterial() : i === 12 ? new PondWaterMaterial(true)
         : new THREE.MeshStandardMaterial({ color, roughness: i === 13 ? .7 : .93, metalness: i === 7 ? .35 : i === 13 ? .3 : 0 }));
     this.materials = materials;
@@ -122,15 +131,10 @@ export class CityLandscape {
       const avenue = b.layout.use === 'avenue' && !crossing, water = b.layout.use === 'water' || crossing, plaza = b.layout.use === 'plaza';
       const open = avenue || water;
       if (avenue) {
-        // The avenue's central island: a planted median inside a paved rim, with
-        // a row of trees down each side along the avenue (both ways at a crossing).
-        const lawn = new THREE.PlaneGeometry(r.w - 5, r.h - 5).rotateX(-Math.PI / 2);
-        const positions = lawn.getAttribute('position'), uv = lawn.getAttribute('uv');
-        for (let i = 0; i < uv.count; i++) uv.setXY(i, (positions.getX(i) / (r.w - 5) + .5) * r.w / 9,
-          (.5 - positions.getZ(i) / (r.h - 5)) * r.h / 9);
-        add(lawn, 0, cx, ground, cz);
+        // The central 14 m median is planted; roadways occupy both sides.
+        // Crossings keep both median axes paved as tram islands.
+        const axes = avenueAxes(b), single = axes.length === 1;
         const content = b.original?.content;
-        const axes = content === 36 ? ['x', 'z'] : content === 35 ? ['z'] : ['x'];
         // Under the elevated railway (content 41) the deck and its pylons run
         // down the cell's centre column: keep the trees and the walk clear of it.
         const railX = content === 41 && w.cityLayout?.original?.railColumn != null
@@ -138,19 +142,28 @@ export class CityLandscape {
         const clearOfRail = (x: number) => railX == null || Math.abs(x - railX) > 6;
         const tramBed = cityTramLines(w).length > 0, bed = tramBed ? 5.6 : 3;
         for (const axis of axes) {
-          const length = axis === 'x' ? r.w : r.h, across = axis === 'x' ? r.h : r.w;
+          const alongX = axis === 'x', length = alongX ? r.w : r.h, across = alongX ? r.h : r.w;
+          if (single) {
+            const lw = length - 1, ld = AVENUE_MEDIAN - 1.6;
+            const lawn = new THREE.PlaneGeometry(alongX ? lw : ld, alongX ? ld : lw).rotateX(-Math.PI / 2);
+            const positions = lawn.getAttribute('position'), uv = lawn.getAttribute('uv');
+            for (let i = 0; i < uv.count; i++) uv.setXY(i,
+              (positions.getX(i) + cx) / 9, -(positions.getZ(i) + cz) / 9);
+            add(lawn, 0, cx, ground, cz);
+          }
           // A gravel walk down the middle of the median; with trams (the
           // avenues are tramways, 0x4EC3D0) a ballast bed under both tracks,
           // unbroken under the elevated railway, whose pylons stand elsewhere.
-          if (axis === 'x' && (railX == null || tramBed)) box(1, cx, ground + .012, cz, r.w - 5, .025, bed);
-          else if (axis === 'x') for (const [from, to] of [[r.x + 2.5, railX! - 6], [railX! + 6, r.x + r.w - 2.5]]) {
+          if ((single || tramBed) && alongX && (railX == null || tramBed)) box(1, cx, ground + .012, cz, r.w - 1, .025, bed);
+          else if ((single || tramBed) && alongX) for (const [from, to] of [[r.x + .5, railX! - 6], [railX! + 6, r.x + r.w - .5]]) {
             if (to - from > 1) box(1, (from + to) / 2, ground + .012, cz, to - from, .025, bed);
           }
-          else box(1, cx, ground + .012, cz, bed, .025, r.h - 5);
+          else if (single || tramBed) box(1, cx, ground + .012, cz, bed, .025, r.h - 1);
+          if (!single) continue;
           const count = Math.max(2, Math.floor((length - 8) / 9));
           for (let i = 0; i <= count; i++) for (const side of [-1, 1]) {
-            const along = -length / 2 + 4 + i * (length - 8) / count, off = side * (across / 2 - 6);
-            const x = axis === 'x' ? cx + along : cx + off, z = axis === 'x' ? cz + off : cz + along;
+            const along = -length / 2 + 4 + i * (length - 8) / count, off = side * (AVENUE_MEDIAN / 2 - 2.2);
+            const x = alongX ? cx + along : cx + off, z = alongX ? cz + off : cz + along;
             if (!clearOfRail(x)) continue;
             // At a crossing each row's middle tree would stand on the other
             // tramway: keep a tram body and a crown's width clear of both.
@@ -162,6 +175,15 @@ export class CityLandscape {
             add(new THREE.CylinderGeometry(.12, .22, height, 6), 4, x, ground + height / 2, z);
             const crown = new THREE.IcosahedronGeometry(2.1, 2); crown.scale(1, 1.25, 1);
             add(crown, 5, x, ground + height + .6, z);
+          }
+          // Dashed lane markings give each carriageway three lanes per direction.
+          const lane = (across / 2 - AVENUE_MEDIAN / 2) / 3;
+          for (const side of [-1, 1]) for (const n of [1, 2]) {
+            const off = side * (AVENUE_MEDIAN / 2 + lane * n);
+            for (let at = -length / 2 + 1.5; at + 3 <= length / 2; at += 6) {
+              const dash = new THREE.PlaneGeometry(alongX ? 3 : .2, alongX ? .2 : 3).rotateX(-Math.PI / 2);
+              add(dash, 14, alongX ? cx + at + 1.5 : cx + off, .035, alongX ? cz + off : cz + at + 1.5);
+            }
           }
         }
         continue;

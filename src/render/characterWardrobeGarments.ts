@@ -10,20 +10,24 @@ export interface WardrobeGarments {
   bodyHem: number;
   /** Retain the painted source torso above the garment's fitted waist. */
   bodyTop: number;
+  /** Update rigid fittings in the actor's metre-sized coordinate frame. */
+  sync(): void;
   dispose(): void;
 }
 
 interface Part { geometry: THREE.BufferGeometry; color: number }
 
-/** A few merged accessories and one pelvis-attached lower garment give the wardrobe
+/** A few merged accessories and one pelvis-following lower garment give the wardrobe
  * real silhouettes. Geometry is in the normalized actor's metre coordinates,
  * never in the imported skeleton's centimetres. */
 export function createWardrobeGarments(
   model: THREE.Object3D, wardrobe: ResolvedCharacterWardrobe,
   rest: ReadonlyMap<string, THREE.Matrix4>, restPositions: ReadonlyMap<string, THREE.Vector3>,
 ): WardrobeGarments {
+  const group = model.parent instanceof THREE.Group ? model.parent : model;
   const meshes: THREE.Object3D[] = [], geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
+  const followers: { mesh: THREE.Mesh; bone: THREE.Bone; restInverse: THREE.Matrix4 }[] = [];
   const bones = new Map<string, THREE.Bone>();
   model.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
   const head = restPositions.get('Head');
@@ -83,14 +87,16 @@ export function createWardrobeGarments(
         (wardrobe.face.width + wardrobe.face.length) / 2 * headWidthFit);
       geometry.translate(head.x, head.y, head.z);
     } else geometry.scale(1, heightScale, 1);
-    // Parts were drawn in actor coordinates; attach to the bone without
-    // inheriting the source file's unit conversion twice.
-    geometry.applyMatrix4(bind.clone().invert());
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = `wardrobe-${name}`; mesh.userData.wardrobe = true;
     mesh.castShadow = true; mesh.receiveShadow = false; mesh.frustumCulled = false;
     mesh.raycast = () => {};
-    bone.add(mesh); meshes.push(mesh);
+    // Keep vertices in the normalized actor's metre-sized frame. Convert the
+    // bone's current pose relative to its rest pose each frame, rather than
+    // baking large source-rig inverse scales into the clothing vertices.
+    mesh.matrixAutoUpdate = false;
+    group.add(mesh); meshes.push(mesh);
+    followers.push({ mesh, bone, restInverse: bind.clone().invert() });
   }
   function ellipsoid(x: number, y: number, z: number, sx: number, sy: number, sz: number, color: number): Part {
     const geometry = new THREE.SphereGeometry(1, 12, 8);
@@ -293,11 +299,12 @@ export function createWardrobeGarments(
       // combinations to produce the long exploding triangles seen in-game.
       // The pelvis follows walking, turning and falling, while the source body
       // continues to provide the detailed arm and leg motion underneath.
-      geometry.applyMatrix4(rest.get('Hips')!.clone().invert());
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = `wardrobe-${wardrobe.outfit.silhouette}`; mesh.userData.wardrobe = true;
       mesh.castShadow = true; mesh.receiveShadow = false; mesh.frustumCulled = false; mesh.raycast = () => {};
-      hips.add(mesh); meshes.push(mesh);
+      mesh.matrixAutoUpdate = false;
+      group.add(mesh); meshes.push(mesh);
+      followers.push({ mesh, bone: hips, restInverse: rest.get('Hips')!.clone().invert() });
     }
   }
   let disposed = false;
@@ -306,6 +313,17 @@ export function createWardrobeGarments(
     // The original trouser body remains behind the open male coat. Closed
     // skirts/dresses replace the covered source geometry as before.
     hidesSourceBody: shell && !openCoat && meshes.some(mesh => mesh.userData.wardrobe === true), bodyHem, bodyTop,
+    sync() {
+      if (disposed || !followers.length) return;
+      group.updateWorldMatrix(true, false);
+      const actorInverse = group.matrixWorld.clone().invert();
+      for (const follower of followers) {
+        follower.bone.updateWorldMatrix(true, false);
+        follower.mesh.matrix.multiplyMatrices(actorInverse, follower.bone.matrixWorld)
+          .multiply(follower.restInverse);
+        follower.mesh.matrixWorldNeedsUpdate = true;
+      }
+    },
     dispose() {
       if (disposed) return; disposed = true;
       meshes.forEach(mesh => mesh.removeFromParent());

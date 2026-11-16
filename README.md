@@ -8,9 +8,9 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.2.0-beta.4
+## Windows download — 0.2.0-beta.5
 
-[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261116.1/RTS-gangster-beta-Setup.exe)
+[Download RTS-gangster-beta-Setup-0.2.0-beta.5.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261116.3/RTS-gangster-beta-Setup-0.2.0-beta.5.exe)
 
 This installer includes the illustrated 3D buildings, 50 civilian clothing
 combinations, eight uniforms, varied body builds and skin tones, and painted
@@ -24,8 +24,8 @@ witness reports, imperfect identification, physical searches and arrests, and
 prosecutor reviews before charges. Hearings use their own evidence and live
 deadlines. Open **Book → Lawyer → Police and Bureau files** to investigate a
 file through your lawyer. The **24-real-minute day is unchanged**.
-The previous upstream 1.0.8 fixes and illustrated 3D artwork are included.
-See [release notes](docs/releases/rts-beta-20261116.1.md) and the
+The original 1.0.8 wide avenues are restored, including planted medians,
+tram beds and multi-lane markings. See [release notes](docs/releases/rts-beta-20261116.3.md) and the
 [police, FBI and court guide](docs/RTS_LAW.md).
 
 ## Where the project stands
@@ -169,9 +169,9 @@ the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.1)
-contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
-`RTS-gangster-beta-Portable.exe`. The City Plan now uses the full height of
+The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.3)
+contains `RTS-gangster-beta-Setup-0.2.0-beta.5.exe` and
+`RTS-gangster-beta-Portable-0.2.0-beta.5.exe`. The City Plan now uses the full height of
 the window while the minimap and clock float over its corners. In the live
 week, **People & cars** shows moving traffic and people: police are blue,
 civilians are small light dots, and identified gang members are larger coloured

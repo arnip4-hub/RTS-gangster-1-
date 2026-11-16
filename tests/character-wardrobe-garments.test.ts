@@ -29,7 +29,8 @@ describe('bone-fitted wardrobe geometry', () => {
       const result = createWardrobeGarments(f.model, wardrobe, f.rest, f.points);
       const mesh = result.meshes.find(mesh => mesh.name === 'wardrobe-headwear') as THREE.Mesh;
       expect(result.hidesSourceHat).toBe(true);
-      expect(mesh.parent).toBe(f.head);
+      expect(mesh.parent).toBe(f.group);
+      result.sync();
       f.group.updateMatrixWorld(true);
       const size = new THREE.Box3().setFromObject(mesh).getSize(new THREE.Vector3());
       expect(size.x).toBeGreaterThan(.12); expect(size.x).toBeLessThan(.65);
@@ -50,12 +51,12 @@ describe('bone-fitted wardrobe geometry', () => {
     for (const outfit of CHARACTER_OUTFITS.filter(outfit => ['coat', 'dress'].includes(outfit.silhouette))) {
       const result = createWardrobeGarments(f.model, withCharacterWardrobe(base, { outfit }), f.rest, f.points);
       const mesh = result.meshes.find(mesh => mesh.name === `wardrobe-${outfit.silhouette}`) as THREE.Mesh;
-      expect(mesh).toBeDefined(); expect(result.hidesSourceBody).toBe(true); expect(mesh.parent).toBe(f.hip);
+      expect(mesh).toBeDefined(); expect(result.hidesSourceBody).toBe(true); expect(mesh.parent).toBe(f.group);
       mesh.geometry.computeBoundingBox();
       expect(mesh.geometry.boundingBox!.min.y).toBeCloseTo(result.bodyHem, 5);
       f.group.updateMatrixWorld(true);
       const before = mesh.getWorldPosition(new THREE.Vector3());
-      f.hip.position.x += .2; f.group.updateMatrixWorld(true);
+      f.hip.position.x += .2; f.group.updateMatrixWorld(true); result.sync(); f.group.updateMatrixWorld(true);
       const after = mesh.getWorldPosition(new THREE.Vector3());
       expect(after.x - before.x).toBeCloseTo(.2, 5);
       f.hip.position.x -= .2; f.group.updateMatrixWorld(true);

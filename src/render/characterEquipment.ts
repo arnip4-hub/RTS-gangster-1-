@@ -205,6 +205,7 @@ export class CharacterEquipment {
 
   /** Fit both hands to held objects after the animation has been sampled. */
   pose(action?:CharacterAction,authoredCombat=false):void {
+    this.wardrobeGarments?.sync();
     for(const [mesh,matrix] of this.attachmentRest){matrix.decompose(mesh.position,mesh.quaternion,mesh.scale);mesh.visible=true;}
     for(const [mesh,rotation] of this.weaponGrips)mesh.quaternion.copy(rotation);
     for(const flash of this.flashes)flash.visible=false;

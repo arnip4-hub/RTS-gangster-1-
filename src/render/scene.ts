@@ -4,7 +4,7 @@ import {escapeSample,BURNING_TIMING} from '../sim/burningEscape';
 import {BurningPeople} from './burningPeople';
 import {EmergencyHoses} from './emergencyHoses';
 import { activeBlocks, blockRect, cityBlockAt, cityStreetInset, streetNameIndex } from '../sim/cityLayout';
-import { CityLandscape } from './cityLandscape';
+import { AVENUE_MEDIAN, CityLandscape, avenueAxes } from './cityLandscape';
 import { DeathMarks } from './deathMarks';
 import { heldCorpseAction, streetCorpseStage } from './corpsePresentation';
 import { CarGunfire } from './carGunfire';
@@ -168,10 +168,8 @@ const SHOP_PAINT = [0x4a6b52, 0x8c5a4a, 0x50607e, 0x9a8656, 0x6d5a48, 0x7a6f62, 
 const FACADE_ALBEDO_GAIN = [1.8, 2.5, 1, 1, 1.3] as const;
 
 /** Renders New Temperance: streets, skyline, traffic, people and overlays. */
-/** The original's avenues are double-width: the two flanking streets are its
- * carriageways and the cell between them is a raised central island with
- * lamps and trees (it was drawn as 50 m of open asphalt). Only a bridge, where
- * the avenue crosses the river, stays roadway from parapet to parapet. */
+/** The original's avenues are double-width: two carriageways flank a 14 m
+ * central median. A bridge across the river remains roadway edge to edge. */
 function avenueRoadway(b: Block | undefined): boolean {
   return riverCrossing(b);
 }
@@ -1901,6 +1899,37 @@ export class CityRenderer {
       }
       if (avenueRoadway(blk)) continue;
       const rect = blockRect(blk), cx = blk.center.x, cz = blk.center.y;
+
+      if (blk.layout?.use === 'avenue') {
+        // Recreate the original's kerbed median between the wide carriageways.
+        const axes = avenueAxes(blk);
+        for (const axis of axes) {
+          const alongX = axis === 'x';
+          const length = (alongX ? rect.w : rect.h) + 2 * pave;
+          this.dummy.position.set(cx, 0, cz);
+          this.dummy.rotation.set(0, 0, 0);
+          this.dummy.scale.set((alongX ? length : AVENUE_MEDIAN) / (2 * SLAB_HALF), 1,
+            (alongX ? AVENUE_MEDIAN : length) / (2 * SLAB_HALF));
+          this.dummy.updateMatrix();
+          const shade = 0.88 + r01(blk.id, 5) * 0.2;
+          this.colorScratch.setRGB(shade, shade * 0.99, shade * 0.96);
+          this.pavement.push(this.dummy.matrix, this.colorScratch);
+          this.dummy.scale.set(1, 1, 1);
+          if (axes.length > 1) continue;
+          for (let k = 0; k < 4; k++) {
+            const along = (k & 1 ? 1 : -1) * (length / 2 - 1.5);
+            const off = (k & 2 ? 1 : -1) * (AVENUE_MEDIAN / 2 - .8);
+            this.dummy.position.set(alongX ? cx + along : cx + off, KERB_H,
+              alongX ? cz + off : cz + along);
+            this.dummy.rotation.set(0, (k * Math.PI) / 2, 0);
+            this.dummy.updateMatrix();
+            this.lamps.push(this.dummy.matrix);
+            this.lampGlow.push(this.dummy.matrix);
+          }
+        }
+        this.dummy.scale.set(1, 1, 1);
+        continue;
+      }
 
       this.dummy.position.set(cx, 0, cz);
       this.dummy.rotation.set(0, 0, 0);
