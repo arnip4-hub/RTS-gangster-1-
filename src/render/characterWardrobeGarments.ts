@@ -23,7 +23,7 @@ export function createWardrobeGarments(
   rest: ReadonlyMap<string, THREE.Matrix4>, restPositions: ReadonlyMap<string, THREE.Vector3>,
 ): WardrobeGarments {
   const meshes: THREE.Object3D[] = [], geometries: THREE.BufferGeometry[] = [];
-  const materials: THREE.Material[] = [], skeletons: THREE.Skeleton[] = [];
+  const materials: THREE.Material[] = [];
   const bones = new Map<string, THREE.Bone>();
   model.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
   const head = restPositions.get('Head');
@@ -243,7 +243,7 @@ export function createWardrobeGarments(
         { y: 1.03, w: isDress ? .17 : .197, d: .137 },
         { y: 1.10, w: isDress ? .17 : .185, d: .137 },
       ].filter((r, i) => i === 0 || r.y > hem + .015);
-      const sides = 24, pos: number[] = [], joints: number[] = [], weights: number[] = [], indices: number[] = [];
+      const sides = 24, pos: number[] = [], indices: number[] = [];
       const colors: number[] = [], color = new THREE.Color();
       const belly = wardrobe.body.belly;
       rings.forEach((ring, row) => {
@@ -258,12 +258,6 @@ export function createWardrobeGarments(
           const bellyWeight = Math.max(0, 1 - Math.abs(ring.y - 1.02) / .42);
           const z = Math.cos(angle) * ring.d * depth * fold + Math.max(0, Math.cos(angle)) * belly * bellyWeight;
           pos.push(x * unit, ring.y * unit * heightScale, z * unit);
-          // The skirt's lower edge follows its nearer thigh. The waist keeps
-          // the shell attached to the pelvis during a long stride or fall.
-          const leg = THREE.MathUtils.clamp((.98 - ring.y) / .85, 0, .67);
-          const upper = THREE.MathUtils.smoothstep(ring.y, 1.06, 1.43) * .85;
-          const l = THREE.MathUtils.smoothstep(x, -.12, .12);
-          joints.push(0, 1, 2, 3); weights.push(1 - leg - upper, leg * l, leg * (1 - l), upper);
           // Match the restrained albedo gain of the painted source torso;
           // an unshaded palette colour made skirts look like a separate apron.
           color.setHex(wardrobe.outfit.coatColor).multiplyScalar(.70 + .12 * Math.max(0, Math.cos(angle - .4)));
@@ -273,8 +267,6 @@ export function createWardrobeGarments(
       });
       const geometry = new THREE.BufferGeometry();
       geometry.setIndex(indices); geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(joints, 4));
-      geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
       geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); geometry.computeVertexNormals();
       geometries.push(geometry);
       const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .98, side: THREE.DoubleSide });
@@ -295,14 +287,17 @@ export function createWardrobeGarments(
         };
         material.customProgramCacheKey = () => `wardrobe-garment-${pattern}-v1`;
       materials.push(material);
-      const boneList = [hips, left, right, spine];
-      const skeleton = new THREE.Skeleton(boneList, boneList.map(bone => rest.get(bone.name)!.clone().invert()));
-      skeletons.push(skeleton);
-      const mesh = new THREE.SkinnedMesh(geometry, material);
-      mesh.bind(skeleton, new THREE.Matrix4());
+      // Keep the garment as a rigid shell attached to the pelvis. The imported
+      // character rigs use slightly different bone hierarchies; making this
+      // generated shell a second skinned mesh caused invalid inverse-bind
+      // combinations to produce the long exploding triangles seen in-game.
+      // The pelvis follows walking, turning and falling, while the source body
+      // continues to provide the detailed arm and leg motion underneath.
+      geometry.applyMatrix4(rest.get('Hips')!.clone().invert());
+      const mesh = new THREE.Mesh(geometry, material);
       mesh.name = `wardrobe-${wardrobe.outfit.silhouette}`; mesh.userData.wardrobe = true;
       mesh.castShadow = true; mesh.receiveShadow = false; mesh.frustumCulled = false; mesh.raycast = () => {};
-      group.add(mesh); meshes.push(mesh);
+      hips.add(mesh); meshes.push(mesh);
     }
   }
   let disposed = false;
@@ -310,7 +305,7 @@ export function createWardrobeGarments(
     meshes, hidesSourceHat: !!head && bones.has('Head'),
     // The original trouser body remains behind the open male coat. Closed
     // skirts/dresses replace the covered source geometry as before.
-    hidesSourceBody: shell && !openCoat && meshes.some(mesh => mesh instanceof THREE.SkinnedMesh), bodyHem, bodyTop,
+    hidesSourceBody: shell && !openCoat && meshes.some(mesh => mesh.userData.wardrobe === true), bodyHem, bodyTop,
     dispose() {
       if (disposed) return; disposed = true;
       meshes.forEach(mesh => mesh.removeFromParent());
