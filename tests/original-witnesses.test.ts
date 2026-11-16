@@ -8,7 +8,7 @@ import type { Person, Vec2 } from '../src/sim/types';
 
 /** fileCrime 0x4DB700 witness rules in the original city. */
 function scene(stealth: number) {
-  const sim = new Sim({ ...newCampaignOptions(), seed: 404 });
+  const sim = new Sim({ ...newCampaignOptions(), continuousTime: false, seed: 404 });
   const w = sim.world, gang = sim.playerGang;
   const perp = w.people[w.teams[gang.teamIds[0]].lieutenantId];
   perp.skills.stealth = stealth;

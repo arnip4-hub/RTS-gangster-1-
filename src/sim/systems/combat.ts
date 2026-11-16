@@ -17,6 +17,7 @@ import { blockClaimants } from '../territory';
 import { peopleList } from '../entityLists';
 import { streetArrest } from './fbi';
 import { onGangPayroll } from '../payrollMark';
+import { tryCaseArrest } from '../policeCases';
 
 /** Optional snapshot for isolated combat fixtures. The game reads live claims
  * on demand so extortion, sales and destruction take effect during the week. */
@@ -231,6 +232,9 @@ export function tickCombat(
 
       // ---- police & FBI: arrest rather than shoot, when they can.
       if ((a.role === 'police' || a.role === 'fbi') && b.gangId != null) {
+        // An RTS arrest needs an identified case and actual contact. General
+        // heat, hostile opinion and FBI rank are not arrest authority.
+        if (w.options.continuousTime) { tryCaseArrest(w, rng, a, b); continue; }
         const gang = w.gangs[b.gangId];
         if (!gang) continue;
         if (onGangPayroll(a, gang.id) || a.bribedBy === gang.id) continue;

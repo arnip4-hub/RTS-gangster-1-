@@ -1,5 +1,6 @@
 import { campaignMinute } from './calendar';
 import { policeOnDuty } from './duty';
+import { addCaseEvidence, ensurePoliceFile } from './caseEvidence';
 import { addMessage } from './events';
 import { payCash, receiveCash } from './finances';
 import { clearDestination, setDestination } from './movement';
@@ -176,10 +177,18 @@ export function tickCaptivity(w: WorldState, rng: Rng): void {
  * street snatch. The ordinary live law review decides whether it is enough. */
 function fileSafeHouseEvidence(w: WorldState, p: Person): void {
   const crime=p.captivity?.crimeId == null ? undefined : w.crimes.find(c=>c.id===p.captivity?.crimeId);
-  if (!crime || crime.investigatedAt != null) return;
+  if (!crime || !w.options.continuousTime && crime.investigatedAt != null) return;
   crime.reported=true;
   crime.reportedAt=campaignMinute(w);
   crime.arrestRisk=Math.max(crime.arrestRisk,.42);
+  if (w.options.continuousTime) {
+    const office = w.buildings[p.captivity!.officeId];
+    const file = ensurePoliceFile(w, crime, office ? buildingDoor(w, office) : p.pos);
+    addCaseEvidence(w, crime, { kind: 'rescue', strength: 55, collectedAt: campaignMinute(w),
+      witnessId: p.id, personId: crime.perpetratorId, buildingId: p.captivity!.officeId,
+      note: 'Rescued captive identified the abductor to police.' });
+    file.nextReviewAt = campaignMinute(w);
+  }
   const gang=w.gangs[p.capturedBy!];
   if (gang) gang.evidence=Math.min(100,gang.evidence+8);
 }

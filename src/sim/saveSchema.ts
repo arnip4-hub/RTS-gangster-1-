@@ -8,6 +8,7 @@ import { MAX_TEAM_SIZE, VEHICLES } from './constants';
 import { campaignMinute, weekDuration } from './calendar';
 import { onRoad, vehiclePathOnRoad } from './vehicleNavigation';
 import { peopleList, buildingList } from './entityLists';
+import { validateLawReferences } from './lawSave';
 
 type Shape = { ref?: string; type?: string; literal?: unknown; union?: Shape[];
   array?: Shape; object?: Record<string, { optional: boolean; shape: Shape }>; values?: Shape };
@@ -422,6 +423,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
       throw Error('Save has invalid or repeated event IDs.');
   }
   if (w.phase === 'gameOver' && !w.outcome) throw Error('Finished save is missing its outcome.');
+  validateLawReferences(w);
 }
 
 /** Validate before installing a world; migration only adds known legacy fields. */

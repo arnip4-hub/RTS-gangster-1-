@@ -13,7 +13,8 @@ payroll knows the files assigned to him, and his influence affects that
 investigation. A killed officer is replaced. Police reports from owners appear
 in the Squealers panel, where the player can prepare a hit.
 
-The trial still occurs at a weekly boundary. Convicted members serve their
+RTS charging reviews and hearings now use live game deadlines; see
+[Police, FBI and prosecution](RTS_LAW.md). The classic mode retains weekly trials. Convicted members serve their
 sentence in County Jail or the State Penitentiary. Prison contacts and attacks
 resolve at a daily morning roll call in RTS mode; the prisons are virtual and
 do not have walkable interiors.
@@ -29,8 +30,8 @@ do not have walkable interiors.
    extends the attacker's sentence and raises evidence.
 3. AI inmates sometimes learn a name and occasionally attempt an attack using
    the same knowledge and cash requirements. They do not see the whole prison.
-4. Contacts and attacks resolve daily. Sentences and court accounting remain
-   on the existing weekly boundary.
+4. Contacts and attacks resolve daily. Sentence settlement remains
+   weekly; RTS hearings do not wait for that boundary.
 
 ## Later prison depth
 

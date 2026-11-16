@@ -68,7 +68,8 @@ export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiRe
     return { ok: false, error: 'Choose a reported crime against your gang.' };
   const actor = availableSpecialist(w, gang, 'lawyer');
   if (!actor) return { ok: false, error: 'You need an available lawyer.' };
-  if (crime.investigatorKnown) return { ok: true, message: 'Your lawyer already identified the lead officer.' };
+  if (crime.investigatorKnown && (!w.options.continuousTime || crime.police?.disclosureKnown))
+    return { ok: true, message: 'Your lawyer already obtained this case file.' };
   if (Object.values(w.specialistJobs ?? {}).some(j => j.gangId === gangId && j.crimeId === crimeId && specialistJobActive(j)))
     return { ok: true, message: 'Your lawyer is already reviewing that file.' };
   const job: SpecialistJob = { id: newId(w), gangId, actorId: actor.id, week: w.week,
@@ -213,6 +214,7 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active')
         crime.investigatorId = w.policeIds.find(id => w.people[id]?.status === 'active');
       crime.investigatorKnown = true;
+      if (crime.police) crime.police.disclosureKnown = true;
       for (const c of Object.values(w.cases)) if (c.sourceCrimeId === crime.id && c.gangId === gang.id) {
         c.investigatorId = crime.investigatorId;
         c.investigatorKnown = true;

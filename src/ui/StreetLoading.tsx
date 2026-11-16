@@ -16,7 +16,7 @@ export const LOADING_TIPS = [
   'Extorting blocks near your territory is easier: the further away, the harder the sell.',
   'A lieutenant with little to do still costs his wages. Give every crew a full week.',
   'Without an accountant, almost nothing you earn illegally can be explained away to the tax man.',
-  'A hood who is wanted should stay off the streets for a week or two while the heat dies down.',
+  'Your lawyer can identify investigating officers and defend your people in court.',
   'Bribed police look the other way, but a bribe is only as good as the officer who took it.',
   'Guarding a front also protects the illegal business behind it.',
   'Your boss is the gang. If he dies or goes to prison, the game is over.',

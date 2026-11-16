@@ -23,6 +23,7 @@ import { Portrait } from '../Portrait';
 import { resourceDragProps, useResourceDrop } from '../resourceDrag';
 import { Advisor } from './Advisor';
 import { ABSENT, PayRoll, hours } from './RightSheet';
+import { personWantedLabel } from '../policeCaseView';
 
 type Mode = 'orders' | 'reports';
 
@@ -232,7 +233,7 @@ export function LieutenantsTab() {
               </div>
               <div className="row" style={{ gap: 6, marginTop: 8 }}>
                 <span className={`tag ${lt.loyalty > 60 ? 'good' : lt.loyalty > 30 ? 'warn' : 'bad'}`}>Loyalty {Math.round(lt.loyalty)}</span>
-                <span className="tag">Wanted {Math.round(lt.wanted)}</span>
+                <span className="tag">{personWantedLabel(w, lt)}</span>
                 {lt.status !== 'active' && (
                   <span className="tag bad">
                     <Icon name={`status/${lt.status}`} size={12} /> {ABSENT[lt.status] ?? lt.status}

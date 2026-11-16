@@ -15,6 +15,9 @@ import { BUILDING_BY_ID } from '../data/buildings';
 import { isStorageSite } from '../goodsStorage';
 import { describeCrime } from './law';
 import { skillByte } from '../fireRoll';
+import { dispatchRtsFbi, raidRtsSite, serveRtsSiteWarrants, tickRtsFbi, weeklyRtsFbi } from '../fbiRts';
+import { refreshPoliceWanted } from '../caseEvidence';
+import { tryCaseArrest } from '../policeCases';
 import type { Rng } from '../rng';
 import type { Building, Gang, ID, Person, Vec2, WorldState } from '../types';
 import { allBuildings, buildingDoor, buildingName, dist } from '../world';
@@ -84,6 +87,7 @@ function available(w: WorldState, p: Person): boolean {
 
 /** Older saves have only a discovery flag: allow a full week before the raid. */
 export function normalizeFbiInvestigations(w: WorldState): void {
+  if (w.options.continuousTime) return;
   for (const b of allBuildings(w)) {
     if (!operation(w,b) || !b.discovered) continue;
     b.fbiDiscoveredWeek ??= w.week;
@@ -124,6 +128,7 @@ export function fbiWorkPosition(w: WorldState, b: Building, point = 0): Vec2 {
 }
 
 export function dispatchFbi(w: WorldState, rng: Rng): void {
+  if (w.options.continuousTime) { dispatchRtsFbi(w); return; }
   if (w.phase !== 'week') return;
   normalizeFbiInvestigations(w);
   const claimed = new Map<number, number>();
@@ -200,6 +205,7 @@ function searchSite(w: WorldState, rng: Rng, b: Building, agent: Person): boolea
 
 /** Real travel and bounded work at three points; every phase survives saves. */
 export function tickFbi(w: WorldState, rng: Rng, minutes: number): void {
+  if (w.options.continuousTime) { tickRtsFbi(w, rng, minutes); return; }
   if (w.phase !== 'week') return;
   if (w.minute % 30 === 0) dispatchFbi(w,rng);
   const traffic = trafficContext(w);
@@ -236,6 +242,7 @@ export function tickFbi(w: WorldState, rng: Rng, minutes: number): void {
  * to search, then raids what they find. Violence against agents only hardens it.
  */
 export function weeklyFbi(w: WorldState, rng: Rng): void {
+  if (w.options.continuousTime) { weeklyRtsFbi(w); return; }
   const original = !!w.cityLayout?.original;
   if (original) { fbiZeal(w, rng); serveAccountantWarrants(w, rng); heavyCrimeSuspicion(w); }
   // ---- suspicion follows unexplained money
@@ -400,6 +407,10 @@ export function evasionWeeks(p: Person): number {
  * accountant can be wanted with no evasion at all once zeal passes 150.
  */
 export function accountantCheck(w: WorldState, gang: Gang): boolean {
+  if (w.options.continuousTime) {
+    refreshPoliceWanted(w);
+    return gang.accountantId != null && !!w.people[gang.accountantId]?.fbiWarrant;
+  }
   const boss = w.people[gang.bossId];
   if (!boss || boss.status !== 'active' && boss.status !== 'kidnapped' && boss.status !== 'beaten') return false;
   const p = gangAccountant(w, gang);
@@ -445,6 +456,7 @@ function takeIntoCustody(w: WorldState, p: Person, gangId: ID, kind: string, bui
  * him (0x49A530) and charges them with his latest recorded crime.
  */
 export function serveAccountantWarrants(w: WorldState, rng: Rng): void {
+  if (w.options.continuousTime) { dispatchRtsFbi(w); return; }
   const agent = w.fbiIds.map(id => w.people[id]).find(p => p?.status === 'active');
   if (!agent) return;
   const wanted = peopleList(w).filter(p => p.fbiWarrant && WARRANT_ROLES.has(p.role) && p.status === 'active' && p.gangId != null && w.gangs[p.gangId])
@@ -581,6 +593,7 @@ export function contrabandDraw(b: Building, roll: number): boolean {
  * premises is found and raided the next week (`raidSite`).
  */
 export function launderingFencingRaids(w: WorldState, rng: Rng): Building[] {
+  if (w.options.continuousTime) return [];
   const zeal = w.fbiZeal ?? 128, raided: Building[] = [];
   for (const gang of Object.values(w.gangs).sort((a, c) => a.id - c.id)) {
     if (gang.eliminated) continue;
@@ -616,6 +629,7 @@ export function launderingFencingRaids(w: WorldState, rng: Rng): Building[] {
  * run those events.)
  */
 export function heavyCrimeSuspicion(w: WorldState): void {
+  if (w.options.continuousTime) return;
   for (const c of w.crimes) {
     // A charge repeats a crime already counted when it was committed.
     if (c.week !== w.week || c.charge) continue;
@@ -664,6 +678,10 @@ export function decayCrimeSuspicion(w: WorldState): void {
  * next weekly turn.
  */
 export function memberWarrants(w: WorldState, rng: Rng): Person[] {
+  if (w.options.continuousTime) {
+    refreshPoliceWanted(w);
+    return peopleList(w).filter(p => p.fbiWarrant && p.status === 'active');
+  }
   const gangs = Object.values(w.gangs).sort((a, c) => a.id - c.id);
   if (!gangs.length) return [];
   const start = rng.int(0, 3), wanted: Person[] = [];
@@ -776,6 +794,7 @@ function teamMates(w: WorldState, p: Person): Person[] {
  * gang's office (gang +0x2D6), i.e. he runs for home.
  */
 export function streetArrest(w: WorldState, rng: Rng, officer: Person, p: Person): ArrestOutcome {
+  if (w.options.continuousTime) return tryCaseArrest(w, rng, officer, p) ? 'arrested' : 'breaksAway';
   // Stopped and taken out of his car whatever comes of it: he resists or runs
   // on foot, and the best driver left takes the wheel.
   outOfCar(w, p);
@@ -811,6 +830,7 @@ export function streetArrest(w: WorldState, rng: Rng, officer: Person, p: Person
  * against his team's; one arrest takes his whole team with him, wherever
  * they are, as in the original. */
 export function raidHeadquarters(w: WorldState, rng: Rng, b: Building, agent?: Person): void {
+  if (w.options.continuousTime) { serveRtsSiteWarrants(w, rng, b, agent); return; }
   const gang = b.ownerGangId == null ? undefined : w.gangs[b.ownerGangId];
   if (!gang || gang.fbiRaidWeek == null) return;
   delete gang.fbiRaidWeek;
@@ -856,6 +876,7 @@ export function raidHeadquarters(w: WorldState, rng: Rng, b: Building, agent?: P
 
 /** Shut a site down, seize the stock, arrest whoever is inside. */
 export function raidSite(w: WorldState, rng: Rng, b: Building, agent?: Person): void {
+  if (w.options.continuousTime) { raidRtsSite(w, rng, b, agent); return; }
   if (!operation(w,b)) return;
   const gang = b.ownerGangId != null ? w.gangs[b.ownerGangId] : null;
   let arrests = 0;

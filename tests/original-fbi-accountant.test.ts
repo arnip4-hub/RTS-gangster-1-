@@ -7,10 +7,10 @@ import {
   CRACKDOWN_PAYROLL, accountantCheck, evasionWeeks, fbiZeal, payrollCrackdown, raidHeadquarters,
   recordAccountantWeek, serveAccountantWarrants, weeklyFbi,
 } from '../src/sim/systems/fbi';
-import type { Gang, Person, WorldState } from '../src/sim/types';
+import type { GameOptions, Gang, Person, WorldState } from '../src/sim/types';
 import { allBuildings } from '../src/sim/world';
 
-function city(options = newCampaignOptions()) {
+function city(options: GameOptions = { ...newCampaignOptions(), continuousTime: false }) {
   const w = createWorld({ ...options, seed: 404 }).world;
   const player = Object.values(w.gangs).find(g => g.isPlayer)!;
   const ai = Object.values(w.gangs).find(g => !g.isPlayer)!;

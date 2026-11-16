@@ -28,6 +28,9 @@ import type { OrderType } from '../../sim/types';
 import { queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
 import { knownPrisonRivals, PRISON_NAMES, prisonOf, requestPrisonAttack, requestPrisonContact, requestPrisonProtection } from '../../sim/prison';
 import { specialistAskingWage } from '../../sim/originalWages';
+import { campaignMinute } from '../../sim/calendar';
+import { PoliceCaseFiles } from '../PoliceCasePanel';
+import { activeWarrants, lawDeadline } from '../policeCaseView';
 
 export function LawyerTab() {
   const sim = useGame((s) => s.sim)!;
@@ -44,6 +47,7 @@ export function LawyerTab() {
 
   const w = sim.world;
   const gang = sim.playerGang;
+  const continuous = !!w.options.continuousTime;
   const lawyer = gang.lawyerId != null ? w.people[gang.lawyerId] : null;
   const straight = canGoStraight(w, gang.id);
   const officeEntry = officeEntryCheck(w, gang.id);
@@ -58,10 +62,13 @@ export function LawyerTab() {
     setOrganizerOpen(true);
   };
   const wanted = Object.values(w.people)
-    .filter((p) => p.gangId === gang.id && p.wanted > 25 && p.status !== 'dead')
+    .filter((p) => p.gangId === gang.id && p.status !== 'dead' &&
+      (continuous ? activeWarrants(w, p.id).length > 0 : p.wanted > 25))
     .sort((a, b) => b.wanted - a.wanted);
   const crimes = w.crimes.filter((c) => c.gangId === gang.id && c.week >= w.week - 1 && !c.charge);
-  const investigations = crimes.filter(c => c.reported);
+  const investigations = (continuous ? w.crimes.filter(c => c.gangId === gang.id && (c.police || !c.charge)) : crimes)
+    .filter(c => c.reported && (c.reportedAt == null || c.reportedAt <= campaignMinute(w)));
+  const detained = peopleList(w).filter(p => p.gangId === gang.id && p.status === 'arrested' && p.custody);
   const imprisoned = peopleList(w).filter(p => p.gangId === gang.id && p.status === 'jailed');
   const lawyerInvestigating = (crimeId: number) => Object.values(w.specialistJobs ?? {}).some(j =>
     j.crimeId === crimeId && specialistJobActive(j));
@@ -353,6 +360,10 @@ export function LawyerTab() {
         <Hint>Inmates learn only about people they share a prison with. Contacts and attacks resolve at morning roll call; an attack can extend a sentence and draw police attention.</Hint>
       </Panel>
 
+      {continuous ? <PoliceCaseFiles world={w} viewer={gang.id} crimes={investigations}
+        canInquire={!!lawyer} canHit={gang.teamIds.length > 0} isInvestigating={lawyerInvestigating}
+        onInquiry={crimeId => notify(act(s => queueCrimeInquiry(s.world, gang.id, crimeId)))}
+        onBribeOfficer={id => beginSpecialistOrder('bribeOfficials', id)} onPlanHit={id => planAgainst('kill', id)} /> :
       <Panel title="Police Investigations">
         {investigations.length === 0 ? <Empty>No open police files against your gang.</Empty> :
           investigations.slice(-12).map(crime => {
@@ -374,7 +385,17 @@ export function LawyerTab() {
             </div>;
           })}
         <Hint>A paid officer can identify a file he handles. Bribery may weaken its case; if an officer is killed, another takes over.</Hint>
-      </Panel>
+      </Panel>}
+
+      {continuous && detained.length > 0 && <Panel title="Custody review">
+        {detained.map(person => <div className="police-file tiny" key={person.id}>
+          <b>{person.name}</b>
+          <div>Prosecutor review: {lawDeadline(w, person.custody!.reviewAt)}</div>
+          <div>Charging deadline: {lawDeadline(w, person.custody!.releaseAt)}</div>
+        </div>)}
+        <Hint>The prosecutor must charge, request further investigation or release the suspect.
+          Your lawyer defends your people when a case reaches court.</Hint>
+      </Panel>}
 
       <Panel title="Legal Proceedings">
         {cases.length === 0 ? (
@@ -390,7 +411,8 @@ export function LawyerTab() {
               </div>
               <div className="muted tiny">
                 {c.crime} · Judge {w.people[c.judgeId]?.name} · DA {w.people[c.daId]?.name}
-                {c.weeksToTrial > 0 && ` · trial in ${c.weeksToTrial} week(s)`}
+                {continuous && c.trialAt != null && ['awaiting', 'onTrial'].includes(c.status)
+                  ? ` · hearing ${lawDeadline(w, c.trialAt)}` : !continuous && c.weeksToTrial > 0 && ` · trial in ${c.weeksToTrial} week(s)`}
               </div>
               {['awaiting', 'onTrial'].includes(c.status) && <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
                 <span style={{ flex: 1 }}>Prosecutor: {w.people[c.daId]?.name ?? 'Unknown'}</span>
@@ -439,18 +461,19 @@ export function LawyerTab() {
         <Hint>Bribed witnesses can withdraw; bribed jurors help the defence. Killing a juror forces a replacement and delays the hearing.</Hint>
       </Panel>
 
-      <Panel title="Most Wanted">
+      <Panel title={continuous ? 'Outstanding warrants' : 'Most Wanted'}>
         {wanted.length === 0 ? (
-          <Empty>None of your people are being watched.</Empty>
+          <Empty>{continuous ? 'No outstanding arrest warrants for your people.' : 'None of your people are being watched.'}</Empty>
         ) : (
           wanted.slice(0, 12).map((p) => (
             <div key={p.id} className="row between tiny" style={{ padding: '2px 0' }}>
               <span>{p.name}</span>
-              <b className="mono">{Math.round(p.wanted)}</b>
+              <b className="mono">{continuous ? `${activeWarrants(w, p.id).length} warrant(s)` : Math.round(p.wanted)}</b>
             </div>
           ))
         )}
-        <Hint>Keep a hot hood off the streets for a week or two and the heat falls away.</Hint>
+        <Hint>{continuous ? 'A warrant belongs to a particular case. Your lawyer can review it; hiding alone does not clear it.'
+          : 'Keep a hot hood off the streets for a week or two and the heat falls away.'}</Hint>
       </Panel>
 
       <Panel title="Squealers">
@@ -482,7 +505,7 @@ export function LawyerTab() {
               <span>
                 {w.people[c.perpetratorId]?.name ?? 'Unknown'} — {c.kind}
               </span>
-              <span className="muted mono">{Math.round(c.arrestRisk * 100)}% risk</span>
+              <span className="muted mono">{continuous ? c.reported ? 'Reported' : 'No police report' : `${Math.round(c.arrestRisk * 100)}% risk`}</span>
             </div>
           ))
         )}

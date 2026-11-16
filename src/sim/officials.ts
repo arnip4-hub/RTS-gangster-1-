@@ -10,6 +10,7 @@ import { clearDestination } from './movement';
 import type { Rng } from './rng';
 import type { ID, Person, WorldState } from './types';
 import { campaignMinute } from './calendar';
+import { refreshPoliceWanted } from './caseEvidence';
 
 export function isBribableOfficial(p: Person): boolean {
   return p.status === 'active' && ['mayor', 'policeChief', 'judge', 'da', 'police'].includes(p.role);
@@ -44,9 +45,19 @@ export function completeOfficialBribe(w: WorldState, gangId: ID, p: Person, pric
     if (c.judgeId === p.id) {
       c.judgeBribed = true;
       c.status = 'dismissed';
+      if (w.options.continuousTime) {
+        c.reviewAt = campaignMinute(w) + 2 * 24 * 60;
+        const source = c.sourceCrimeId == null ? undefined : w.crimes.find(crime => crime.id === c.sourceCrimeId);
+        if (source?.police) {
+          source.police.stage = 'closed';
+          delete source.police.warrantAt;
+          delete source.police.warrantExpiresAt;
+        }
+      }
       const defendant = w.people[c.defendantId];
       if (defendant && ['arrested', 'onTrial'].includes(defendant.status)) {
         defendant.status = 'active'; defendant.jailWeeks = 0;
+        delete defendant.custody;
         defendant.wanted = Math.max(0, defendant.wanted - 30);
         clearDestination(defendant);
       }
@@ -58,6 +69,7 @@ export function completeOfficialBribe(w: WorldState, gangId: ID, p: Person, pric
       else c.knowsJurors = true;
     }
   }
+  if (w.options.continuousTime) refreshPoliceWanted(w);
   return { ok: true, message: `${p.name} took the money.` };
 }
 

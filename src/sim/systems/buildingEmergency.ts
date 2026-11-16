@@ -13,6 +13,7 @@ import { policeOnDuty } from '../duty';
 import { policeRescueArrival } from '../captivity';
 import type {Building,Person,Vec2,WorldState} from '../types';
 import { peopleList, buildingList } from '../entityLists';
+import { recordPoliceObservation } from '../policeCases';
 
 /** Keep an incident's elapsed time and its people in place at an RTS week
  * boundary. Its local minute stamps may become negative if it began Sunday
@@ -93,7 +94,7 @@ export function startBuildingEmergency(w:WorldState,rng:Rng,b:Building,kind:'fir
   if(firemen.length<2){
     while(firemen.length<2)firemen.push(createPerson(w,rng,'firefighter',firehouse,{female:false}));
   }
-  const available=(p:Person)=>p.status==='active'&&!p.emergencyResponse&&p.burningEscape?.week!==w.week&&
+  const available=(p:Person)=>p.status==='active'&&!p.emergencyResponse&&!p.policeTask&&p.burningEscape?.week!==w.week&&
     !p.streetOrder&&p.orderId==null&&!p.inVehicle;
   const nearest=(people:Person[])=>people.filter(available).sort((a,c)=>dist(a.pos,pavement)-dist(c.pos,pavement));
   const police=nearest(w.policeIds.map(id=>w.people[id]).filter((p):p is Person=>!!p&&policeOnDuty(w,p))).slice(0,1);
@@ -175,6 +176,8 @@ export function tickBuildingEmergencies(w:WorldState,rng:Rng,minutes:number):voi
       } else {
         if(response.vehicle)p.inVehicle=false;
         response.stage='working';response.arrivedMinute=w.minute;if(response.kind==='reporter')presentPhoto(w,p);
+        if (w.options.continuousTime && response.kind === 'police' && response.crimeId != null)
+          recordPoliceObservation(w,response.crimeId,p.id);
         if (response.rescueCaptiveId != null) policeRescueArrival(w,rng,response.rescueCaptiveId);
       }
     }

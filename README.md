@@ -5,27 +5,28 @@ the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal
 to run your gang from the city itself: move crews, issue orders while time passes,
 and open the Organizer whenever you need it.
 
-This is a **work in progress**, not a finished RTS conversion. Financial and court
-reports still close weekly; crews, vehicles, deliveries and live orders carry on.
+This is a **work in progress**, not a finished RTS conversion. Financial
+reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.2.0-beta.3
+## Windows download — 0.2.0-beta.4
 
-[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261115.7/RTS-gangster-beta-Setup.exe)
+[Download RTS-gangster-beta-Setup.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261116.1/RTS-gangster-beta-Setup.exe)
 
 This installer includes the illustrated 3D buildings, 50 civilian clothing
 combinations, eight uniforms, varied body builds and skin tones, and painted
 3D cars in twelve colours. New profiles start with **Illustrated 3D**.
 For an existing profile, choose **Book → Options → City artwork → Illustrated 3D**,
 then save and reopen the city. The existing save folder is retained.
-[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.7).
+[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.1).
 
-This patch adapts the remake's 1.0.8 targeting, owner-privacy, pricing, task-skill
-and map fixes to continuous RTS play. Firearm skill requires an available gun;
-task skills now agree across dispatch, job cards and execution. New cities use
-an expanded name pool with unique full names, including relatives. Existing
-saved names and employed specialists' contracted wages are preserved. Find
-excludes dead people, and unknown relatives keep their locations hidden.
-See the [patch details](docs/releases/rts-beta-20261115.7.md).
+This release introduces case-based RTS police and FBI investigations: delayed
+witness reports, imperfect identification, physical searches and arrests, and
+prosecutor reviews before charges. Hearings use their own evidence and live
+deadlines. Open **Book → Lawyer → Police and Bureau files** to investigate a
+file through your lawyer. The **24-real-minute day is unchanged**.
+The previous upstream 1.0.8 fixes and illustrated 3D artwork are included.
+See [release notes](docs/releases/rts-beta-20261116.1.md) and the
+[police, FBI and court guide](docs/RTS_LAW.md).
 
 ## Where the project stands
 
@@ -125,7 +126,7 @@ branch. The `main` branch keeps the earlier remake baseline.
   crime has a lead officer. Open the police message's **Investigations** button
   to reach the lawyer's panel. Send the lawyer to the courthouse to identify
   that officer; an officer already on your payroll can identify his own file.
-  Bribing the assigned officer reduces the chance of arrest or weakens a trial,
+  Bribing the assigned officer can buy a finite investigation delay or weaken a trial,
   while killing him leads to reassignment. The prosecutor can be bribed to
   reveal witnesses and jurors, or targeted like other people. Once named,
   witnesses and jurors can be bribed or marked for a planned hit. Bribed
@@ -153,21 +154,22 @@ branch. The `main` branch keeps the earlier remake baseline.
   broader AI goals, day/night tactics and more live responses to events, and a deeper
   redesign of weekly orders and accounting so the game can become a full RTS.
   Automatic week rollover does not remove all weekly rules yet. Freight trucks
-  are owned by businesses, not assigned to individual drivers; rival gangs do
-  have no manual route editor. Prison is represented through two named
+  are owned by businesses, not assigned to individual drivers; there is
+  no manual route editor. Prison is represented through two named
   facilities and daily actions rather than a walkable prison map.
 
 The [RTS time audit](docs/RTS_TIME_AUDIT.md) records which systems use game
 minutes, daily boundaries and the weekly settlement.
-The [crime and prison design](docs/CRIME_AND_PRISON.md) records the current
-court mechanics and the proposed prison contacts and information rules.
+The [police and FBI guide](docs/RTS_LAW.md) explains statements, warrants, physical
+arrests and live prosecution. The [crime and prison guide](docs/CRIME_AND_PRISON.md)
+records implemented prison contacts and proposed further additions.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.
 
 ## Download a test build
 
-The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261115.7)
+The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.1)
 contains the installer `RTS-gangster-beta-Setup.exe` and a portable build
 `RTS-gangster-beta-Portable.exe`. The City Plan now uses the full height of
 the window while the minimap and clock float over its corners. In the live

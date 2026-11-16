@@ -53,7 +53,7 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
   meeting: ReturnType<typeof specialistParticipants>, awaited: ReturnType<typeof specialistVisitTargets>): void {
   {
     if (p.orderId != null || p.streetOrder != null) return; // already handled by an order system
-    if (p.fbiAssignment) return;
+    if (p.fbiAssignment || p.policeTask) return;
     const continuous = !!w.options.continuousTime;
     const night = continuous && isNight(w.minute);
     // Walking to a street tram that stands for him, or aboard (tramRiding.ts).

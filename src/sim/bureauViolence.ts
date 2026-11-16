@@ -10,6 +10,10 @@ import type { ID, Person, WorldState } from './types';
 export function respondToBureauViolence(w: WorldState, gangId: ID, victim: Person): boolean {
   const gang = w.gangs[gangId];
   if (!gang || (victim.role !== 'fbi' && victim.role !== 'fbiHead')) return false;
+  // An unseen attack cannot identify a responsible gang to the Bureau.
+  if (w.options.continuousTime && !w.crimes.some(c => c.reported && c.victimId === victim.id &&
+      c.police?.suspectId != null && w.people[c.police.suspectId]?.gangId === gangId &&
+      c.police.identityConfidence >= 65)) return false;
   gang.suspicion = Math.min(100, gang.suspicion + 5);
   const responders = new Set([w.fbiHeadId, ...w.fbiIds]);
   for (const id of responders) {

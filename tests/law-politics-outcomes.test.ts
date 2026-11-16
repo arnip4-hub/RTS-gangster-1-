@@ -10,6 +10,8 @@ import { campaignWeeklyCost, canRunForOffice, weeklyPolitics } from '../src/sim/
 import { allBuildings, typeOf } from '../src/sim/world';
 import { queueCrimeInquiry } from '../src/sim/specialistJobs';
 import { recordSqueal, reportedSquealers } from '../src/sim/squealers';
+import { addCaseEvidence, ensurePoliceFile } from '../src/sim/caseEvidence';
+import type { CrimeRecord } from '../src/sim/types';
 
 afterEach(() => vi.restoreAllMocks());
 function fixture() {
@@ -67,26 +69,31 @@ describe('court outcomes and lawyer actions', () => {
     expect(Sim.fromSave(structuredClone(s.w)).world.crimes.find(c => c.id === crime.id)?.investigatorKnown).toBe(true);
   }, 240000);
 
-  it('reduces the arrest risk only when the officer handling that file is on the gang payroll', () => {
-    const riskFor = (paid: boolean) => {
+  it('delays an RTS file only when its assigned officer is on the gang payroll', () => {
+    const reviewFor = (paid: 'assigned' | 'unrelated' | false) => {
       const sim = new Sim({ ...defaultGameOptions(), continuousTime: true, seed: 404, citySize: 10 });
       const w = sim.world, gang = sim.playerGang, officer = w.people[w.policeIds[0]];
       const perp = w.people[w.teams[gang.teamIds[0]].memberIds[0]];
       sim.launchWeek();
       w.minute = 60;
-      w.crimes.push({ id: w.sequences.crime++, week: w.week, gangId: gang.id,
+      const crime: CrimeRecord = { id: w.sequences.crime++, week: w.week, gangId: gang.id,
         perpetratorId: perp.id, kind: 'kill', buildingId: null, victimId: null,
-        witnesses: [officer.id], arrestRisk: 0.65, reported: true, reportedAt: 0,
-        investigatorId: officer.id });
-      if (paid) officer.employedBy = gang.id;
-      let chance = -1;
-      vi.spyOn(sim.rng, 'chance').mockImplementation(p => { chance = p; return false; });
+        witnesses: [], arrestRisk: 0.65, reported: true, reportedAt: 0,
+        investigatorId: officer.id };
+      w.crimes.push(crime);
+      const file = ensurePoliceFile(w, crime, perp.pos);
+      addCaseEvidence(w, crime, { kind: 'direct', strength: 60, personId: perp.id,
+        collectedAt: 0, note: 'A recorded identification linked to this file.' });
+      if (paid === 'assigned') officer.employedBy = gang.id;
+      if (paid === 'unrelated') w.people[w.policeIds[1]].employedBy = gang.id;
       tickLaw(w, sim.rng);
-      return chance;
+      return file;
     };
-    const normal = riskFor(false), paid = riskFor(true);
-    expect(normal).toBeGreaterThan(0);
-    expect(paid).toBeCloseTo(normal * 0.6, 6);
+    const normal = reviewFor(false), paid = reviewFor('assigned'), unrelated = reviewFor('unrelated');
+    expect(normal.warrantAt).toBe(60);
+    expect(paid.warrantAt).toBeUndefined();
+    expect(paid.nextReviewAt).toBe(240);
+    expect(unrelated.warrantAt).toBe(60);
   });
 
   it('replaces a killed juror and delays the trial without retaining the old jury list', () => {

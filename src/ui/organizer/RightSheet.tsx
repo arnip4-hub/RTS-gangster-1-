@@ -21,6 +21,7 @@ import { SKILLS, SKILL_LABELS, type Building, type ID, type OrderType, type Pers
 import { buildingName, money, placeName } from '../../sim/world';
 import { orderSkillText } from '../../sim/orderSkills';
 import { specialistAskingWage } from '../../sim/originalWages';
+import { personHasWarrant, personWantedLabel } from '../policeCaseView';
 import { buildingMapIntel } from '../../sim/mapIntel';
 import { ConfirmDialog, Empty, Hint, Icon, Kicker, Rivets, SkillList, Stamp, Stars } from '../common';
 
@@ -502,7 +503,7 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
   return (
     <>
       <div className="row" style={{ gap: 14, alignItems: 'flex-start', position: 'relative' }}>
-        {person.wanted >= 50 && <Stamp kind="wanted" />}
+        {personHasWarrant(sim.world, person) && <Stamp kind="wanted" />}
         <div className="avatar">
           <Portrait person={person} gang={person.gangId === gang.id ? gang : undefined} size={96} />
         </div>
@@ -520,7 +521,7 @@ function PersonSheet({ person, teamId }: { person: Person; teamId?: ID }) {
           {person.familyOfId != null && <div className="muted tiny">{person.familyRelation} of {sim.world.people[person.familyOfId]?.name ?? 'a resident'}</div>}
           <div className="row between" style={{ marginTop: 6 }}>
             <span className={`tag ${person.loyalty > 60 ? 'good' : person.loyalty > 30 ? 'warn' : 'bad'}`}>Loyalty {Math.round(person.loyalty)}</span>
-            <span className="tag">Wanted {Math.round(person.wanted)}</span>
+            <span className={`tag${sim.world.options.continuousTime && personHasWarrant(sim.world, person) ? ' bad' : ''}`}>{personWantedLabel(sim.world, person)}</span>
           </div>
           <div className={`pay-lines${person.pay < person.payDemand ? ' unhappy' : ''}`} style={{ textAlign: 'left', marginTop: 8 }}>
             <Kicker>Wants {money(askingWage)}</Kicker>

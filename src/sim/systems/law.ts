@@ -1,5 +1,5 @@
 import { ORDERS } from '../constants';
-import { campaignMinute } from '../calendar';
+import { campaignMinute, FULL_WEEK_MINUTES } from '../calendar';
 import { availableOfficial, ensureCourtOfficials } from '../courtOfficials';
 import { availableSpecialist } from '../specialists';
 import { exposeTaxRecords } from './taxes';
@@ -10,6 +10,9 @@ import { allBuildings } from '../world';
 import { peopleList } from '../entityLists';
 import { recordSqueal } from '../squealers';
 import { placeInPrison } from '../prison';
+import { tickPoliceCases } from '../policeCases';
+import { refreshPoliceWanted } from '../caseEvidence';
+import { recordTaxDisclosures, tickRtsCourts } from '../rtsCourts';
 
 /**
  * Police work, arrests and the courts. Trials are a contest between your lawyer
@@ -17,6 +20,18 @@ import { placeInPrison } from '../prison';
  */
 export function weeklyLaw(w: WorldState, rng: Rng): void {
   ensureCourtOfficials(w, rng);
+  if (w.options.continuousTime) {
+    // Prison sentences still settle weekly; investigation/custody/hearing
+    // deadlines run on the actual RTS clock and are never fast-forwarded here.
+    releasePrisoners(w);
+    recordTaxDisclosures(w, exposeTaxRecords(w));
+    handleSquealers(w, rng);
+    refreshPoliceWanted(w);
+    for (const blk of w.blocks) blk.crimeHeat = Math.max(0, blk.crimeHeat * .82);
+    w.crimes = w.crimes.filter(c => w.week - c.week <= 8 ||
+      c.police && c.police.stage !== 'closed' || Object.values(w.cases).some(court => court.sourceCrimeId === c.id && ['awaiting', 'onTrial'].includes(court.status)));
+    return;
+  }
   exposeTaxRecords(w);
   // A sentence imposed below begins now; do not immediately subtract its first week.
   releasePrisoners(w);
@@ -40,23 +55,11 @@ export function weeklyLaw(w: WorldState, rng: Rng): void {
   w.crimes = w.crimes.filter((c) => w.week - c.week <= 8);
 }
 
-/** Reported crimes are reviewed during the RTS week, after witnesses have had
- * time to call. Court proceedings and financial disclosures remain weekly. */
+/** RTS investigations, custody and hearings use the live game clock. */
 export function tickLaw(w: WorldState, rng: Rng): void {
-  if (!w.options.continuousTime || w.phase !== 'week' || w.minute % 60 !== 0) return;
-  const now = campaignMinute(w);
-  const due = w.crimes.filter(c => c.week === w.week && c.reported && !c.charge &&
-    c.investigatedAt == null && (c.reportedAt == null || now - c.reportedAt >= 30) &&
-    // Let a dispatched car reach the scene before the file is decided. The
-    // desk reviews it after three hours if traffic keeps the officer away.
-    !w.policeIds.some(id => {
-      const response = w.people[id]?.emergencyResponse;
-      return response?.crimeId === c.id && response.stage === 'approaching' &&
-        c.reportedAt != null && now - c.reportedAt < 180;
-    }));
-  if (!due.length) return;
-  investigateCrimes(w, rng, due);
-  openCases(w, rng);
+  if (!w.options.continuousTime || w.phase !== 'week') return;
+  tickPoliceCases(w, rng, 1);
+  tickRtsCourts(w, rng);
 }
 
 /** Below this severity a crime is minor: the police mostly look the other way. */
@@ -337,6 +340,10 @@ function releasePrisoners(w: WorldState): void {
   for (const p of peopleList(w)) {
     if (p.status !== 'jailed') continue;
     if (p.jailWeeks >= 999) continue;
+    // RTS hearings may convict just before Sunday settlement. That partial
+    // week must not count as a full week served. Legacy saves keep their old
+    // remaining sentence when no prison arrival timestamp was recorded.
+    if (w.options.continuousTime && p.prisonSince != null && campaignMinute(w) - p.prisonSince < FULL_WEEK_MINUTES) continue;
     p.jailWeeks--;
     if (p.jailWeeks <= 0) {
       p.status = 'active';

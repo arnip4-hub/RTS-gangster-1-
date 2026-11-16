@@ -14,7 +14,7 @@ import { allocateTransport, tryBoard } from '../src/sim/transport';
 import type { Building, GameOptions, Gang, WorldState } from '../src/sim/types';
 import { allBuildings, buildingDoor } from '../src/sim/world';
 
-function city(opponents: GameOptions['opponents'] = 'normal', options = newCampaignOptions()) {
+function city(opponents: GameOptions['opponents'] = 'normal', options: GameOptions = { ...newCampaignOptions(), continuousTime: false }) {
   const w = createWorld({ ...options, seed: 404, opponents }).world;
   const player = Object.values(w.gangs).find(g => g.isPlayer)!;
   const ai = Object.values(w.gangs).find(g => !g.isPlayer)!;

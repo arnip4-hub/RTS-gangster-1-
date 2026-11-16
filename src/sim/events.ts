@@ -25,6 +25,8 @@ import { clearDestination, setDestination } from './movement';
 import { parkingSpot } from './vehicleNavigation';
 import { minuteRate } from './constants';
 import { policeOnDuty } from './duty';
+import { ensurePoliceFile } from './caseEvidence';
+import { rtsWitnessStatements } from './witnessStatements';
 
 
 
@@ -120,7 +122,7 @@ function dispatchWitnessedCrime(w: WorldState, crime: CrimeRecord, pos: Vec2): P
   if (w.phase !== 'week' || !w.options.continuousTime || !crime.reported || !crime.witnesses.length) return undefined;
   const officer = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p &&
     p.status === 'active' && p.role === 'police' && policeOnDuty(w, p) && !p.emergencyResponse &&
-    !p.streetOrder && p.orderId == null && !p.inVehicle)
+    !p.streetOrder && p.orderId == null && !p.inVehicle && !p.policeTask)
     .sort((a, b) => dist2(a.pos, pos) - dist2(b.pos, pos))[0];
   if (!officer) return undefined;
 
@@ -155,6 +157,8 @@ export function recordCrime(w: WorldState, rng: Rng, params: CrimeParams): Crime
   const severity =
     params.severity ??
     (params.type in ORDERS ? ORDERS[params.type as OrderType].severity : 8);
+
+  if (w.options.continuousTime) return recordRtsCrime(w, rng, params, severity);
 
   const perp = w.people[params.perpetratorId];
   const stealth = perp ? perp.skills.stealth : 2.5;
@@ -259,6 +263,66 @@ export function recordCrime(w: WorldState, rng: Rng, params: CrimeParams): Crime
   if (gang) gang.evidence = Math.min(100, gang.evidence + severity * 0.16 * (crime.reported ? 1 : 0.3));
 
   return crime;
+}
+
+/** Continuous play stores the event separately from what reaches police. A
+ * civilian's later call is not a warrant, and a sound identifies nobody. */
+function recordRtsCrime(w: WorldState, rng: Rng, params: CrimeParams, severity: number): CrimeRecord {
+  const crime: CrimeRecord = {
+    id: w.sequences.crime++, week: w.week, gangId: params.gangId,
+    perpetratorId: params.perpetratorId, kind: params.type,
+    buildingId: params.buildingId ?? null, victimId: params.victimId ?? null,
+    witnesses: [], arrestRisk: 0, reported: false,
+  };
+  const statements = rtsWitnessStatements(w, rng, params, severity);
+  const file = ensurePoliceFile(w, crime, params.pos);
+  file.statements = statements;
+  w.crimes.push(crime);
+  publishWitnessReports(w, crime);
+
+  const victim = params.victimId == null ? null : w.people[params.victimId];
+  const premises = params.buildingId == null ? undefined : w.buildings[params.buildingId];
+  const wronged = victim?.gangId ?? premises?.ownerGangId ?? premises?.protection?.gangId;
+  provoke(w, wronged, params.gangId, victim?.status === 'dead' ? INCIDENT_HOSTILITY.kill : CRIME_HOSTILITY[params.type] ?? 0);
+  const block = blockAtPos(w, params.pos);
+  if (block != null) w.blocks[block].crimeHeat = Math.min(100, w.blocks[block].crimeHeat + severity * 1.6);
+  // Personal wanted status comes from a specifically identified warrant in
+  // policeCases.ts. Neither world truth nor an unknown offender raises it.
+  return crime;
+}
+
+/** Saved report deadlines advance on the agreed game clock, across weekends
+ * and week boundaries. A captive or arrested witness cannot make a fresh call. */
+export function tickWitnessReports(w: WorldState): void {
+  if (!w.options.continuousTime || w.phase !== 'week') return;
+  for (const crime of w.crimes) if (crime.police && !crime.charge) publishWitnessReports(w, crime);
+}
+
+function publishWitnessReports(w: WorldState, crime: CrimeRecord): void {
+  const file = crime.police;
+  if (!file) return;
+  const now = campaignMinute(w), fresh = file.statements.filter(s => s.reportedAt != null && s.reportedAt <= now &&
+    !s.withdrawn && w.people[s.witnessId]?.status === 'active' && !crime.witnesses.includes(s.witnessId));
+  if (!fresh.length) return;
+  const first = !crime.reported;
+  crime.reported = true;
+  crime.reportedAt ??= now;
+  crime.witnesses.push(...fresh.map(s => s.witnessId));
+  file.lastLeadAt = now;
+  file.nextReviewAt = Math.min(file.nextReviewAt, now + 15);
+  if (file.stage === 'cold') file.stage = 'investigating';
+  if (!first) return;
+  if (crime.leadOnly && crime.kind === 'suspiciousDeath') addNews(w, {
+    section: 'crime', headline: 'BODY FOUND; POLICE OPEN INQUIRY',
+    body: 'A passer-by reported a body in the street. Police are investigating; no suspect has been named.', gangId: null,
+  });
+  const direct = fresh.find(s => {
+    const officer = w.people[s.witnessId];
+    return s.observation === 'direct' && (officer?.role === 'fbi' || officer?.role === 'police' && policeOnDuty(w, officer));
+  });
+  const responder = direct ? undefined : dispatchWitnessedCrime(w, crime, file.pos);
+  crime.investigatorId ??= direct?.witnessId ?? responder?.id;
+  if (responder) addMessage(w, 'police', `Witnesses reported a ${crime.kind}; police are responding by car.`, file.pos, responder.id);
 }
 
 /** Index of the block containing a world position, or null if off the grid. */

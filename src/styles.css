@@ -4510,3 +4510,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* What an order will cost, when the safe cannot cover it. */
 .job-short { color: var(--red); font-weight: 500; }
+
+/* Case papers keep uncertain testimony separate from a named warrant. */
+.police-file { padding: 8px 0; border-bottom: 1px dotted var(--dots); }
+.police-file:last-child { border-bottom: 0; }
+.police-file-facts { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr); gap: 3px 8px; margin: 7px 0; }
+.police-file-facts dt { color: var(--ink-faint); }
+.police-file-facts dd { margin: 0; overflow-wrap: anywhere; }
+.police-file-details > summary { cursor: var(--cur-point, pointer); padding: 4px 0; }
+.police-statement { padding: 5px 0 5px 9px; border-left: 2px solid var(--dots); margin: 4px 0; }

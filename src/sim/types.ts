@@ -168,6 +168,10 @@ export interface Person {
   /** Original city: wanted by the FBI (+0x84 bit 0x40, 0x4F5AE0): an
    * accountant by its check, any member by the member pass. */
   fbiWarrant?: boolean;
+  /** Continuous RTS: a detention is tied to one actual police file. */
+  custody?: PoliceCustody;
+  /** Saved physical interview, observation or warrant-serving assignment. */
+  policeTask?: PoliceTask;
   /** Original city: this man's own FBI suspicion (+0x7C, 16-bit), raised by
    * the heavy crimes he and his team file (0x4DB700), a tenth off each week
    * (0x460300); a boss's is `Gang.fbiTotal` instead. */
@@ -847,6 +851,86 @@ export interface ScoreMeasures {
   manpower: number;
 }
 
+/** What a witness actually observed, separate from the simulation's culprit. */
+export interface WitnessStatement {
+  witnessId: ID;
+  observation: 'sound' | 'description' | 'face' | 'vehicle' | 'direct';
+  confidence: number;
+  reliability: number;
+  observedAt: number;
+  /** Scheduled report time; future reports are not yet police knowledge. */
+  reportedAt?: number;
+  interviewedAt?: number;
+  suspectId?: ID;
+  vehicleKey?: string;
+  description?: string;
+  withdrawn?: boolean;
+}
+
+export interface PoliceEvidence {
+  kind: 'statement' | 'scene' | 'surveillance' | 'financial' | 'rescue' | 'direct' | 'informant';
+  strength: number;
+  collectedAt: number;
+  /** Only populate when this evidence identifies this person. */
+  personId?: ID;
+  witnessId?: ID;
+  buildingId?: ID;
+  note: string;
+}
+
+export interface PoliceFile {
+  agency: 'police' | 'fbi';
+  stage: 'reported' | 'investigating' | 'cold' | 'identified' | 'wanted' | 'arrested' | 'charged' | 'closed';
+  openedAt: number;
+  pos: Vec2;
+  statements: WitnessStatement[];
+  evidence: PoliceEvidence[];
+  identityConfidence: number;
+  suspectId?: ID;
+  nextReviewAt: number;
+  lastLeadAt: number;
+  lastKnownPos?: Vec2;
+  lastKnownBuildingId?: ID;
+  lastSeenAt?: number;
+  warrantAt?: number;
+  warrantExpiresAt?: number;
+  /** One finite delay from a corrupt lead officer, retained across reviews. */
+  obstructionUntil?: number;
+  coldAt?: number;
+  arrestAttemptAfter?: number;
+  prosecutorId?: ID;
+  prosecutorDecision?: 'pending' | 'investigate' | 'charge' | 'decline';
+  chargingReviewedAt?: number;
+  reviewDueAt?: number;
+  chargedAt?: number;
+  /** The lawyer or a paid lead investigator has disclosed the file. */
+  disclosureKnown?: boolean;
+  siteObservationCount?: number;
+  raidDueAt?: number;
+}
+
+export interface PoliceTask {
+  crimeId: ID;
+  kind: 'interview' | 'surveillance' | 'arrest';
+  phase: 'travelling' | 'working' | 'searching' | 'returning';
+  target: Vec2;
+  until: number;
+  workLeft: number;
+  suspectId?: ID;
+  witnessId?: ID;
+  observedAt?: number;
+  /** Bounded local search around the last reported position. */
+  searchPoint?: number;
+}
+
+export interface PoliceCustody {
+  crimeId: ID;
+  officerId: ID;
+  arrestedAt: number;
+  reviewAt: number;
+  releaseAt: number;
+}
+
 export interface CrimeRecord {
   id: ID;
   week: number;
@@ -867,6 +951,9 @@ export interface CrimeRecord {
   /** 0..1 chance the police can build a case. */
   arrestRisk: number;
   reported: boolean;
+  police?: PoliceFile;
+  /** A financial/site inquiry is not a second occurrence of a world crime. */
+  leadOnly?: boolean;
   /** The charge laid at an arrest, not a fresh crime: weekly passes that
    * count the week's crimes (suspicion, the newspaper, opinion, history) skip it. */
   charge?: true;
@@ -896,6 +983,10 @@ export interface CourtCase {
   knowsJurors: boolean;
   judgeBribed: boolean;
   strength: number; // prosecution strength 0..100
+  /** Continuous RTS deadlines in absolute campaign minutes. */
+  openedAt?: number;
+  trialAt?: number;
+  reviewAt?: number;
 }
 
 export interface Election {

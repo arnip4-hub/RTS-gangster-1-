@@ -28,7 +28,7 @@ export function dailyNews(w: WorldState, _rng: Rng): void {
 
 function writeNews(w: WorldState, since?: number): void {
   const daily=since!=null;
-  const thisWeek = w.crimes.filter((c) => c.reported && !c.charge &&
+  const thisWeek = w.crimes.filter((c) => c.reported && !c.charge && !c.leadOnly &&
     (daily ? c.reportedAt!=null && c.reportedAt>since : c.week===w.week));
 
   // ---- crimes

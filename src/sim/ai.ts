@@ -117,7 +117,7 @@ function observedLaw(w: WorldState, gang: Gang): Person[] {
   for (const b of ownedBuildings(w, gang.id)) witnesses.push(w.lots[b.lotId].center);
   return [...w.policeIds, ...w.fbiIds].map(id => w.people[id]).filter((p): p is Person =>
     !!p && p.status === 'active' && p.buildingId == null &&
-    (p.emergencyResponse?.kind === 'police' || !!p.fbiAssignment) &&
+    (p.emergencyResponse?.kind === 'police' || !!p.fbiAssignment || !!p.policeTask) &&
     witnesses.some(pos => dist(pos, p.pos) <= LAW_SIGHT_RADIUS));
 }
 
@@ -126,7 +126,7 @@ function observedLaw(w: WorldState, gang: Gang): Person[] {
 function recentThreat(w: WorldState, gang: Gang) {
   for (let i = w.crimes.length - 1; i >= 0; i--) {
     const crime = w.crimes[i];
-    if (crime.week !== w.week || crime.gangId === gang.id || crime.id <= (gang.aiLastThreatId ?? 0) ||
+    if (crime.leadOnly || crime.week !== w.week || crime.gangId === gang.id || crime.id <= (gang.aiLastThreatId ?? 0) ||
       crime.buildingId == null) continue;
     const site = w.buildings[crime.buildingId];
     const visibleDamage = (site?.state === 'damaged' || site?.state === 'destroyed') &&

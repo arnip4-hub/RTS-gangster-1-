@@ -2022,6 +2022,8 @@ export function killPerson(w: WorldState, p: Person, reason: string): void {
   const diedOnStreet = (p.status === 'active' || p.status === 'beaten') && p.buildingId == null && !p.captivity;
   if(!p.burningEscape?.fatal)presentDeath(w,p);
   p.status = 'dead';
+  delete p.policeTask;
+  delete p.custody;
   p.hp = 0;
   p.dest = null;
   p.path = [];

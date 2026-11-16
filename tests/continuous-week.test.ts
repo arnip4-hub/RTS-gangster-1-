@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultGameOptions } from '../src/app/newGame';
 import { issueOrder, issueStreetOrder } from '../src/sim/api';
 import { FULL_DAY_MINUTES, FULL_WEEK_MINUTES, campaignMinute, weekDuration } from '../src/sim/calendar';
@@ -10,7 +10,7 @@ import { fitsWeek } from '../src/sim/execution';
 import { defaultOptions } from '../src/sim/api';
 import { tickAmbient } from '../src/sim/systems/ambient';
 import { tickBuildingEmergencies } from '../src/sim/systems/buildingEmergency';
-import { recordCrime } from '../src/sim/events';
+import { recordCrime, tickWitnessReports } from '../src/sim/events';
 import { policeOnDuty } from '../src/sim/duty';
 import { buildingDoor, dayIndex, dayPhase, dist } from '../src/sim/world';
 import { weekTime } from '../src/ui/WeekClock';
@@ -239,19 +239,26 @@ describe('continuous RTS calendar', () => {
     expect(officers.filter(p => policeOnDuty(w, p))).toHaveLength(1);
 
     const perp = w.people[sim.playerGang.bossId];
-    const police = officers[0];
-    const pos = { ...police.pos };
+    const police = officers.find(p => policeOnDuty(w, p))!;
+    const place = Object.values(w.buildings).find(b => b.cls === 'commercial' &&
+      w.policeIds.every(id => dist(w.people[id].pos, buildingDoor(w, b)) > 50))!;
+    const pos = buildingDoor(w, place);
     perp.pos = { ...pos };
     perp.buildingId = null;
     clearDestination(perp);
-    // The officer notice roll is intentionally probabilistic; a few witnesses
-    // close to the scene make this a stable public-call fixture.
-    for (const p of officers) { p.pos = { ...pos }; p.buildingId = null; clearDestination(p); }
-    let crime = recordCrime(w, sim.rng, { gangId: sim.playerGang.id, perpetratorId: perp.id,
+    const civilian = Object.values(w.people).find(p => p.role === 'citizen' && p.status === 'active')!;
+    civilian.pos = { ...pos }; civilian.buildingId = null; clearDestination(civilian);
+    // A civilian sees the event and calls after the saved report delay. The
+    // night officer remains away from the scene until actually dispatched.
+    const notice = vi.spyOn(sim.rng, 'chance').mockReturnValue(true);
+    const crime = recordCrime(w, sim.rng, { gangId: sim.playerGang.id, perpetratorId: perp.id,
       type: 'streetKill', pos, severity: 10 });
-    for (let i = 0; i < 8 && !crime.reported; i++)
-      crime = recordCrime(w, sim.rng, { gangId: sim.playerGang.id, perpetratorId: perp.id,
-        type: 'streetKill', pos, severity: 10 });
+    notice.mockRestore();
+    const statement = crime.police!.statements.find(s => s.witnessId === civilian.id)!;
+    expect(statement.reportedAt).toBeGreaterThan(campaignMinute(w));
+    expect(police.emergencyResponse).toBeUndefined();
+    w.minute += statement.reportedAt! - campaignMinute(w);
+    tickWitnessReports(w);
     const responder = Object.values(w.people).find(p => p.emergencyResponse?.crimeId === crime.id);
     expect(crime.reported).toBe(true);
     expect(responder?.role).toBe('police');

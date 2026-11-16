@@ -45,6 +45,9 @@ import { replacePoliceChief } from './officials';
 import { weeklyProtectionFear } from './attitudes';
 import { restoreElectionTiming } from './electionTiming';
 import { tickStreetOrders } from './systems/street';
+import { tickWitnessReports } from './events';
+import { normalizeRtsPolice } from './policeCases';
+import { normalizeRtsCourts } from './rtsCourts';
 import type { GameOptions, Gang, ID, WorldState } from './types';
 
 /** Ambient walking slices per minute (ambientSlices). */
@@ -116,6 +119,8 @@ export class Sim {
     restoreLegacyTransport(state);
     reconcileTransport(state);
     normalizeFbiInvestigations(state);
+    normalizeRtsCourts(state);
+    normalizeRtsPolice(state);
     restoreElectionTiming(state);
     observeTargetRace(state, undefined, 'legacy');
     sim.resolveImmediateOutcome();
@@ -318,6 +323,7 @@ export class Sim {
     tickBuildingEmergencies(w, this.rng, 1);
     tickBodyRecovery(w);
     if (this.resolveImmediateOutcome()) return;
+    tickWitnessReports(w);
     tickFbi(w, this.rng, 1);
     tickLaw(w, this.rng);
     tickPrison(w, this.rng);
@@ -540,7 +546,7 @@ export class Sim {
     const w = this.world;
     recordScorePeaks(w);
     for (const gang of Object.values(w.gangs)) {
-      const crimes = w.crimes.filter((c) => c.week === w.week && c.gangId === gang.id && !c.charge).length;
+      const crimes = w.crimes.filter((c) => c.week === w.week && c.gangId === gang.id && !c.charge && !c.leadOnly).length;
       gang.history.push({
         week: w.week,
         power: powerRating(w, gang),
