@@ -15,11 +15,11 @@ export interface WardrobeGarments {
 
 interface Part { geometry: THREE.BufferGeometry; color: number }
 
-/** A few merged accessories and one optional skinned lower garment give the wardrobe
+/** A few merged accessories and one pelvis-attached lower garment give the wardrobe
  * real silhouettes. Geometry is in the normalized actor's metre coordinates,
  * never in the imported skeleton's centimetres. */
 export function createWardrobeGarments(
-  group: THREE.Group, model: THREE.Object3D, wardrobe: ResolvedCharacterWardrobe,
+  model: THREE.Object3D, wardrobe: ResolvedCharacterWardrobe,
   rest: ReadonlyMap<string, THREE.Matrix4>, restPositions: ReadonlyMap<string, THREE.Vector3>,
 ): WardrobeGarments {
   const meshes: THREE.Object3D[] = [], geometries: THREE.BufferGeometry[] = [];
@@ -309,7 +309,6 @@ export function createWardrobeGarments(
     dispose() {
       if (disposed) return; disposed = true;
       meshes.forEach(mesh => mesh.removeFromParent());
-      skeletons.forEach(skeleton => skeleton.dispose());
       geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
     },
   };

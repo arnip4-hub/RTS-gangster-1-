@@ -160,7 +160,7 @@ export class CharacterEquipment {
     if(!appearance) return;
     const {role,weapon,carriedProp}=appearance;
     if (appearance.wardrobe) {
-      this.wardrobeGarments = createWardrobeGarments(this.group, this.model, appearance.wardrobe, this.rest, this.restPositions);
+      this.wardrobeGarments = createWardrobeGarments(this.model, appearance.wardrobe, this.rest, this.restPositions);
       this.fitWardrobeBody(this.wardrobeGarments.hidesSourceHat, !!this.wardrobeGarments.hidesSourceBody,
         this.wardrobeGarments.bodyHem, this.wardrobeGarments.bodyTop);
       this.paintedWardrobe.outerHem.value = Number.isFinite(this.wardrobeGarments.bodyHem) ? this.wardrobeGarments.bodyHem : 0;

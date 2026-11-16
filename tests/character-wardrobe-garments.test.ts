@@ -26,7 +26,7 @@ describe('bone-fitted wardrobe geometry', () => {
     const dimensions = new Set<string>();
     for (const headwear of CHARACTER_HEADWEAR) {
       const wardrobe = withCharacterWardrobe(base, { headwear });
-      const result = createWardrobeGarments(f.group, f.model, wardrobe, f.rest, f.points);
+      const result = createWardrobeGarments(f.model, wardrobe, f.rest, f.points);
       const mesh = result.meshes.find(mesh => mesh.name === 'wardrobe-headwear') as THREE.Mesh;
       expect(result.hidesSourceHat).toBe(true);
       expect(mesh.parent).toBe(f.head);
@@ -44,29 +44,23 @@ describe('bone-fitted wardrobe geometry', () => {
     expect(dimensions.size).toBeGreaterThanOrEqual(11);
   });
 
-  it('gives coats and dresses weighted hems that follow the same rig', () => {
+  it('keeps coat and dress shells attached to the pelvis on the same rig', () => {
     const f = fixture();
     const base = resolveCharacterWardrobe({ id: 24, portrait: 1, female: true, role: 'citizen' });
     for (const outfit of CHARACTER_OUTFITS.filter(outfit => ['coat', 'dress'].includes(outfit.silhouette))) {
-      const result = createWardrobeGarments(f.group, f.model, withCharacterWardrobe(base, { outfit }), f.rest, f.points);
-      const mesh = result.meshes.find(mesh => mesh instanceof THREE.SkinnedMesh) as THREE.SkinnedMesh;
-      expect(mesh).toBeDefined(); expect(result.hidesSourceBody).toBe(true);
-      const weights = mesh.geometry.getAttribute('skinWeight');
-      for (let i = 0; i < weights.count; i++) {
-        const values = [0, 1, 2, 3].map(j => weights.getComponent(i, j));
-        expect(values.every(value => value >= 0 && value <= 1)).toBe(true);
-        expect(values.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
-      }
+      const result = createWardrobeGarments(f.model, withCharacterWardrobe(base, { outfit }), f.rest, f.points);
+      const mesh = result.meshes.find(mesh => mesh.name === `wardrobe-${outfit.silhouette}`) as THREE.Mesh;
+      expect(mesh).toBeDefined(); expect(result.hidesSourceBody).toBe(true); expect(mesh.parent).toBe(f.hip);
       mesh.geometry.computeBoundingBox();
       expect(mesh.geometry.boundingBox!.min.y).toBeCloseTo(result.bodyHem, 5);
-      f.group.updateMatrixWorld(true); mesh.skeleton.update();
-      const before = mesh.getVertexPosition(0, new THREE.Vector3());
-      f.hip.position.x += .2; f.group.updateMatrixWorld(true); mesh.skeleton.update();
-      const after = mesh.getVertexPosition(0, new THREE.Vector3());
+      f.group.updateMatrixWorld(true);
+      const before = mesh.getWorldPosition(new THREE.Vector3());
+      f.hip.position.x += .2; f.group.updateMatrixWorld(true);
+      const after = mesh.getWorldPosition(new THREE.Vector3());
       expect(after.x - before.x).toBeCloseTo(.2, 5);
       f.hip.position.x -= .2; f.group.updateMatrixWorld(true);
-      const skeletonDispose = vi.spyOn(mesh.skeleton, 'dispose');
-      result.dispose(); expect(skeletonDispose).toHaveBeenCalledTimes(1);
+      const geometryDispose = vi.spyOn(mesh.geometry, 'dispose');
+      result.dispose(); expect(geometryDispose).toHaveBeenCalledTimes(1);
     }
   });
 
@@ -78,7 +72,7 @@ describe('bone-fitted wardrobe geometry', () => {
         heightScale, headwear: CHARACTER_HEADWEAR.find(hat => hat.id === 'fedora-brown')!,
         outfit: CHARACTER_OUTFITS.find(outfit => outfit.id === 'm-long-duster')!,
       });
-      const result = createWardrobeGarments(f.group, f.model, wardrobe, f.rest, f.points);
+      const result = createWardrobeGarments(f.model, wardrobe, f.rest, f.points);
       f.group.updateMatrixWorld(true);
       const hat = result.meshes.find(mesh => mesh.name === 'wardrobe-headwear')!;
       const box = new THREE.Box3().setFromObject(hat);
@@ -94,9 +88,9 @@ describe('bone-fitted wardrobe geometry', () => {
     const base = resolveCharacterWardrobe({ id: 17, portrait: 2, female: false, role: 'citizen' });
     for (const outfit of CHARACTER_OUTFITS.filter(outfit => outfit.sex === 'male' && outfit.silhouette === 'coat')) {
       const f = fixture(), wardrobe = withCharacterWardrobe(base, { outfit });
-      const result = createWardrobeGarments(f.group, f.model, wardrobe, f.rest, f.points);
+      const result = createWardrobeGarments(f.model, wardrobe, f.rest, f.points);
       expect(result.hidesSourceBody).toBe(false);
-      const mesh = result.meshes.find(mesh => mesh instanceof THREE.SkinnedMesh) as THREE.SkinnedMesh;
+      const mesh = result.meshes.find(mesh => mesh.name === 'wardrobe-coat') as THREE.Mesh;
       const points = mesh.geometry.getAttribute('position');
       const frontHem: number[] = [];
       for (let i = 0; i < points.count; i++) if (points.getY(i) < result.bodyHem + .001 && points.getZ(i) > 0)
