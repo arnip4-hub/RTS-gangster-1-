@@ -391,6 +391,7 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if (!w.gangs[j.gangId] || !w.people[j.actorId] || (j.targetPersonId != null && !w.people[j.targetPersonId]) ||
       j.blockIds.some(id => !w.blocks[id]) || !ids(j.visitedPersonIds) || j.visitedPersonIds.some(id => !w.people[id]) ||
       !Number.isInteger(j.week) || j.week < 1 || j.week > w.week || j.quotedPrice < 0 || j.workLeft < 0 ||
+      (j.progressMinutes != null && (!Number.isFinite(j.progressMinutes) || j.progressMinutes < 0)) ||
       !Number.isInteger(j.completed) || j.completed < 0 || !Number.isInteger(j.patrolIndex) || j.patrolIndex < 0 ||
       (j.type === 'investigateCrime' && (j.crimeId == null || !Number.isSafeInteger(j.crimeId) ||
         (['queued', 'travelling', 'working'].includes(j.state) && !w.crimes.some(c => c.id === j.crimeId)))) ||

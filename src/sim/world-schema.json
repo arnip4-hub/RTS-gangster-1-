@@ -7425,6 +7425,16 @@
             ]
           }
         },
+        "progressMinutes": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "targetPersonId": {
           "optional": false,
           "shape": {

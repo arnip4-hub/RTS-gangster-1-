@@ -6,7 +6,7 @@ import { selectableOrderPerson, selectableOrderSite } from '../app/orderSelectio
 import { ORDERS, ORDER_GROUPS } from '../sim/constants';
 import { weekDuration } from '../sim/calendar';
 import { BUILDING_BY_ID, ILLEGAL_TYPES, ESTABLISHABLE_TYPES, coverQuality } from '../sim/data/buildings';
-import { buildingValue, expandTargets, fitsWeek, weekCharge } from '../sim/execution';
+import { premisesAskingPrice, expandTargets, fitsWeek, weekCharge } from '../sim/execution';
 import { SKILL_LABELS } from '../sim/types';
 import { donationAmount } from '../sim/charity';
 import { crewHasFirearm, crewPeople, crewWeaponLoadout, orderStaffing, readyForPlanning } from '../sim/orderStaffing';
@@ -82,7 +82,7 @@ export function JobCardPanel() {
   const chosenFront = jc.opts.frontBuildingId != null ? w.buildings[jc.opts.frontBuildingId] : null;
 
   // What the order will cost when the crew gets there, shown before it is sent.
-  const price = jc.type === 'buyPremises' && land ? buildingValue(w, land)
+  const price = jc.type === 'buyPremises' && land ? premisesAskingPrice(w, land)
     : jc.type === 'setUpBusiness' && chosenType ? chosenType.cost : null;
   const shortBy = price != null ? Math.max(0, Math.round(price - gang.cash)) : 0;
 

@@ -560,6 +560,8 @@ export interface SpecialistJob {
   type: 'audit' | 'bribeOfficials' | 'employPolice' | 'investigateCrime';
   /** A lawyer's courthouse inquiry into one reported crime. */
   crimeId?: ID;
+  /** Cumulative investigation work recorded across weekly boundaries. */
+  progressMinutes?: number;
   targetPersonId: ID | null;
   blockIds: ID[];
   state: 'queued' | 'travelling' | 'working' | 'done' | 'failed' | 'cancelled';

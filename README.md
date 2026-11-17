@@ -8,17 +8,18 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.1
+## Windows download — 0.3.0-beta.2
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.1.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261117.1/RTS-gangster-beta-Setup-0.3.0-beta.1.exe).
-The installer includes continuous-time city life, live police/FBI cases,
-variable investigators and court officials, witness plate leads, detention
-interviews and one possible appeal after conviction. The broken **Illustrated
-3D** option has been removed; **Detailed** is the default, and the drawn 1930s
-art remains an optional preview. Existing saves and their save folder are
-retained.
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.2.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261117.2/RTS-gangster-beta-Setup-0.3.0-beta.2.exe).
+The installer includes continuous-time city life and live police/FBI case
+work. Lawyer-led file investigations now build progress over several weeks and
+survive week boundaries; hired police stay on the gang's payroll until
+dismissed. Damaged but standing properties can be bought at a 40% discount,
+with their repair bill still due. The broken **Illustrated 3D** option has been
+removed; **Detailed** is the default, and the drawn 1930s art remains an
+optional preview. Existing saves and their save folder are retained.
 
-Read the [0.3.0-beta.1 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261117.1)
+Read the [0.3.0-beta.2 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261117.2)
 for the additions in this beta, or see the [police, FBI and court guide](docs/RTS_LAW.md).
 The agreed **24-real-minute game day is unchanged**.
 
@@ -154,8 +155,10 @@ branch. The `main` branch keeps the earlier remake baseline.
   The classic calendar retains its weekly newspaper.
 - **Still to build:** simpler group selection and move orders, better live reports,
   broader AI goals, day/night tactics and more live responses to events, and a deeper
-  redesign of weekly orders and accounting so the game can become a full RTS.
-  Automatic week rollover does not remove all weekly rules yet. Freight trucks
+  redesign of weekly crew orders and accounting so the game can become a full RTS.
+  RTS week boundaries still settle finances, payroll and weekly specialist work;
+  lawyer file investigations and police payroll tours now carry on across weeks.
+  Freight trucks
   are owned by businesses, not assigned to individual drivers; there is
   no manual route editor. Prison is represented through two named
   facilities and daily actions rather than a walkable prison map.
@@ -168,19 +171,6 @@ records implemented prison contacts and proposed further additions.
 
 New games currently start at the planning desk. Press **Hit the Streets!** to enter
 the live city. The original GOG installation is separate from this remake fork.
-
-## Download a test build
-
-The current [Windows patch prerelease](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.3)
-contains `RTS-gangster-beta-Setup-0.2.0-beta.5.exe` and
-`RTS-gangster-beta-Portable-0.2.0-beta.5.exe`. The City Plan now uses the full height of
-the window while the minimap and clock float over its corners. In the live
-week, **People & cars** shows moving traffic and people: police are blue,
-civilians are small light dots, and identified gang members are larger coloured
-dots. Turn it off from the City Plan toolbar. The previous patch's keyboard
-and duplicate Extort fixes are included.
-Existing saves keep their original five-day clock; start a new campaign to try the continuous
-calendar. The classic mode keeps its original pacing.
 
 To run the newest source code locally, use the `rts-development` branch and the
 commands below. Browser saves stay in that browser; the desktop app saves to disk.

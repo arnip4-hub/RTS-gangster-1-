@@ -429,7 +429,11 @@ export class Sim {
         rolloverOrders(w);
         if (w.options.continuousTime) {
           for (const job of Object.values(w.specialistJobs ?? {}))
-            if (job.week === w.week - 1 && ['queued', 'travelling', 'working'].includes(job.state)) job.week = w.week;
+            if (job.type === 'investigateCrime' && ['queued', 'travelling', 'working'].includes(job.state)) {
+              job.week = w.week;
+            }
+          for (const job of Object.values(w.specialistJobs ?? {}))
+            if (job.week === w.week - 1 && job.type !== 'investigateCrime' && ['queued', 'travelling', 'working'].includes(job.state)) job.week = w.week;
           // The weekly newspaper has already copied the finished log.
           w.weekLog = [];
           w.messages = [];

@@ -122,7 +122,7 @@ describe('scheduled specialist visits through the real simulation', () => {
     expect(s.gang.cash).toBe(reason === 'cash spent' ? 0 : opening);
   });
 
-  it('police are hired only after meeting in the selected blocks, with a weekly capacity across tours', () => {
+  it('police are hired only after meeting in the selected blocks, with capacity per tour', () => {
     const s = fixture();
     const block = s.w.blocks.find(b => !b.layout?.mergedInto && b.lotIds.length > 0)!;
     const point = blockPavement(block, 1);
@@ -137,10 +137,17 @@ describe('scheduled specialist visits through the real simulation', () => {
     s.sim.launchWeek();
     until(s.sim, () => s.gang.employedPoliceIds.length === 4);
     const firstCount = s.gang.employedPoliceIds.length;
+    // Finish the first tour before planning the next one; it is not a weekly
+    // campaign-wide cap.
+    const firstTour = Object.values(s.w.specialistJobs!).find(j => j.type === 'employPolice')!;
+    expect(firstTour.completed).toBe(4);
+    s.w.minute = MINUTES_PER_WEEK - 1; tick(s.sim);
     expect(employPoliceInArea(s.w, s.gang.id, [picked.id]).ok).toBe(true);
-    for (let i = 0; i < 50; i++) tick(s.sim);
     expect(s.gang.employedPoliceIds.length).toBe(firstCount);
-    expect(s.w.specialistJobs && Object.values(s.w.specialistJobs).every(j => !specialistJobActive(j))).toBe(true);
+    const secondTour = Object.values(s.w.specialistJobs!).filter(j => j.type === 'employPolice').at(-1)!;
+    s.sim.launchWeek();
+    until(s.sim, () => secondTour.completed === 4);
+    expect(s.gang.employedPoliceIds.length).toBe(8);
   });
 
   it('empty tour areas are accepted for patrol, then report failure if nobody is met by Friday', () => {

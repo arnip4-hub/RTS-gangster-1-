@@ -72,8 +72,9 @@ export function LawyerTab() {
     .filter(c => c.reported && (c.reportedAt == null || c.reportedAt <= campaignMinute(w)));
   const detained = peopleList(w).filter(p => p.gangId === gang.id && p.status === 'arrested' && p.custody);
   const imprisoned = peopleList(w).filter(p => p.gangId === gang.id && p.status === 'jailed');
-  const lawyerInvestigating = (crimeId: number) => Object.values(w.specialistJobs ?? {}).some(j =>
+  const lawyerInvestigation = (crimeId: number) => Object.values(w.specialistJobs ?? {}).find(j =>
     j.crimeId === crimeId && specialistJobActive(j));
+  const lawyerInvestigating = (crimeId: number) => !!lawyerInvestigation(crimeId);
 
   const officials: Person[] = (() => {
     switch (officialKind) {
@@ -381,7 +382,7 @@ export function LawyerTab() {
                 <span style={{ flex: 1 }}>Lead officer unknown</span>
                 <button className="btn sm" disabled={!lawyer || lawyerInvestigating(crime.id)}
                   onClick={() => notify(act(s => queueCrimeInquiry(s.world, gang.id, crime.id)))}>
-                  {lawyerInvestigating(crime.id) ? 'Reviewing file' : 'Ask lawyer'}
+                  {lawyerInvestigating(crime.id) ? `Investigating · ${lawyerInvestigation(crime.id)?.result || 'just started'}` : 'Ask lawyer'}
                 </button>
               </div>}
             </div>;

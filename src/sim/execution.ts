@@ -220,6 +220,13 @@ export function buildingValue(w: WorldState, b: Building): number {
   return Math.round(base * (0.55 + blk.landValue / 100) * heatDiscount);
 }
 
+/** A damaged but standing property can be acquired at a distress discount.
+ * The buyer still inherits the repair bill; destroyed sites are not purchasable. */
+export function premisesAskingPrice(w: WorldState, b: Building): number {
+  const value = buildingValue(w, b);
+  return b.state === 'damaged' ? Math.round(value * 0.6) : value;
+}
+
 // ---------------------------------------------------------------- targeting
 
 /** Expand a player/AI selection into the concrete list of buildings to work. */
@@ -1159,7 +1166,7 @@ function resolveTarget(
       // The front it stood behind was lost (sold, burnt out) since the order was given.
       if (centreLotNeedsFront(w, gang.id, building))
         return finishOrder(w, order, 'You no longer own a business on that block, so the land behind it was not for sale.');
-      const cost = buildingValue(w, building);
+      const cost = premisesAskingPrice(w, building);
       if (!spend(w, gang, cost, 'capital')) return finishOrder(w, order, 'You could not cover the asking price.');
       let staffed: boolean | null = null;
       building.acquisitionCost = cost;

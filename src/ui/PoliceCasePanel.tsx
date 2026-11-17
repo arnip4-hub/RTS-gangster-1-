@@ -39,7 +39,7 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, 
         </div> : <div className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
           <span style={{ flex: 1 }}>{view.disclosed ? 'An investigator has not been assigned.' : 'File contents not disclosed.'}</span>
           {!view.disclosed && <button className="btn sm" disabled={!canInquire || reviewing}
-            onClick={() => onInquiry(crime.id)}>{reviewing ? 'Reviewing file' : 'Ask lawyer'}</button>}
+            onClick={() => onInquiry(crime.id)}>{reviewing ? 'Investigating · multi-week file work' : 'Ask lawyer to investigate'}</button>}
         </div>}
         {view.disclosed && <>
           {officer?.publicService && <div className="muted tiny">Investigator record: {officer.publicService.casesHandled} case(s), {officer.publicService.mistakes} recorded error(s), integrity {officer.publicService.integrity}/100.</div>}

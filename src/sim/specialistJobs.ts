@@ -15,7 +15,9 @@ import { quitGangPayroll } from './payrollMark';
 export const SPECIALIST_JOB_NAMES = { audit: 'Audit', bribeOfficials: 'Bribe Officials', employPolice: 'Employ Police', investigateCrime: 'Investigate case' };
 export const specialistJobActive = (j: SpecialistJob) => ['queued', 'travelling', 'working'].includes(j.state);
 const roleFor = (j: Pick<SpecialistJob, 'type'>) => j.type === 'audit' ? 'accountant' : 'lawyer';
-const workMinutes = (j: SpecialistJob) => j.type === 'investigateCrime' ? 120 : j.type === 'audit' ? 30 : 5;
+const workMinutes = (j: SpecialistJob) => j.type === 'audit' ? 30 : 5;
+const CRIME_INQUIRY_REQUIRED_MINUTES = 5 * 24 * 60;
+const CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE = 0.12;
 
 /** The inspection is followed by bookkeeping at HQ until Friday's report. */
 export function reservedAudit(w: WorldState, gangId: ID): SpecialistJob | undefined {
@@ -33,11 +35,19 @@ export function specialistTargetEligible(w: WorldState, gangId: ID, type: Specia
     allBuildings(w).some(b => b.ownerGangId === gangId && b.managerId === p.id);
 }
 
+function availableLawyerForJob(w: WorldState, gang: Gang): Person | undefined {
+  const lawyer = availableSpecialist(w, gang, 'lawyer');
+  if (!lawyer) return undefined;
+  const alreadyWorking = Object.values(w.specialistJobs ?? {}).some(j => j.gangId === gang.id &&
+    j.actorId === lawyer.id && specialistJobActive(j) && j.type === 'investigateCrime');
+  return alreadyWorking ? undefined : lawyer;
+}
+
 export function queueSpecialistJob(w: WorldState, gangId: ID, type: SpecialistJob['type'], targetPersonId: ID | null, blockIds: ID[] = []): ApiResult {
   if (type === 'investigateCrime') return { ok: false, error: 'Choose a reported crime from the lawyer’s investigations.' };
   const gang = w.gangs[gangId];
   if (!gang) return { ok: false, error: 'No such gang.' };
-  const actor = availableSpecialist(w, gang, roleFor({ type }));
+  const actor = type === 'bribeOfficials' ? availableLawyerForJob(w, gang) : availableSpecialist(w, gang, roleFor({ type }));
   if (!actor) return { ok: false, error: `You need an available ${roleFor({ type })}.` };
   const blocks = [...new Set(blockIds.map(id => w.blocks[id]?.layout?.mergedInto ?? id))];
   if (blocks.some(id => !w.blocks[id])) return { ok: false, error: 'Choose valid blocks for the tour.' };
@@ -66,7 +76,7 @@ export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiRe
   const gang = w.gangs[gangId], crime = w.crimes.find(c => c.id === crimeId);
   if (!gang || !crime || crime.gangId !== gangId || !crime.reported || crime.charge)
     return { ok: false, error: 'Choose a reported crime against your gang.' };
-  const actor = availableSpecialist(w, gang, 'lawyer');
+  const actor = availableLawyerForJob(w, gang);
   if (!actor) return { ok: false, error: 'You need an available lawyer.' };
   if (crime.investigatorKnown && (!w.options.continuousTime || crime.police?.disclosureKnown))
     return { ok: true, message: 'Your lawyer already obtained this case file.' };
@@ -74,7 +84,7 @@ export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiRe
     return { ok: true, message: 'Your lawyer is already reviewing that file.' };
   const job: SpecialistJob = { id: newId(w), gangId, actorId: actor.id, week: w.week,
     type: 'investigateCrime', crimeId, targetPersonId: null, blockIds: [], state: 'queued',
-    quotedPrice: 0, workLeft: 0, visitedPersonIds: [], completed: 0, patrolIndex: 0,
+    quotedPrice: 0, workLeft: 0, progressMinutes: 0, visitedPersonIds: [], completed: 0, patrolIndex: 0,
     targetPos: null, result: '' };
   (w.specialistJobs ??= {})[job.id] = job;
   return { ok: true, message: `${actor.name} will inspect the police file at the courthouse.` };
@@ -109,7 +119,13 @@ export function cancelSpecialistJob(w: WorldState, gangId: ID, jobId: ID): ApiRe
 }
 
 export function cancelSpecialistVisits(w: WorldState, actorId: ID): void {
-  for (const j of Object.values(w.specialistJobs ?? {})) if (j.actorId === actorId && specialistJobActive(j)) cancelSpecialistJob(w, j.gangId, j.id);
+  for (const j of Object.values(w.specialistJobs ?? {})) if (j.actorId === actorId && specialistJobActive(j)) {
+    if (j.type === 'investigateCrime') {
+      // This casework is not a personal visit to the person being moved or
+      // recalled. Keep the lawyer at the courthouse and preserve its progress.
+      continue;
+    } else cancelSpecialistJob(w, j.gangId, j.id);
+  }
 }
 
 export function setSpecialistWaiting(w: WorldState, gangId: ID, jobId: ID, waiting: boolean): ApiResult {
@@ -124,14 +140,14 @@ export function setSpecialistWaiting(w: WorldState, gangId: ID, jobId: ID, waiti
 /** People a specialist is on the way to see (or seeing): they wait for them. */
 export function specialistVisitTargets(w: WorldState): Set<ID> {
   const people = new Set<ID>();
-  for (const j of Object.values(w.specialistJobs ?? {})) if (j.week === w.week && specialistJobActive(j) &&
+  for (const j of Object.values(w.specialistJobs ?? {})) if ((j.week === w.week || j.type === 'investigateCrime') && specialistJobActive(j) &&
     !j.paused && (j.state === 'working' || j.state === 'travelling') && j.targetPersonId != null) people.add(j.targetPersonId);
   return people;
 }
 
 export function specialistParticipants(w: WorldState): Set<ID> {
   const people = new Set<ID>();
-  for (const j of Object.values(w.specialistJobs ?? {})) if (j.week === w.week && specialistJobActive(j)) {
+  for (const j of Object.values(w.specialistJobs ?? {})) if ((j.week === w.week || j.type === 'investigateCrime') && specialistJobActive(j)) {
     people.add(j.actorId);
     if (!j.paused && j.state === 'working' && j.targetPersonId != null) people.add(j.targetPersonId);
   }
@@ -140,7 +156,8 @@ export function specialistParticipants(w: WorldState): Set<ID> {
 
 /** Original saves can already contain an accountant's scheduled audit. */
 export function beginSpecialistJobs(w: WorldState): void {
-  for (const [id, j] of Object.entries(w.specialistJobs ?? {})) if (j.week < w.week - 1) delete w.specialistJobs![Number(id)];
+  for (const [id, j] of Object.entries(w.specialistJobs ?? {}))
+    if (j.type !== 'investigateCrime' && j.week < w.week - 1) delete w.specialistJobs![Number(id)];
   for (const [gangId, target] of Object.entries(w.auditTargets)) {
     if (!Object.values(w.specialistJobs ?? {}).some(j => j.week === w.week && j.gangId === Number(gangId) && j.type === 'audit'))
       queueSpecialistJob(w, Number(gangId), 'audit', target);
@@ -187,9 +204,40 @@ function approach(w: WorldState, actor: Person, j: SpecialistJob, to: Vec2, minu
 export function tickSpecialistJobs(w: WorldState, minutes: number): void {
   const activeActors = new Set<ID>();
   for (const j of Object.values(w.specialistJobs ?? {})) {
-    if (j.week !== w.week || !specialistJobActive(j) || activeActors.has(j.actorId)) continue;
-    const gang = w.gangs[j.gangId], actor = gang && availableSpecialist(w, gang, roleFor(j));
-    if (!actor || actor.id !== j.actorId || actor.streetOrder || actor.burningEscape?.week === w.week || actor.emergencyResponse) {
+    if (j.type === 'investigateCrime' && j.week < w.week && specialistJobActive(j)) {
+      j.week = w.week;
+      if (j.state !== 'queued') j.state = 'working';
+    }
+    // Courthouse file work is a continuous, multi-week investigation. Its
+    // owning week is historical metadata; it must survive week rollover.
+    if ((j.week !== w.week && j.type !== 'investigateCrime') || !specialistJobActive(j)) continue;
+    const gang = w.gangs[j.gangId];
+    if (j.type === 'investigateCrime' && j.actorId < 0) {
+      const replacement = availableLawyerForJob(w, gang);
+      if (!replacement) continue;
+      j.actorId = replacement.id; j.state = 'queued'; j.targetPos = null;
+    }
+    let actor = gang && availableSpecialist(w, gang, roleFor(j));
+    if (j.type === 'investigateCrime' && actor && activeActors.has(actor.id)) {
+      const alternate = Object.values(w.specialistJobs ?? {}).some(other => other !== j && other.gangId === j.gangId &&
+        other.type === 'investigateCrime' && specialistJobActive(other) && other.actorId === actor!.id);
+      if (alternate) { j.actorId = -1; continue; }
+    }
+    if (actor && activeActors.has(actor.id)) {
+      const pendingLongInquiry = Object.values(w.specialistJobs ?? {}).find(other => other !== j && other.gangId === j.gangId &&
+        other.type === 'investigateCrime' && specialistJobActive(other) && other.actorId === actor.id);
+      if (pendingLongInquiry && j.type !== 'investigateCrime') continue;
+      if (j.type === 'investigateCrime' && j.actorId !== actor.id) { j.actorId = -1; continue; }
+    }
+    if (j.type === 'investigateCrime' && (!gang || !actor || actor.id !== j.actorId || actor.status !== 'active')) {
+      // A file inquiry is independent office work: a street emergency must
+      // not erase accumulated progress. Only a lawyer leaving the post pauses it.
+      if (j.state === 'travelling') j.state = 'queued';
+      j.paused = !actor || actor.status !== 'active';
+      continue;
+    }
+    if (!actor || actor.id !== j.actorId || actor.streetOrder ||
+      j.type !== 'investigateCrime' && (actor.burningEscape?.week === w.week || actor.emergencyResponse)) {
       finish(w, j, 'failed', 'The specialist is no longer available for this job.'); continue;
     }
     activeActors.add(actor.id);
@@ -206,11 +254,15 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       if (!crime || !courthouse) { finish(w, j, 'failed', 'The case file is no longer available.'); continue; }
       const desk = buildingDoor(w, courthouse);
       if (j.state === 'travelling') {
-        if (approach(w, actor, j, desk, minutes)) { j.state = 'working'; j.workLeft = workMinutes(j); }
+        if (approach(w, actor, j, desk, minutes)) { j.state = 'working'; j.workLeft = 0; }
         continue;
       }
-      j.workLeft = Math.max(0, j.workLeft - minutes);
-      if (j.workLeft > 0) continue;
+      j.progressMinutes = Math.min(CRIME_INQUIRY_REQUIRED_MINUTES,
+        (j.progressMinutes ?? 0) + minutes * CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE);
+      if (j.progressMinutes < CRIME_INQUIRY_REQUIRED_MINUTES) {
+        j.result = `The lawyer is building the case file (${Math.floor(j.progressMinutes / CRIME_INQUIRY_REQUIRED_MINUTES * 100)}% complete).`;
+        continue;
+      }
       if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active')
         crime.investigatorId = w.policeIds.find(id => w.people[id]?.status === 'active');
       crime.investigatorKnown = true;
@@ -226,8 +278,8 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
     }
     const areaTour = j.type === 'employPolice' && j.blockIds.length > 0;
     if (j.type === 'employPolice') {
-      const total = Object.values(w.specialistJobs ?? {}).filter(x => x.gangId === gang.id && x.week === w.week && x.type === 'employPolice').reduce((n, x) => n + x.completed, 0);
-      if (total >= (gang.staffVehicles?.lawyer ? 8 : 4)) { finish(w, j, 'done', 'The lawyer has reached this week\'s police tour capacity.'); continue; }
+      const total = j.completed;
+      if (total >= (gang.staffVehicles?.lawyer ? 8 : 4)) { finish(w, j, 'done', 'The lawyer has reached this tour\'s police employment capacity.'); continue; }
     }
     let target = j.targetPersonId == null ? undefined : w.people[j.targetPersonId];
     if (areaTour) {
@@ -271,7 +323,7 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
 }
 
 export function settleSpecialistJobs(w: WorldState): void {
-  for (const j of Object.values(w.specialistJobs ?? {})) if (j.week === w.week && specialistJobActive(j)) {
+  for (const j of Object.values(w.specialistJobs ?? {})) if ((j.week === w.week || j.type === 'investigateCrime') && specialistJobActive(j)) {
     // Visits already in progress continue into the next RTS week. An audit is
     // still tied to this week's books and must close with its report.
     if (w.options.continuousTime && j.type !== 'audit') continue;

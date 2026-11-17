@@ -32,6 +32,7 @@ import { prepareStreetPursuit, streetOrderRange } from './streetPursuit';
 import { allocateWeapons } from './weapons';
 import {
   buildingValue,
+  premisesAskingPrice,
   disbandTeam,
   estimateMinutes,
   expandTargets,
@@ -311,7 +312,7 @@ export function issueOrder(w: WorldState, gangId: ID, input: IssueOrderInput): A
 
   // Refuse a purchase the gang cannot pay for now, rather than send the crew
   // out for a week to fail at the door. The order still checks again on arrival.
-  const price = input.type === 'buyPremises' ? buildingValue(w, w.buildings[targetBuildingIds[0]])
+  const price = input.type === 'buyPremises' ? premisesAskingPrice(w, w.buildings[targetBuildingIds[0]])
     : input.type === 'setUpBusiness' ? BUILDING_BY_ID[opts.businessTypeId!]?.cost ?? 0
     : input.type === 'donate' ? order.opts.amount ?? 0
     : 0;
@@ -1095,12 +1096,13 @@ export function assignStaffVehicle(w: WorldState, gangId: ID, who: 'accountant' 
   return ok(vehicle ? `The ${who} has the keys to a ${VEHICLES[vehicle].name.toLowerCase()}.` : `The ${who} is back on foot.`);
 }
 
-/** How many officers the lawyer can put on the payroll on one tour of an area. */
+/** How many officers the lawyer can put on the payroll per tour of an area. */
 export function policeTourCapacity(gang: Gang): number {
+  // Capacity is per tour, not per campaign: another area can be surveyed next week.
   return gang.staffVehicles?.lawyer ? 8 : 4;
 }
 
-/** The lawyer tours an area putting the officers on its beats on a weekly retainer. */
+/** The lawyer tours an area, adding recruited officers to the standing payroll. */
 export function employPoliceInArea(w: WorldState, gangId: ID, blockIds: ID[]): ApiResult {
   return queueSpecialistJob(w, gangId, 'employPolice', null, blockIds);
 }

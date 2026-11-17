@@ -1,6 +1,6 @@
 # Police, FBI and courts in RTS gangster beta
 
-The continuous-time police and court simulation is available in **0.3.0-beta.1**.
+The continuous-time police and court simulation is available in **0.3.0-beta.2**.
 Classic five-day mode keeps its own case rules.
 
 ## From a crime report to a verdict

@@ -5,7 +5,7 @@ import { buyFreightTruck, quoteBuildingSale, recallManager, repairBuilding, sack
 import { businessCarryingCost } from '../sim/businessState';
 import { goodsDeliverySummary } from '../sim/goodsDelivery';
 import { BUILDING_BY_ID } from '../sim/data/buildings';
-import { buildingValue } from '../sim/execution';
+import { premisesAskingPrice } from '../sim/execution';
 import { protectionFee } from '../sim/premises';
 import { buildingMapIntel } from '../sim/mapIntel';
 import {fireDamageStage} from '../sim/buildingDamage';
@@ -112,12 +112,15 @@ export function BuildingPanel() {
           {b.cls !== 'municipal' && b.cls !== 'charity' && b.cls !== 'residential' && !mine && intel.ownerGangId == null && (
             <div className="kv">
               <span>Asking price</span>
-              <b>about {money(buildingValue(w, b))}</b>
+              <b>about {money(premisesAskingPrice(w, b))}</b>
             </div>
           )}
 
           {b.state === 'destroyed' && (
             <div className="note">Rubble. Nobody can build here until it is cleared — and a ruined block drags the whole neighbourhood down.</div>
+          )}
+          {b.state === 'damaged' && !mine && b.ownerGangId == null && (
+            <div className="note">Distressed sale: the asking price is reduced, but you will still need to pay {money(b.repairCost)} to repair the property after buying it.</div>
           )}
           {knowledge < 2 && !mine && b.cls !== 'residential' && <div className="note">You know little of this place. Extort it, or send a hood to explore.</div>}
           {b.cls === 'residential' && <div className="note">Plain houses: nobody here to extort, and nothing for sale.</div>}

@@ -8,7 +8,7 @@ import { tickLaw, weeklyLaw } from '../src/sim/systems/law';
 import { weeklyEconomy } from '../src/sim/systems/economy';
 import { campaignWeeklyCost, canRunForOffice, weeklyPolitics } from '../src/sim/systems/politics';
 import { allBuildings, typeOf } from '../src/sim/world';
-import { queueCrimeInquiry } from '../src/sim/specialistJobs';
+import { queueCrimeInquiry, settleSpecialistJobs, tickSpecialistJobs } from '../src/sim/specialistJobs';
 import { recordSqueal, reportedSquealers } from '../src/sim/squealers';
 import { addCaseEvidence, ensurePoliceFile } from '../src/sim/caseEvidence';
 import type { CrimeRecord } from '../src/sim/types';
@@ -54,17 +54,29 @@ describe('court outcomes and lawyer actions', () => {
     expect(reportedSquealers(Sim.fromSave(structuredClone(s.w)).world, s.gang.id).map(p => p.id)).toEqual([owner.id]);
   });
 
-  it('lets a lawyer identify the officer on a reported crime and preserves that finding', () => {
+  it('builds a lawyer inquiry over several weeks, preserving progress and the eventual disclosure', () => {
     const s = fixture();
+    s.w.options.continuousTime = true;
     const officer = s.w.people[s.w.policeIds[0]];
-    const crime = { id: s.w.sequences.crime++, week: s.w.week, gangId: s.gang.id,
+    const crime: CrimeRecord = { id: s.w.sequences.crime++, week: s.w.week, gangId: s.gang.id,
       perpetratorId: s.defendant.id, kind: 'extort', buildingId: null, victimId: null,
       witnesses: [], arrestRisk: 0, reported: true, investigatorId: officer.id };
     s.w.crimes.push(crime);
     expect(queueCrimeInquiry(s.w, s.gang.id, crime.id).ok).toBe(true);
-    s.sim.launchWeek();
-    for (let i = 0; i < MINUTES_PER_WEEK - 1 && !('investigatorKnown' in crime); i++)
-      s.sim.advance(1 / MINUTES_PER_SECOND, 1);
+    const job = Object.values(s.w.specialistJobs!).find(j => j.crimeId === crime.id)!;
+    job.state = 'working';
+    for (let i = 0; i < 3; i++) tickSpecialistJobs(s.w, 1000);
+    expect(crime.investigatorKnown).toBeUndefined();
+    expect(job.progressMinutes).toBe(360);
+    expect(job.progressMinutes).toBeLessThan(5 * 24 * 60);
+    const restored = Sim.fromSave(structuredClone(s.w));
+    const savedJob = restored.world.specialistJobs![job.id];
+    expect(savedJob.progressMinutes).toBe(job.progressMinutes);
+    s.w.week++; job.week = s.w.week;
+    settleSpecialistJobs(s.w);
+    expect(job.state).toBe('working');
+    for (let i = 0; i < 60 && job.state === 'working'; i++) tickSpecialistJobs(s.w, 1000);
+    expect(job.state).toBe('done');
     expect(crime).toHaveProperty('investigatorKnown', true);
     expect(Sim.fromSave(structuredClone(s.w)).world.crimes.find(c => c.id === crime.id)?.investigatorKnown).toBe(true);
   }, 240000);
