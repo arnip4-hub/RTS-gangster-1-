@@ -11,6 +11,7 @@ import type { Rng } from './rng';
 import type { ID, Person, WorldState } from './types';
 import { campaignMinute } from './calendar';
 import { refreshPoliceWanted } from './caseEvidence';
+import { recordServiceBribe } from './publicService';
 
 export function isBribableOfficial(p: Person): boolean {
   return p.status === 'active' && ['mayor', 'policeChief', 'judge', 'da', 'police'].includes(p.role);
@@ -39,30 +40,26 @@ export function completeOfficialBribe(w: WorldState, gangId: ID, p: Person, pric
   if (p.leverage) delete p.leverage[gangId];
   if (p.familyPressure) delete p.familyPressure[gangId];
   p.bribedBy = gangId;
+  recordServiceBribe(p);
   opinionSet(p, gangId, Math.min(100, (p.opinion[gangId] ?? 0) + 34), NO_ORIGINAL_CHANNEL);
   for (const c of Object.values(w.cases)) {
     if (c.gangId !== gangId || !['awaiting', 'onTrial'].includes(c.status)) continue;
     if (c.judgeId === p.id) {
       c.judgeBribed = true;
-      c.status = 'dismissed';
       if (w.options.continuousTime) {
-        c.reviewAt = campaignMinute(w) + 2 * 24 * 60;
-        const source = c.sourceCrimeId == null ? undefined : w.crimes.find(crime => crime.id === c.sourceCrimeId);
-        if (source?.police) {
-          source.police.stage = 'closed';
-          delete source.police.warrantAt;
-          delete source.police.warrantExpiresAt;
+        if (gang.isPlayer) addMessage(w, 'police', `Judge ${p.name} took the bribe; the case is compromised but the hearing continues.`);
+      } else {
+        c.status = 'dismissed';
+        const defendant = w.people[c.defendantId];
+        if (defendant && ['arrested', 'onTrial'].includes(defendant.status)) {
+          defendant.status = 'active'; defendant.jailWeeks = 0;
+          delete defendant.custody;
+          defendant.wanted = Math.max(0, defendant.wanted - 30);
+          clearDestination(defendant);
         }
+        if (gang.isPlayer) w.weekLog.push(`The case against ${defendant?.name ?? 'your hood'} was dismissed after the judge's visit.`);
+        if (gang.isPlayer) addMessage(w, 'police', `${defendant?.name ?? 'Your hood'} walked free — case dismissed.`);
       }
-      const defendant = w.people[c.defendantId];
-      if (defendant && ['arrested', 'onTrial'].includes(defendant.status)) {
-        defendant.status = 'active'; defendant.jailWeeks = 0;
-        delete defendant.custody;
-        defendant.wanted = Math.max(0, defendant.wanted - 30);
-        clearDestination(defendant);
-      }
-      if (gang.isPlayer) w.weekLog.push(`The case against ${defendant?.name ?? 'your hood'} was dismissed after the judge's visit.`);
-      if (gang.isPlayer) addMessage(w, 'police', `${defendant?.name ?? 'Your hood'} walked free — case dismissed.`);
     }
     if (c.daId === p.id) {
       if (!c.knowsWitnesses) c.knowsWitnesses = true;

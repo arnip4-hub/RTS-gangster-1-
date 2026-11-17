@@ -87,6 +87,27 @@ export interface CloseCombatState {
   lastBlow?: { attack: number; reaction: number; hit: boolean; minute: number; week: number };
 }
 
+/** A remembered personal or family incident. Kept small so it stays cheap in
+ * saves and can inform later witness decisions without giving witnesses new
+ * knowledge they did not earn. */
+export interface PersonalMemory {
+  kind: 'kidnapped' | 'familyMissing' | 'familyKidnapped' | 'familyPressured' | 'familyKilled';
+  atMinute: number;
+  personId?: ID;
+  gangId?: ID;
+  intensity: number;
+}
+
+/** Lightweight career record for police, FBI and court officials. Optional so
+ * older saves can acquire a record lazily without a migration rewrite. */
+export interface PublicServiceRecord {
+  experience: number;
+  integrity: number;
+  casesHandled: number;
+  mistakes: number;
+  bribesAccepted: number;
+}
+
 export interface Person {
   id: ID;
   name: string;
@@ -106,6 +127,10 @@ export interface Person {
   /** A public family tie; the resident is a spouse or adult sibling of an official or owner. */
   familyOfId?: ID;
   familyRelation?: 'spouse' | 'sibling';
+  /** Last personal and family incidents this person knows about (RTS only). */
+  personalMemories?: PersonalMemory[];
+  /** Career record for public officials; created when their work first matters. */
+  publicService?: PublicServiceRecord;
   /** Household funds available for a ransom; absent in old saves. */
   householdCash?: number;
   familyPressure?: Record<ID, {victimId: ID; untilMinute: number}>;
@@ -863,18 +888,22 @@ export interface WitnessStatement {
   interviewedAt?: number;
   suspectId?: ID;
   vehicleKey?: string;
+  /** Plate noted by a witness; present only when enough of it was visible. */
+  plate?: string;
   description?: string;
   withdrawn?: boolean;
 }
 
 export interface PoliceEvidence {
-  kind: 'statement' | 'scene' | 'surveillance' | 'financial' | 'rescue' | 'direct' | 'informant';
+  kind: 'statement' | 'scene' | 'surveillance' | 'financial' | 'rescue' | 'direct' | 'informant' | 'plate' | 'interrogation';
   strength: number;
   collectedAt: number;
   /** Only populate when this evidence identifies this person. */
   personId?: ID;
   witnessId?: ID;
   buildingId?: ID;
+  vehicleKey?: string;
+  plate?: string;
   note: string;
 }
 
@@ -901,12 +930,20 @@ export interface PoliceFile {
   prosecutorId?: ID;
   prosecutorDecision?: 'pending' | 'investigate' | 'charge' | 'decline';
   chargingReviewedAt?: number;
+  prosecutionReviewedAt?: number;
   reviewDueAt?: number;
   chargedAt?: number;
   /** The lawyer or a paid lead investigator has disclosed the file. */
   disclosureKnown?: boolean;
   siteObservationCount?: number;
   raidDueAt?: number;
+  sceneExaminedAt?: number;
+  /** A recorded early investigative error and its later independent review. */
+  proceduralError?: { officerId: ID; at: number; dueAt: number; correctedAt?: number; correctedBy?: ID };
+  /** One finite delay from a mayor or police chief leaning on the department. */
+  politicalPressure?: { sourceId: ID; appliedAt: number; until: number };
+  /** A detention interview is saved once and does not reveal hidden crime truth. */
+  interrogation?: { interviewerId: ID; at: number; outcome: 'no-comment' | 'inconsistent' | 'new-lead'; reliability: number };
 }
 
 export interface PoliceTask {
@@ -977,7 +1014,7 @@ export interface CourtCase {
   bribedJurorIds?: ID[];
   /** Weeks until the verdict. */
   weeksToTrial: number;
-  status: 'awaiting' | 'onTrial' | 'dismissed' | 'acquitted' | 'convicted';
+  status: 'awaiting' | 'onTrial' | 'appealing' | 'dismissed' | 'acquitted' | 'convicted';
   /** True once the gang has bribed the DA for the lists. */
   knowsWitnesses: boolean;
   knowsJurors: boolean;
@@ -987,6 +1024,10 @@ export interface CourtCase {
   openedAt?: number;
   trialAt?: number;
   reviewAt?: number;
+  appealFiledAt?: number;
+  appealDueAt?: number;
+  appealCount?: number;
+  appealDecision?: 'pending' | 'overturned' | 'upheld';
 }
 
 export interface Election {

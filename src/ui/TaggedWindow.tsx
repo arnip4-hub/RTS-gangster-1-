@@ -12,6 +12,21 @@ import { InterfaceButton } from './InterfaceControls';
 import { cancelSpecialistJob, setSpecialistWaiting, SPECIALIST_JOB_NAMES, specialistJobActive } from '../sim/specialistJobs';
 import { personProfile } from '../sim/personProfile';
 import { personListIds, togglePersonList } from '../sim/personLists';
+import { FULL_DAY_MINUTES } from '../sim/calendar';
+import type { PersonalMemory, WorldState } from '../sim/types';
+
+function memoryDescription(w: WorldState, memory: PersonalMemory): string {
+  const person = memory.personId == null ? null : w.people[memory.personId];
+  const gang = memory.gangId == null ? null : w.gangs[memory.gangId];
+  const subject = person?.name ?? 'A family member';
+  const by = gang ? ` by ${gang.name}` : '';
+  const text = memory.kind === 'kidnapped' ? `Was kidnapped${by}`
+    : memory.kind === 'familyMissing' ? `${subject} went missing`
+    : memory.kind === 'familyKidnapped' ? `${subject} was kidnapped${by}`
+    : memory.kind === 'familyPressured' ? `Was pressured over ${subject}${by}`
+    : `${subject} was killed${by}`;
+  return `Day ${Math.floor(memory.atMinute / FULL_DAY_MINUTES) + 1} · ${text}`;
+}
 
 /** Manual pp. 78-79: a live, independent view of the selected character. */
 export function TaggedWindow({id}: {id: number}) {
@@ -88,6 +103,11 @@ export function TaggedWindow({id}: {id: number}) {
       <div>Spouse: {profile.spouse ?? 'None listed'}</div>
       <div>Children: {profile.children} · Household: {profile.householdSize}</div>
       {person.familyOfId != null && <div>{person.familyRelation} of {w.people[person.familyOfId]?.name ?? 'a resident'}</div>}
+      {(person.personalMemories ?? []).length > 0 && <div className="tagged-memory-list" aria-label="Recent personal and family memories">
+        <b>Recent memories</b>
+        {(person.personalMemories ?? []).slice(-4).reverse().map((memory, index) =>
+          <div key={`${memory.atMinute}-${memory.kind}-${index}`}>{memoryDescription(w, memory)}</div>)}
+      </div>}
       <div className="tagged-profile-actions">
         <button aria-pressed={personListIds(w,sim.playerGang.id,'watch').includes(person.id)}
           onClick={()=>notify(act(s=>togglePersonList(s.world,s.playerGang.id,person.id,'watch')))}>Watch list</button>

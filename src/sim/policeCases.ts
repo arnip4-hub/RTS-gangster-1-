@@ -12,17 +12,47 @@ import type { CrimeRecord, ID, OrderType, Person, PoliceTask, WorldState } from 
 import { buildingDoor, dist } from './world';
 import { canObservePerson } from './witnessStatements';
 import { pavementBeside } from './vehicleNavigation';
+import { plateRegistration } from './licensePlates';
+import { recordServiceCase, recordServiceMistake, serviceQuality } from './publicService';
 
 const MAX_ACTIVE_TASKS = 8;
 const ARREST_DISTANCE = 5;
 const KNOWN_POSITION_MINUTES = 120;
+
+function stableRoll(value: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) hash = Math.imul(hash ^ value.charCodeAt(i), 16777619);
+  return (hash >>> 0) % 100;
+}
+
+function logWitnessInterview(w: WorldState, crime: CrimeRecord, officer: Person,
+  statement: NonNullable<CrimeRecord['police']>['statements'][number], now: number): void {
+  statement.interviewedAt = now;
+  statement.reliability = Math.max(20, Math.min(100, statement.reliability + (serviceQuality(officer) - 50) * .14));
+  addCaseEvidence(w, crime, { kind: 'statement', strength: 0, witnessId: statement.witnessId,
+    collectedAt: now, note: `Interview recorded with witness ${statement.witnessId}` });
+  if (statement.plate) {
+    const registration = plateRegistration(w, statement.plate);
+    const registered = registration?.registeredPersonId == null ? undefined : w.people[registration.registeredPersonId];
+    addCaseEvidence(w, crime, { kind: 'plate', strength: registration ? 8 : 2,
+      personId: registration?.registeredPersonId, vehicleKey: registration?.vehicleKey, plate: statement.plate,
+      collectedAt: now, note: registration
+        ? `Plate ${statement.plate} matched the city vehicle register${registered ? ` to ${registered.name}` : ''}. It does not establish who was driving.`
+        : `Witness noted plate ${statement.plate}; no current city registration matched.` });
+  }
+}
+
+function politicalPressureSource(w: WorldState, gangId: ID): Person | undefined {
+  return [w.people[w.mayorId], w.people[w.policeChiefId]].find(p => p?.status === 'active' &&
+    (p.bribedBy === gangId || (p.opinion[gangId] ?? 0) >= 60));
+}
 
 function fileCrime(w: WorldState, id: ID): CrimeRecord | undefined { return w.crimes.find(c => c.id === id); }
 function officers(w: WorldState): Person[] {
   return [...new Set([...w.policeIds, ...w.fbiIds])].map(id => w.people[id]).filter((p): p is Person => !!p);
 }
 function terminal(w: WorldState, crime: CrimeRecord): boolean {
-  return Object.values(w.cases).some(c => c.sourceCrimeId === crime.id && ['dismissed', 'acquitted', 'convicted'].includes(c.status));
+  return Object.values(w.cases).some(c => c.sourceCrimeId === crime.id && ['appealing', 'dismissed', 'acquitted', 'convicted'].includes(c.status));
 }
 
 /** Loaded old reports retain their known scene and any established court
@@ -118,14 +148,23 @@ export function recordPoliceObservation(w: WorldState, crimeId: ID, officerId: I
   const f = ensurePoliceFile(w, c);
   if (dist(p.pos, f.pos) > 14) return;
   const now = campaignMinute(w);
-  addCaseEvidence(w, c, { kind: 'scene', strength: 18, collectedAt: now, buildingId: c.buildingId ?? undefined,
-    note: 'Scene examined by responding officer' });
+  if (f.sceneExaminedAt == null) {
+    f.sceneExaminedAt = now;
+    const quality = serviceQuality(p);
+    const madeError = stableRoll(`${c.id}:${p.id}:scene`) < Math.max(0, Math.round((55 - quality) * .48));
+    addCaseEvidence(w, c, { kind: 'scene', strength: madeError ? 11 : Math.min(20, 12 + quality * .08),
+      collectedAt: now, buildingId: c.buildingId ?? undefined,
+      note: madeError ? 'Scene examination recorded; supervisor review pending' : 'Scene examined by responding officer' });
+    recordServiceCase(p);
+    if (madeError) {
+      f.proceduralError = { officerId: p.id, at: now, dueAt: now + 3 * 60 };
+      recordServiceMistake(p);
+    }
+  }
   for (const statement of activeCaseStatements(w, c)) {
     const witness = w.people[statement.witnessId];
     if (statement.interviewedAt != null || !canObservePerson(w, p, witness, 14)) continue;
-    statement.interviewedAt = now;
-    addCaseEvidence(w, c, { kind: 'statement', strength: 0, witnessId: witness.id, collectedAt: now,
-      note: `Interview recorded with witness ${witness.id}` });
+    logWitnessInterview(w, c, p, statement, now);
   }
   refreshCaseIdentity(w, c);
   if (f.suspectId != null) {
@@ -174,9 +213,9 @@ function finishInterview(w: WorldState, crime: CrimeRecord, officer: Person, wit
   const atHome = !!home && witness.buildingId === home.id && dist(officer.pos, buildingDoor(w, home)) <= 8;
   if (!atHome && !canObservePerson(w, officer, witness, 14)) return;
   for (const s of activeCaseStatements(w, crime)) if (s.witnessId === witnessId && s.interviewedAt == null) {
-    s.interviewedAt = now;
-    addCaseEvidence(w, crime, { kind: 'statement', strength: 0, witnessId, collectedAt: now, note: `Interview recorded with witness ${witnessId}` });
+    logWitnessInterview(w, crime, officer, s, now);
   }
+  recordServiceCase(officer);
   refreshCaseIdentity(w, crime); f.nextReviewAt = now;
 }
 
@@ -269,6 +308,7 @@ function assignTask(w: WorldState, c: CrimeRecord, active: Person[]): boolean {
       until: now + 360, workLeft: f.agency === 'fbi' ? 60 : 20 };
   }
   if (c.investigatorId !== agent.id) { c.investigatorId = agent.id; c.investigatorKnown = false; f.disclosureKnown = false; }
+  serviceQuality(agent);
   agent.policeTask = task; routeTask(w, agent, task); return true;
 }
 
@@ -293,6 +333,7 @@ export function tickPoliceCases(w: WorldState, rng: Rng, minutes = 1): void {
         officer.policeTask = { crimeId: c.id, kind: 'arrest', phase: 'travelling', target: { ...suspect.pos },
           until: now + 30, workLeft: 15, suspectId: suspect.id };
         if (c.investigatorId !== officer.id) { c.investigatorId = officer.id; c.investigatorKnown = false; f.disclosureKnown = false; }
+        serviceQuality(officer);
         routeTask(w, officer, officer.policeTask);
       }
     }
@@ -319,12 +360,35 @@ export function tickPoliceCases(w: WorldState, rng: Rng, minutes = 1): void {
       f.obstructionUntil ??= now + 180;
       if (now < f.obstructionUntil) { f.nextReviewAt = f.obstructionUntil; continue; }
     }
+    if (f.proceduralError && f.proceduralError.correctedAt == null && now >= f.proceduralError.dueAt) {
+      const pool = f.agency === 'fbi' ? w.fbiIds : w.policeIds;
+      const reviewer = pool.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active' && p.id !== f.proceduralError!.officerId)
+        .sort((a, b) => serviceQuality(b) - serviceQuality(a) || a.id - b.id)[0];
+      if (reviewer) {
+        f.proceduralError.correctedAt = now;
+        f.proceduralError.correctedBy = reviewer.id;
+        const scene = f.evidence.find(e => e.kind === 'scene');
+        if (scene) { scene.strength = Math.min(20, scene.strength + 7); scene.note = 'Scene evidence corrected after an independent supervisor review'; }
+        recordServiceCase(reviewer);
+      } else f.proceduralError.dueAt = now + 3 * 60;
+    }
     if (f.warrantExpiresAt != null && now >= f.warrantExpiresAt) {
       const issued = f.warrantAt ?? f.openedAt;
       delete f.warrantAt; delete f.warrantExpiresAt;
       if (f.lastLeadAt <= issued) { f.stage = 'cold'; f.coldAt = now; continue; }
     }
     const detained = f.stage === 'arrested';
+    if (!detained && f.identityConfidence >= 65 && strength >= 45) {
+      if (f.politicalPressure && now < f.politicalPressure.until) { f.nextReviewAt = f.politicalPressure.until; continue; }
+      if (!f.politicalPressure) {
+        const official = politicalPressureSource(w, c.gangId);
+        if (official) {
+          f.politicalPressure = { sourceId: official.id, appliedAt: now, until: now + 90 };
+          f.nextReviewAt = f.politicalPressure.until;
+          continue;
+        }
+      }
+    }
     if (!detained && f.identityConfidence >= 65 && strength >= 45 && (f.arrestAttemptAfter == null || f.arrestAttemptAfter <= now) &&
         (f.prosecutorDecision !== 'investigate' && f.prosecutorDecision !== 'decline' || f.chargingReviewedAt == null || f.lastLeadAt > f.chargingReviewedAt)) {
       if (f.warrantAt == null) {

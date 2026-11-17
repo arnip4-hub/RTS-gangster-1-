@@ -9,6 +9,7 @@ import { trafficContext } from '../traffic';
 import { peopleSlice } from '../peopleSlices';
 import { hash32 } from '../hash';
 import { alight } from '../transport';
+import { planTramTrip } from '../tramCommute';
 import type { Rng } from '../rng';
 import type { Block, Building, Person, PersonRole, WorldState } from '../types';
 import { allBuildings, buildingDoor, dist } from '../world';
@@ -75,9 +76,13 @@ function ambientPerson(w: WorldState, rng: Rng, p: Person, minutes: number, traf
       if (p.tramTrip.phase === 'approaching' && p.dest) stepPerson(p, minutes, traffic);
       return;
     }
+    if (continuous && p.role === 'owner') {
+      ownerRoutine(w, p, minutes, traffic);
+      return;
+    }
     if (continuous && homeAtNight(w, p, night, minutes, traffic)) return;
     if (p.buildingId != null && p.role !== 'police' && p.role !== 'fbi' && p.role !== 'snitch' && p.role !== 'reporter') {
-      // Owners and managers stay at their premises.
+      // Managers stay at their premises; shopkeepers have their own schedule above.
       return;
     }
 
@@ -164,7 +169,7 @@ const isNight = (minute: number) => {
 };
 
 const NIGHT_HOME_ROLES = new Set<PersonRole>([
-  'citizen', 'snitch', 'police', 'policeChief', 'mayor', 'judge', 'da', 'fbiHead', 'fbi', 'reporter',
+  'citizen', 'owner', 'snitch', 'police', 'policeChief', 'mayor', 'judge', 'da', 'fbiHead', 'fbi', 'reporter',
 ]);
 const NIGHTLIFE_TYPES = new Set([
   'cafe', 'restaurant', 'poolHall', 'hotelSmall', 'hotelLarge', 'danceStudio', 'speakeasy',
@@ -181,6 +186,7 @@ const LEISURE_TYPES: Record<NonNullable<Person['leisureProfile']>, string[]> = {
 const residentialCache = new WeakMap<WorldState, Building[]>();
 const nightlifeCache = new WeakMap<WorldState, {day: number; venues: Building[]}>();
 const policeStationCache = new WeakMap<WorldState, Building | null>();
+const ownerWorkplaceCache = new WeakMap<WorldState, Map<number, Building>>();
 
 function residential(b: Building): boolean {
   return (b.cls === 'residential' || b.cls === 'tenement') && b.state !== 'destroyed';
@@ -330,6 +336,57 @@ function enterNightVenue(w: WorldState, p: Person, venue: Building): void {
       if (w.gangs[gangId]?.isPlayer) addMessage(w, 'waiting', `${p.name} visited your ${venue.typeId === 'whorehouse' ? 'brothel' : 'casino'}. Your lawyer can use this leverage for a cheaper bribe.`, buildingDoor(w, venue), p.id);
     }
   }
+}
+
+function ownerWorkplace(w: WorldState, p: Person): Building | undefined {
+  let cache = ownerWorkplaceCache.get(w);
+  if (!cache) {
+    cache = new Map();
+    for (const b of allBuildings(w)) if (b.ownerPersonId != null && b.state !== 'destroyed' &&
+        (!cache.has(b.ownerPersonId) || b.id < cache.get(b.ownerPersonId)!.id)) cache.set(b.ownerPersonId, b);
+    ownerWorkplaceCache.set(w, cache);
+  }
+  const cached = cache.get(p.id);
+  if (cached?.ownerPersonId === p.id && cached.state !== 'destroyed') return cached;
+  const place = allBuildings(w).find(b => b.ownerPersonId === p.id && b.state !== 'destroyed');
+  if (place) cache.set(p.id, place);
+  else cache.delete(p.id);
+  return place;
+}
+
+/** Shopkeepers work weekdays from 8 to 6, then use the city's existing home
+ * and leisure schedule. The workplace search is cached and rechecked on sale. */
+function ownerRoutine(w: WorldState, p: Person, minutes: number, traffic: ReturnType<typeof trafficContext>): void {
+  const hour = hourOfDay(w.minute, true);
+  const work = ownerWorkplace(w, p);
+  if (!isWeekend(w) && hour >= 8 && hour < 18 && work?.state === 'trading') {
+    commuteToWork(w, p, work, minutes, traffic);
+    return;
+  }
+  homeAtNight(w, p, true, minutes, traffic);
+}
+
+function commuteToWork(w: WorldState, p: Person, workplace: Building, minutes: number,
+  traffic: ReturnType<typeof trafficContext>): void {
+  if (p.buildingId === workplace.id || p.tramTrip) return;
+  if (p.buildingId != null) {
+    const previous = w.buildings[p.buildingId];
+    if (previous) p.pos = buildingDoor(w, previous);
+    p.buildingId = null;
+  }
+  if (p.inVehicle) { alight(w, p); p.inVehicle = false; }
+  const target = buildingDoor(w, workplace);
+  if (!p.dest || dist(p.dest, target) > 1) {
+    clearDestination(p);
+    const trip = planTramTrip(w, p, target);
+    if (trip) {
+      p.tramTrip = trip;
+      setDestination(w, p, trip.boardPos);
+      return;
+    }
+    setDestination(w, p, target);
+  }
+  if (stepPerson(p, minutes, traffic)) enterBuilding(w, p, workplace);
 }
 
 /** Returns true while home, on weekend leave, or taking a leisure trip. */

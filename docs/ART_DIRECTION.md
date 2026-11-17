@@ -1,16 +1,21 @@
 # Illustrated city direction
 
+> **Archived prototype:** the Illustrated 3D wardrobe is disabled in gameplay
+> as of beta 0.3.0-beta.1 because clothing meshes stretch when characters move.
+> The captures below document the experiment; they are not a supported game
+> option. The game now defaults to **Detailed** artwork.
+
 The remake's detailed city relies on photographed facade and road textures,
 3D characters and vehicles, and repeatable building geometry. The result is
 legible but does not have the compact, hand-drawn feeling of the 1998 game.
 The original game's images are not part of this project.
 
-## Painted 3D buildings and vehicles
+## Painted 3D buildings and vehicles — archived mode
 
-**Illustrated 3D** applies the painted brick, limestone, stucco and shopfront
-sheets directly to the existing 3D building geometry. The roofs and church
-still retain procedural materials. These are shared wall textures; no flat
-building sprite replaces the model.
+The prototype applied painted brick, limestone, stucco and shopfront sheets to
+the existing 3D building geometry. The roofs and church retain procedural
+materials. These are shared wall textures; no flat building sprite replaces
+the model.
 
 The coupe, covered delivery truck and raised-top sports car now also use
 painted UV sheets on their real 3D meshes. The original eight-direction car
@@ -39,12 +44,11 @@ models with `node scripts/capture-vehicle-review.mjs /tmp/fleet.png --page=all`;
 the same script accepts `--page=coupe`, `truck` or `speedster` for a closer
 comparison.
 
-## Illustrated 3D wardrobe
+## Illustrated 3D wardrobe — archived prototype
 
-Choose **Game Options → City artwork → Illustrated 3D**, then save and reopen
-the city. The painted building materials now accompany animated 3D people in
-normal play, with the same walking, combat and held equipment as the detailed
-character layer.
+These captured combinations were available in a beta preview. The option has
+since been removed from Game Options because animated clothing stretched. The
+prototype paired painted building materials with the existing animated people.
 
 | Appearance component | Delivered choices |
 | --- | ---: |
@@ -92,10 +96,9 @@ rigs plus spare geometry. This is not a benchmark of 6,000 simultaneously
 animated detailed bodies. Automated population checks cover all 50 civilian
 outfits and all builds and tones across 6,000 generated identities.
 
-The new coat and skirt extensions have simple folds and the fur collars are
-still coarse at close zoom. They need a further art pass for tailored hems,
-lapels and fine fabric detail. The system supplies the full configured
-set now; it remains beta artwork.
+The coat and skirt extensions have simple folds and the fur collars are coarse
+at close zoom. The prototype did not solve mesh stretching during movement, so
+these combinations are not shipped as an active gameplay style.
 
 Rebuild the base maps with `npm run art:character`. Capture all presets with
 `node scripts/capture-wardrobe-review.mjs /tmp/wardrobe.png --page=all`.

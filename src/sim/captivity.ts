@@ -10,11 +10,16 @@ import { buildingDoor, buildingName, dist } from './world';
 import { peopleList } from './entityLists';
 import { protectionFee } from './premises';
 import { shiftAttitude } from './attitudes';
+import { rememberPersonalEvent } from './personalHistory';
 type Outcome = {ok:true;message:string} | {ok:false;error:string};
 
 export function freeCaptive(w: WorldState, p: Person, text?: string): void {
   if (p.capturedBy == null || p.status !== 'kidnapped') return;
-  const captor = w.gangs[p.capturedBy], office = p.captivity && w.buildings[p.captivity.officeId];
+  const captorId = p.capturedBy;
+  const captor = w.gangs[captorId], office = p.captivity && w.buildings[p.captivity.officeId];
+  rememberPersonalEvent(w, p, { kind: 'kidnapped', gangId: captorId, intensity: 85 });
+  const relative = p.familyOfId == null ? undefined : w.people[p.familyOfId];
+  if (relative) rememberPersonalEvent(w, relative, { kind: 'familyKidnapped', personId: p.id, gangId: captorId, intensity: 90 });
   if (captor) captor.prisonerIds = captor.prisonerIds.filter(id => id !== p.id);
   if (office && p.captivity?.stage === 'held') p.pos = buildingDoor(w,office);
   p.status = 'active'; p.capturedBy = null; p.interrogationValue = 0;
@@ -60,6 +65,8 @@ export function pressureOfficial(w: WorldState, rng: Rng, gangId: ID, personId: 
     return {ok:false,error:'You need an official’s relative held at the office.'};
   if (hold.pressured) return {ok:false,error:'You have already pressed this official.'};
   hold.pressured=true; hold.searchProgress+=25;
+  rememberPersonalEvent(w, official, { kind: 'familyPressured', personId: p.id, gangId, intensity: 65 });
+  shiftAttitude(official, gangId, 0, 35);
   w.gangs[gangId].evidence=Math.min(100,w.gangs[gangId].evidence+5);
   if (!rng.chance(.45)) return {ok:true,message:`${official.name} refused and contacted investigators.`};
   (official.familyPressure ??= {})[gangId]={victimId:p.id,untilMinute:campaignMinute(w)+10080};
@@ -82,6 +89,8 @@ export function pressureOwner(w: WorldState, rng: Rng, gangId: ID, personId: ID)
   const site=refusedOwnerSites(w,owner.id,gangId)[0];
   if (!site) return {ok:false,error:'This owner has no outstanding refusal to your gang.'};
   hold.pressured=true;hold.searchProgress+=25;
+  rememberPersonalEvent(w, owner, { kind: 'familyPressured', personId: p.id, gangId, intensity: 65 });
+  shiftAttitude(owner, gangId, 0, 20);
   w.gangs[gangId].evidence=Math.min(100,w.gangs[gangId].evidence+5);
   if (!rng.chance(.55)) {
     hold.reported=true;
@@ -121,6 +130,7 @@ export function tickCaptivity(w: WorldState, rng: Rng): void {
       hold.reported=true;
       if (p.familyOfId != null) {
         const official=w.people[p.familyOfId];
+        rememberPersonalEvent(w, official, { kind: 'familyMissing', personId: p.id, intensity: 45 });
         if (official?.role==='fbiHead') w.gangs[p.capturedBy].suspicion=Math.min(100,w.gangs[p.capturedBy].suspicion+8);
       }
       if (w.gangs[p.capturedBy]?.isPlayer || p.gangId!=null && w.gangs[p.gangId]?.isPlayer)

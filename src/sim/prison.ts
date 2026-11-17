@@ -106,7 +106,7 @@ export function tickPrison(w: WorldState, rng: Rng): void {
         if (success) {
           target.hp = Math.max(0, target.hp - rng.int(65, 115));
           if (target.hp === 0) {
-            killPerson(w, target, `was killed in prison by an associate of ${gang.name}`);
+            killPerson(w, target, `was killed in prison by an associate of ${gang.name}`, gang.id);
             addNews(w, { section: 'crime', headline: 'PRISON KILLING', body: `${target.name} was killed in custody. Police are investigating.`, gangId: gang.id });
           }
           if (gang.isPlayer) addMessage(w, 'combat', `${inmate.name} attacked ${target.name} in prison${target.status === 'dead' ? ', killing him' : ''}. The sentence was extended.`, null, target.id);

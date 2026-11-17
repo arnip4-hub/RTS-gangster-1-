@@ -1,87 +1,78 @@
-# Police, FBI and prosecution in RTS gangster beta
+# Police, FBI and courts in RTS gangster beta
 
-Implemented for continuous RTS games in **0.2.0-beta.4**. The older five-day
-mode retains its separate police rules. The [original audit](POLICE_AND_FBI_AUDIT.md)
-records the problems found in beta.3, not the behavior of this version.
+The continuous-time police and court simulation is available in **0.3.0-beta.1**.
+Classic five-day mode keeps its own case rules.
 
-## From an incident to a hearing
+## From a crime report to a verdict
 
-1. **Observation and reporting.** Nearby people can hear a disturbance, see a
-   description or vehicle, recognize a face, or directly observe an offender.
-   Walls, interiors, distance, darkness, stealth and willingness to report matter.
-   Civilian reports usually take 5–30 game minutes; an injured victim must recover
-   before reporting. Report times and observations survive saving and midnight.
-   A body can create an inquiry with no known offender. An unseen crime does not
-   automatically make its true perpetrator wanted.
-2. **Investigation.** Officers travel to a known scene or witness's home,
-   examine the scene and interview reachable witnesses. A scene alone does not
-   establish identity. New evidence can revive a cold file. At most eight
-   ordinary investigation tasks run together; each review handles a bounded
-   batch. This limit is separate from emergency response and FBI search work.
-3. **Warrants and searches.** A received report, sufficient identification and
-   case evidence support a warrant. Officers use sightings and last-known
-   positions, then search nearby pavement locations. They cannot follow a hidden
-   person by reading his destination. Losing the identifying evidence withdraws
-   the warrant. An expired warrant needs fresh grounds to be renewed.
-4. **Arrest.** An active officer must reach and see the individual at close
-   range. A warrant or the officer's own recent observation supplies grounds.
-   An attempt can fail. Being on the same crew does not arrest distant teammates.
-   Each detention records the precise source case and arresting officer.
-5. **Prosecutor.** The initial charging review is scheduled six game hours after
-   arrest. The prosecutor charges, declines, or requests more investigation.
-   Scene work can continue during that request. An uncharged detention has a
-   24-hour deadline. A hidden, unrelated crime cannot replace the arrest reason.
-6. **Court.** Hearings normally fall one or two game days after charges, rather
-   than at weekly settlement. Each review uses that file's current evidence and
-   identification. Unrelated gang-wide heat supplies no courtroom bonus.
-   Lawyers, judges, prosecutors, witnesses and jurors still affect the result.
-   Replacement officials or jurors delay the hearing. Completed verdicts are
-   not reopened merely by ordinary evidence updates.
+1. **Witnesses report what they observed.** Nearby people may hear a disturbance,
+   see a description or vehicle, recognize a face, or directly observe an
+   offender. Distance, walls, darkness, stealth, fear and willingness to report
+   affect what reaches the police. A body can prompt an inquiry without naming
+   its killer. The simulation does not automatically disclose the actual culprit.
+2. **Investigators collect evidence.** Officers travel to a reported scene or
+   witness, examine the site and conduct interviews. Intelligence and saved
+   career experience change scene and interview quality. A low-quality first
+   examination may record an error; an independent officer can later review it
+   and restore part of the lost evidence strength. A scene by itself never
+   identifies the offender.
+3. **Vehicle leads.** A witness can remember a full or partial fictional plate.
+   Once interviewed, that plate can match the city's vehicle register and name
+   the registered driver. It is a lead about the car, not proof that the owner
+   was driving. A weak lead alone cannot issue a warrant.
+4. **Warrants and arrests.** Sufficient identification and evidence can support
+   a warrant. Officers search a last-known location rather than reading a hidden
+   person's live destination. An officer must reach and see the suspect to make
+   an arrest; an attempt can fail. Each detention is tied to its actual case.
+5. **Interview and prosecution.** At the first custody review, an investigator
+   can record no comment, an inconsistent account or a weak lead for follow-up.
+   This is not an automatic confession and does not identify hidden crime truth.
+   The prosecutor then charges, declines or requests more investigation. A
+   favorable prosecutor requires stronger evidence before charging; an
+   uncharged detention has a 24-game-hour deadline.
+6. **Court and appeal.** Hearings normally take place one or two game days after
+   charges. Lawyers, evidence, witnesses, jurors, prosecutors and judges affect
+   the result. An accepted bribe can influence an RTS verdict, but it does not
+   guarantee dismissal. After conviction, an available lawyer can file one
+   $1,250 appeal; the court reviews it one game day later and may uphold or
+   overturn the ruling. An appeal is not guaranteed to succeed.
 
-These durations are gameplay abstractions, not a reconstruction of historical
-criminal procedure. The agreed clock remains **24 real minutes per full game
-day at normal speed**, through all seven days. Weekly accounts and sentence
-settlement remain; the city and crew positions do not reset.
+## Careers, corruption and political pressure
+
+Police, FBI agents, prosecutors, judges, mayors and police chiefs have saved
+experience and integrity records. Their starting records vary without changing
+the world's random-number stream. Experience and Intelligence affect evidence
+quality and court work. Accepted bribes lower integrity and are recorded. A
+favorable mayor or police chief can delay a qualifying investigation once by
+90 game minutes; a corrupt investigator can delay a file once by three game
+hours. Both deadlines persist in saves. Independent staff can review recorded
+mistakes, and an investigation resumes after a finite delay.
+
+Open **Book → Lawyer → Police and Bureau files** to view disclosed file details.
+The panel can show the lead officer's record, statements, plate matches,
+investigative errors, political delays, detention-interview result, evidence and
+prosecutor decision. Your lawyer or an investigator you have compromised can
+obtain file information. Before disclosure, private evidence and officer
+identity remain hidden.
 
 ## FBI
 
-Federal leads come from reported kidnappings/hijackings, owner complaints,
-disclosed tax records, or knowledge already recorded in an older save. Agents
-travel to the known premises. Observation of actual illicit unloading can add
-surveillance evidence; darkness and a legitimate manifest reduce detection.
-Repeated observations and sufficient evidence schedule a search, with an
-additional two-hour delay. The agent must arrive before entering and searching.
-Seized records can identify a manager; only a manager physically reached can be
-arrested. Hidden city-wide inventories, low Intelligence and crew membership do
-not automatically establish an individual's guilt. Routine new assignments
-respect weekends; urgent warrant/search work can continue.
+Federal leads come from reported kidnappings or hijackings, owner complaints,
+disclosed tax records, or evidence already in a save. Agents travel to known
+premises; they can observe actual illicit unloading and need to reach a site
+before a search. Darkness and a legitimate freight manifest reduce detection.
+Routine assignments respect weekends; urgent warrant and search work can
+continue.
 
-## Information and interference
+## Scope and saves
 
-Open **Book → Lawyer → Police and Bureau files**. A lawyer inquiry, or the
-assigned officer on your payroll, reveals file details. Before disclosure the
-panel withholds evidence, identification confidence and the investigating
-officer. A public warrant or your member's detention can name that suspect.
-Witness names still require the existing court disclosure. Received statements
-are distinct from pending reports.
+The clock remains **24 real minutes per full game day at normal speed**. Weekly
+accounts and sentence settlement remain, but the city and crew positions do not
+reset. Existing saves acquire new optional case and career fields when needed.
+The classic mode retains its separate rules.
 
-A corrupt investigator can delay a file once for three game hours, with the
-deadline saved across reloads. Afterwards an independent available officer can
-continue it. Corruption can still weaken prosecution; it does not permanently
-stop the case. Withdrawn or unavailable testimony is reassessed, while seized
-financial records do not disappear because their source is jailed or dies.
-
-## Saves and limits
-
-Existing RTS saves acquire investigation fields conservatively. Legacy court
-cases retain their recorded strength and receive live deadlines. Old unexplained
-remote arrests are released rather than assigned invented charges. Classic-mode
-saves retain their existing rules. New saves validate case references, witness
-records, task state, custody and deadlines.
-
-This is a first playable investigation model. Descriptions and vehicle sightings
-are basic observations; there is no licence-plate registry, forensic laboratory,
-interactive interrogation, full case appeals system or simulated courthouse
-interior. Local searching can fail, and scheduling/balance needs playtesting.
-The Windows installer is built on GitHub Actions; automated simulation and
-browser checks do not replace a real Windows playthrough.
+This is an abstract simulation rather than a procedural courtroom recreation.
+There is no forensic laboratory, player-directed interview dialogue, detailed
+evidence-chain system or courthouse interior. Plate matching depends on a
+reported vehicle sighting and a current vehicle registration; local searching
+can fail. Balance still needs hands-on play.

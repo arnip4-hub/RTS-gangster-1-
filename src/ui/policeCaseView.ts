@@ -56,7 +56,7 @@ export function policeCaseView(w: WorldState, crime: CrimeRecord, viewer: ID) {
     suspectId,
     suspectName: suspectId == null ? null : w.people[suspectId]?.name ?? null,
     status: disclosed && file ? policeStageLabel(file, future) : court ? ({ awaiting: 'Charges filed', onTrial: 'Charges filed',
-      acquitted: 'Acquitted', convicted: 'Convicted', dismissed: 'Case dismissed' })[court.status] : detained ? 'In custody'
+      appealing: 'Appeal pending', acquitted: 'Acquitted', convicted: 'Convicted', dismissed: 'Case dismissed' })[court.status] : detained ? 'In custody'
       : publicWarrant ? 'Arrest warrant' : 'Police file · details not disclosed',
     // Heard shots alone do not establish that anyone was killed.
     title: file && !collectedEvidence.some(e => ['scene', 'direct', 'rescue'].includes(e.kind)) &&

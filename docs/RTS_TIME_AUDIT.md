@@ -7,7 +7,7 @@ mode is saved with each campaign, so an older save is not silently converted.
 
 | System | Time basis and response |
 | --- | --- |
-| Clock, light, weekends and leisure | Seven 1,440-minute days. Saturday and Sunday have different pedestrian, police and official routines. |
+| Clock, light, weekends and leisure | Seven 1,440-minute days. Saturday and Sunday have different pedestrian, police and official routines. Shopkeepers now travel to trading premises for weekday shifts from 08:00 to 18:00, then use the existing home, leisure and faster-tram routines. |
 | People, crew cars, trams and service trucks | Positions advance in game minutes. RTS movement is scaled so normal-speed screen travel remains close to the prior beta. Transport does not reset at a week boundary. |
 | Order estimates, crew budget and Organizer percentages | The budget now reads the saved clock mode: 10,080 RTS minutes or 2,400 classic minutes. Standing-order duty and save validation use that same limit. |
 | Rival planning | Free crews are reconsidered every 30 RTS minutes. A six-hour goal prevents constant strategic switching. In-flight jobs keep running. |
@@ -15,6 +15,12 @@ mode is saved with each campaign, so an older save is not silently converted.
 | Business money | An RTS business banks a conservative advance at each midnight. The weekly result subtracts these advances, so they are not paid twice. Weekly wages, upkeep, taxes and financial reports remain at Sunday settlement. Classic mode keeps its old weekly cash flow. |
 | Crime, police and FBI | Reported crimes are reviewed hourly in RTS time after the response window; each report is investigated once. On-call police and FBI agents travel and work in game minutes. Cases and court dates still progress weekly. |
 | Week boundary and saves | Settlement runs after Sunday. Active people, vehicles, orders, emergencies, cargo and route positions survive. New optional freight and receipt fields allow older saves to load. |
+
+Family links are intentionally sparse: officials have a named adult relative,
+and owners gain one after refusing extortion. A bounded personal history records
+known kidnappings, family pressure and attributed killings. Recent attributed
+trauma raises witness reporting willingness; fear can still suppress it. Older
+saves load without history and acquire entries as new incidents happen.
 
 The longer week means court dates, wages and final taxes take longer in real time
 at normal speed. The speed controls can accelerate those periods. The daily

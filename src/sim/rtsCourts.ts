@@ -9,6 +9,7 @@ import { availableSpecialist } from './specialists';
 import type { CourtCase, CrimeRecord, ID, Person, WorldState } from './types';
 import { peopleList } from './entityLists';
 import { describeCrime } from './systems/law';
+import { ensurePublicService, recordServiceCase, serviceQuality } from './publicService';
 
 /** Game-time deadlines; none of these change the agreed RTS clock rate. */
 export const RTS_CHARGE_THRESHOLD = 55;
@@ -16,7 +17,7 @@ export const RTS_IDENTITY_THRESHOLD = 65;
 export const RTS_COURT_REVIEW_MINUTES = 15;
 export const RTS_REASSIGNMENT_DELAY = 12 * 60;
 
-const openStatus = (c: CourtCase) => c.status === 'awaiting' || c.status === 'onTrial';
+const openStatus = (c: CourtCase) => c.status === 'awaiting' || c.status === 'onTrial' || c.status === 'appealing';
 
 /** A legacy hearing keeps an explicit future deadline and its existing file. */
 export function normalizeRtsCourts(w: WorldState): void {
@@ -83,6 +84,24 @@ function assignProsecutor(w: WorldState, rng: Rng, crime: CrimeRecord): Person |
   return w.people[file.prosecutorId];
 }
 
+function conductDetentionInterview(w: WorldState, rng: Rng, crime: CrimeRecord, defendant: Person,
+  interviewer: Person, now: number): void {
+  const file = crime.police!;
+  const quality = serviceQuality(interviewer);
+  const resolve = defendant.loyalty * .45 + defendant.skills.intelligence * 7 + defendant.skills.stealth * 2;
+  const leadChance = Math.max(.08, Math.min(.4, .22 + (55 - resolve) * .003 + (quality - 50) * .001));
+  const outcome: NonNullable<typeof file.interrogation>['outcome'] = rng.chance(leadChance)
+    ? 'new-lead' : rng.chance(.34) ? 'inconsistent' : 'no-comment';
+  const reliability = Math.max(15, Math.min(95, Math.round(quality + rng.range(-12, 12))));
+  file.interrogation = { interviewerId: interviewer.id, at: now, outcome, reliability };
+  recordServiceCase(interviewer);
+  if (outcome !== 'no-comment') addCaseEvidence(w, crime, { kind: 'interrogation', strength: outcome === 'new-lead' ? 7 : 3,
+    personId: defendant.id, collectedAt: now,
+    note: outcome === 'new-lead'
+      ? 'Detention interview produced a lead for follow-up; it was not an admission.'
+      : 'The subject changed part of his account; this is a weak lead, not proof of guilt.' });
+}
+
 /** Each person is reviewed against the file that actually caused detention. */
 function reviewCustody(w: WorldState, rng: Rng): void {
   const now = campaignMinute(w);
@@ -112,13 +131,18 @@ function reviewCustody(w: WorldState, rng: Rng): void {
     }
     file.chargingReviewedAt = now;
     file.reviewDueAt = now + 2 * 60;
+    const interviewer = crime.investigatorId == null ? w.people[custody.officerId] : w.people[crime.investigatorId];
+    if (!file.interrogation && interviewer?.status === 'active') conductDetentionInterview(w, rng, crime, person, interviewer, now);
+    if (!file.prosecutionReviewedAt) { recordServiceCase(prosecutor); file.prosecutionReviewedAt = now; }
     const strength = caseEvidenceStrength(w, crime);
     if (file.identityConfidence < RTS_IDENTITY_THRESHOLD || strength < 25 || file.stage === 'closed') {
       file.prosecutorDecision = 'decline';
       releaseCustody(w, person, crime, 'the prosecutor declined the evidence');
       continue;
     }
-    if (strength < RTS_CHARGE_THRESHOLD) {
+    const prosecutorFavor = prosecutor.bribedBy === person.gangId || (prosecutor.opinion[person.gangId] ?? 0) > 55;
+    const chargeThreshold = Math.min(75, RTS_CHARGE_THRESHOLD + (prosecutorFavor ? 12 : 0));
+    if (strength < chargeThreshold) {
       file.prosecutorDecision = 'investigate';
       file.nextReviewAt = Math.min(file.nextReviewAt, now + 30);
       if (now >= custody.releaseAt) releaseCustody(w, person, crime, 'further investigation is needed');
@@ -146,6 +170,8 @@ function reviewCustody(w: WorldState, rng: Rng): void {
       judgeBribed: false, strength, openedAt: now, trialAt: now + rng.int(1, 2) * FULL_DAY_MINUTES,
       reviewAt: now + RTS_COURT_REVIEW_MINUTES,
     };
+    serviceQuality(prosecutor);
+    serviceQuality(w.people[court.judgeId]);
     w.cases[court.id] = court;
     person.status = 'onTrial';
     if (gang.isPlayer) addMessage(w, 'police', `${prosecutor.name} charged ${person.name} with ${court.crime}.`, person.pos, person.id);
@@ -154,7 +180,7 @@ function reviewCustody(w: WorldState, rng: Rng): void {
 
 function closeCase(w: WorldState, court: CourtCase, status: CourtCase['status']): void {
   court.status = status;
-  court.reviewAt = campaignMinute(w) + 2 * FULL_DAY_MINUTES;
+  court.reviewAt = campaignMinute(w) + (status === 'convicted' ? 7 : 2) * FULL_DAY_MINUTES;
   const source = court.sourceCrimeId == null ? undefined : w.crimes.find(c => c.id === court.sourceCrimeId);
   if (source?.police) {
     source.police.stage = 'closed';
@@ -164,7 +190,38 @@ function closeCase(w: WorldState, court: CourtCase, status: CourtCase['status'])
   const defendant = w.people[court.defendantId];
   if (defendant) {
     delete defendant.custody;
-    if (status !== 'convicted' && ['arrested', 'onTrial'].includes(defendant.status)) defendant.status = 'active';
+    if (status !== 'convicted' && ['arrested', 'onTrial', 'jailed'].includes(defendant.status)) {
+      defendant.status = 'active';
+      defendant.jailWeeks = 0;
+      delete defendant.prisonId; delete defendant.prisonSince; delete defendant.prisonOperation;
+      delete defendant.prisonProtectedUntil;
+    }
+  }
+}
+
+function reviewAppeal(w: WorldState, rng: Rng, court: CourtCase, defendant: Person, gang: NonNullable<WorldState['gangs'][number]>, source?: CrimeRecord): void {
+  const now = campaignMinute(w), lawyer = availableSpecialist(w, gang, 'lawyer');
+  const judge = w.people[court.judgeId];
+  const investigator = court.investigatorId == null ? undefined : w.people[court.investigatorId];
+  const error = source?.police?.proceduralError;
+  const weakCase = Math.max(0, Math.min(22, (55 - court.strength) * .55));
+  const procedural = error ? error.correctedAt == null ? 20 : 8 : 0;
+  const judicialConcern = court.judgeBribed || (judge?.opinion[gang.id] ?? 0) > 55 ? 10 : 0;
+  const lawyerSkill = (lawyer?.skills.intelligence ?? .5) * 3.5;
+  const investigatorConcern = investigator?.employedBy === gang.id || investigator?.bribedBy === gang.id ? 8 : 0;
+  const chance = Math.max(.08, Math.min(.68, .12 + weakCase / 100 + procedural / 100 + judicialConcern / 100 +
+    lawyerSkill / 100 + investigatorConcern / 100));
+  if (rng.chance(chance)) {
+    closeCase(w, court, 'acquitted');
+    court.appealDecision = 'overturned';
+    if (gang.isPlayer) {
+      addMessage(w, 'police', `${defendant.name}'s appeal overturned the conviction; he is free.`);
+      addNews(w, { section: 'law', headline: 'CONVICTION OVERTURNED', body: `${defendant.name} was released after an appeal exposed weaknesses in the case.`, gangId: gang.id });
+    }
+  } else {
+    court.status = 'convicted'; court.appealDecision = 'upheld';
+    court.reviewAt = now + 7 * FULL_DAY_MINUTES;
+    if (gang.isPlayer) addMessage(w, 'police', `${defendant.name}'s conviction was upheld on appeal.`);
   }
 }
 
@@ -173,6 +230,13 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
   for (const court of Object.values(w.cases)) {
     if (!openStatus(court)) continue;
     if (court.reviewAt != null && now < court.reviewAt) continue;
+    if (court.status === 'appealing') {
+      const defendant = w.people[court.defendantId], gang = w.gangs[court.gangId];
+      const source = court.sourceCrimeId == null ? undefined : w.crimes.find(c => c.id === court.sourceCrimeId);
+      if (!defendant || !gang || defendant.status === 'dead') closeCase(w, court, 'dismissed');
+      else if (now >= (court.appealDueAt ?? now)) reviewAppeal(w, rng, court, defendant, gang, source);
+      continue;
+    }
     court.reviewAt = now + RTS_COURT_REVIEW_MINUTES;
     const defendant = w.people[court.defendantId], gang = w.gangs[court.gangId];
     if (!defendant || !gang || defendant.status === 'dead') { closeCase(w, court, 'dismissed'); continue; }
@@ -209,11 +273,6 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
       court.knowsJurors = false; reassigned = true;
     }
     if (reassigned) court.trialAt = Math.max(court.trialAt ?? now, now + RTS_REASSIGNMENT_DELAY);
-    if (court.judgeBribed || (w.people[court.judgeId].opinion[gang.id] ?? 0) > 55) {
-      closeCase(w, court, 'dismissed');
-      if (gang.isPlayer) addMessage(w, 'police', `${defendant.name} walked free — case dismissed.`);
-      continue;
-    }
     // Legacy cases keep their existing snapshot. Newly charged cases always use
     // the current, source-specific file so lost testimony is not baked in.
     if (source?.police) {
@@ -228,11 +287,20 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
     if (now < (court.trialAt ?? now + FULL_DAY_MINUTES)) { court.status = 'onTrial'; continue; }
     const da = w.people[court.daId], lawyer = availableSpecialist(w, gang, 'lawyer');
     const friendlyJurors = court.jurorIds.filter(id => court.bribedJurorIds?.includes(id) || (w.people[id]?.opinion[gang.id] ?? 0) > 25).length;
-    let prosecution = court.strength * .9 + da.skills.intelligence * 5;
+    let prosecution = court.strength * .9 + da.skills.intelligence * 5 + (serviceQuality(da) - 50) * .08;
+    prosecution *= .88 + (ensurePublicService(da)?.integrity ?? 60) * .0012;
     const investigator = court.investigatorId == null ? undefined : w.people[court.investigatorId];
     if (investigator?.employedBy === gang.id || investigator?.bribedBy === gang.id) prosecution *= .82;
+    if (source?.police?.proceduralError && source.police.proceduralError.correctedAt == null) prosecution *= .88;
+    const judge = w.people[court.judgeId];
+    const judgeIntegrity = judge ? ensurePublicService(judge)?.integrity ?? 60 : 60;
+    if (court.judgeBribed) prosecution *= 1 - (.1 + (100 - judgeIntegrity) * .002);
+    else if ((judge?.opinion[gang.id] ?? 0) > 55) prosecution *= .9;
     const defence = (lawyer?.skills.intelligence ?? .5) * 10 + friendlyJurors * 7 + 10;
-    const convicted = prosecution * rng.range(.85, 1.15) > defence * rng.range(.85, 1.15);
+    const variance = .08 + (100 - (judge ? serviceQuality(judge) : 50)) * .0008;
+    const convicted = prosecution * rng.range(1 - variance, 1 + variance) > defence * rng.range(1 - variance, 1 + variance);
+    recordServiceCase(da);
+    if (judge) recordServiceCase(judge);
     closeCase(w, court, convicted ? 'convicted' : 'acquitted');
     if (convicted) {
       defendant.status = 'jailed';

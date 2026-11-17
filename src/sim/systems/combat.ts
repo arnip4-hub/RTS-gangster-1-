@@ -157,7 +157,7 @@ function exchange(w: WorldState, rng: Rng, a: Person, b: Person, loadout: Loadou
     if (shot) { if (shot.kills) b.hp = 0; }
     else b.hp -= spec.damage * rng.range(0.7, 1.25);
     if (b.hp <= 0) {
-      killPerson(w, b, `${weapon ? 'gunned down' : 'killed in close combat'} by ${w.gangs[a.gangId!]?.name ?? 'a rival'}`);
+      killPerson(w, b, `${weapon ? 'gunned down' : 'killed in close combat'} by ${w.gangs[a.gangId!]?.name ?? 'a rival'}`, a.gangId!);
       completeAmbush(w, a, b);
       recordCrime(w, rng, {
         gangId: a.gangId!, perpetratorId: a.id, type: weapon ? 'shootout' : 'kill',

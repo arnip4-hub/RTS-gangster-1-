@@ -42,6 +42,7 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, 
             onClick={() => onInquiry(crime.id)}>{reviewing ? 'Reviewing file' : 'Ask lawyer'}</button>}
         </div>}
         {view.disclosed && <>
+          {officer?.publicService && <div className="muted tiny">Investigator record: {officer.publicService.casesHandled} case(s), {officer.publicService.mistakes} recorded error(s), integrity {officer.publicService.integrity}/100.</div>}
           <dl className="police-file-facts tiny">
             {file?.suspectId != null && <><dt>Identification</dt><dd>{Math.round(file.identityConfidence)}% confidence</dd></>}
             {file?.warrantAt != null && <><dt>Warrant</dt><dd>{file.suspectId != null && activeWarrants(w, file.suspectId).some(c => c.id === crime.id)
@@ -51,6 +52,13 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, 
             {view.prosecutorDecision && <><dt>Charging review</dt><dd>{({ pending: 'Decision pending', investigate: 'Further investigation requested',
               charge: 'Proceed with charges', decline: 'Charges declined' })[view.prosecutorDecision]}</dd></>}
             {file?.reviewDueAt != null && file.prosecutorDecision === 'pending' && <><dt>Decision due</dt><dd>{lawDeadline(w, file.reviewDueAt)}</dd></>}
+            {file?.proceduralError && <><dt>Investigative error</dt><dd>{file.proceduralError.correctedAt == null
+              ? 'Early scene handling error; independent review pending'
+              : `Corrected by ${w.people[file.proceduralError.correctedBy ?? -1]?.name ?? 'a supervisor'}`}</dd></>}
+            {file?.politicalPressure && <><dt>Political pressure</dt><dd>{w.people[file.politicalPressure.sourceId]?.name ?? 'An official'} delayed the review until {lawDeadline(w, file.politicalPressure.until)}</dd></>}
+            {file?.interrogation && <><dt>Detention interview</dt><dd>{w.people[file.interrogation.interviewerId]?.name ?? 'Investigator'} · {{
+              'no-comment': 'declined to answer', inconsistent: 'account changed', 'new-lead': 'gave a lead for follow-up',
+            }[file.interrogation.outcome]} · {file.interrogation.reliability}% reliability</dd></>}
           </dl>
           <details className="police-file-details">
             <summary className="tiny">Statements ({view.statements.length}) · Evidence ({view.evidence.length})</summary>
@@ -69,7 +77,6 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, 
         </>}
       </article>;
     })}
-    <Hint>The lawyer can obtain file details. A paid lead officer can disclose his own file.
-      A report or a description does not establish who committed the crime.</Hint>
+    <Hint>The lawyer can obtain file details. A plate identifies a registered vehicle, not its driver; a report or description alone does not prove who committed the crime.</Hint>
   </Panel>;
 }

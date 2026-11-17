@@ -171,43 +171,43 @@
         "gangs": {
           "optional": false,
           "shape": {
-            "ref": "T61"
+            "ref": "T64"
           }
         },
         "teams": {
           "optional": false,
           "shape": {
-            "ref": "T78"
+            "ref": "T81"
           }
         },
         "orders": {
           "optional": false,
           "shape": {
-            "ref": "T80"
+            "ref": "T83"
           }
         },
         "lastWeekOrders": {
           "optional": false,
           "shape": {
-            "ref": "T89"
+            "ref": "T92"
           }
         },
         "crimes": {
           "optional": false,
           "shape": {
-            "ref": "T90"
+            "ref": "T93"
           }
         },
         "cases": {
           "optional": false,
           "shape": {
-            "ref": "T97"
+            "ref": "T103"
           }
         },
         "election": {
           "optional": false,
           "shape": {
-            "ref": "T99"
+            "ref": "T105"
           }
         },
         "electionWinnerGangId": {
@@ -226,7 +226,7 @@
         "news": {
           "optional": false,
           "shape": {
-            "ref": "T106"
+            "ref": "T112"
           }
         },
         "lastNewspaperMinute": {
@@ -242,7 +242,7 @@
         "messages": {
           "optional": false,
           "shape": {
-            "ref": "T108"
+            "ref": "T114"
           }
         },
         "traffic": {
@@ -250,7 +250,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T110"
+                "ref": "T116"
               }
             ]
           }
@@ -260,7 +260,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T112"
+                "ref": "T118"
               }
             ]
           }
@@ -365,7 +365,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T113"
+                "ref": "T119"
               }
             ]
           }
@@ -375,7 +375,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T115"
+                "ref": "T121"
               }
             ]
           }
@@ -385,7 +385,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T119"
+                "ref": "T125"
               }
             ]
           }
@@ -395,7 +395,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T121"
+                "ref": "T127"
               }
             ]
           }
@@ -403,7 +403,7 @@
         "auditResults": {
           "optional": false,
           "shape": {
-            "ref": "T123"
+            "ref": "T129"
           }
         },
         "weekLog": {
@@ -2214,6 +2214,26 @@
             ]
           }
         },
+        "personalMemories": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T40"
+              }
+            ]
+          }
+        },
+        "publicService": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T42"
+              }
+            ]
+          }
+        },
         "householdCash": {
           "optional": true,
           "shape": {
@@ -2229,7 +2249,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T40"
+                "ref": "T43"
               }
             ]
           }
@@ -2261,7 +2281,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T42"
+                "ref": "T45"
               }
             ]
           }
@@ -2271,7 +2291,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T43"
+                "ref": "T46"
               }
             ]
           }
@@ -2335,6 +2355,9 @@
           "shape": {
             "union": [
               {
+                "literal": "kidnapped"
+              },
+              {
                 "literal": "active"
               },
               {
@@ -2345,9 +2368,6 @@
               },
               {
                 "literal": "jailed"
-              },
-              {
-                "literal": "kidnapped"
               },
               {
                 "literal": "beaten"
@@ -2396,7 +2416,7 @@
         "path": {
           "optional": false,
           "shape": {
-            "ref": "T45"
+            "ref": "T48"
           }
         },
         "halted": {
@@ -2485,7 +2505,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T47"
+                "ref": "T50"
               }
             ]
           }
@@ -2583,7 +2603,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T48"
+                "ref": "T51"
               }
             ]
           }
@@ -2593,7 +2613,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T49"
+                "ref": "T52"
               }
             ]
           }
@@ -2623,7 +2643,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T50"
+                "ref": "T53"
               }
             ]
           }
@@ -2645,7 +2665,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T51"
+                "ref": "T54"
               }
             ]
           }
@@ -2674,7 +2694,7 @@
                 "literal": null
               },
               {
-                "ref": "T53"
+                "ref": "T56"
               }
             ]
           }
@@ -2684,7 +2704,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T54"
+                "ref": "T57"
               }
             ]
           }
@@ -2694,7 +2714,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T55"
+                "ref": "T58"
               }
             ]
           }
@@ -2704,7 +2724,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T56"
+                "ref": "T59"
               }
             ]
           }
@@ -2733,7 +2753,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T57"
+                "ref": "T60"
               }
             ]
           }
@@ -2746,7 +2766,7 @@
                 "literal": null
               },
               {
-                "ref": "T58"
+                "ref": "T61"
               }
             ]
           }
@@ -2786,7 +2806,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T59"
+                "ref": "T62"
               }
             ]
           }
@@ -2796,7 +2816,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T60"
+                "ref": "T63"
               }
             ]
           }
@@ -2874,12 +2894,109 @@
       }
     },
     "T40": {
-      "object": {},
-      "values": {
+      "array": {
         "ref": "T41"
       }
     },
     "T41": {
+      "object": {
+        "kind": {
+          "optional": false,
+          "shape": {
+            "union": [
+              {
+                "literal": "kidnapped"
+              },
+              {
+                "literal": "familyMissing"
+              },
+              {
+                "literal": "familyKidnapped"
+              },
+              {
+                "literal": "familyPressured"
+              },
+              {
+                "literal": "familyKilled"
+              }
+            ]
+          }
+        },
+        "atMinute": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "personId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "gangId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "intensity": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T42": {
+      "object": {
+        "experience": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "integrity": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "casesHandled": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "mistakes": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "bribesAccepted": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T43": {
+      "object": {},
+      "values": {
+        "ref": "T44"
+      }
+    },
+    "T44": {
       "object": {
         "victimId": {
           "optional": false,
@@ -2895,7 +3012,7 @@
         }
       }
     },
-    "T42": {
+    "T45": {
       "object": {
         "day": {
           "optional": false,
@@ -2923,13 +3040,13 @@
         }
       }
     },
-    "T43": {
+    "T46": {
       "object": {},
       "values": {
-        "ref": "T44"
+        "ref": "T47"
       }
     },
-    "T44": {
+    "T47": {
       "object": {
         "venueId": {
           "optional": false,
@@ -2945,12 +3062,12 @@
         }
       }
     },
-    "T45": {
+    "T48": {
       "array": {
-        "ref": "T46"
+        "ref": "T49"
       }
     },
-    "T46": {
+    "T49": {
       "object": {
         "cross": {
           "optional": true,
@@ -2976,7 +3093,7 @@
         }
       }
     },
-    "T47": {
+    "T50": {
       "object": {
         "kind": {
           "optional": false,
@@ -3009,7 +3126,7 @@
         }
       }
     },
-    "T48": {
+    "T51": {
       "object": {
         "crimeId": {
           "optional": false,
@@ -3043,7 +3160,7 @@
         }
       }
     },
-    "T49": {
+    "T52": {
       "object": {
         "crimeId": {
           "optional": false,
@@ -3146,7 +3263,7 @@
         }
       }
     },
-    "T50": {
+    "T53": {
       "object": {
         "buildingId": {
           "optional": false,
@@ -3203,7 +3320,7 @@
         }
       }
     },
-    "T51": {
+    "T54": {
       "object": {
         "posture": {
           "optional": false,
@@ -3242,14 +3359,14 @@
           "shape": {
             "union": [
               {
-                "ref": "T52"
+                "ref": "T55"
               }
             ]
           }
         }
       }
     },
-    "T52": {
+    "T55": {
       "object": {
         "attack": {
           "optional": false,
@@ -3283,7 +3400,7 @@
         }
       }
     },
-    "T53": {
+    "T56": {
       "object": {
         "coveredAt": {
           "optional": true,
@@ -3337,7 +3454,7 @@
         }
       }
     },
-    "T54": {
+    "T57": {
       "object": {
         "week": {
           "optional": false,
@@ -3419,7 +3536,7 @@
         }
       }
     },
-    "T55": {
+    "T58": {
       "object": {
         "week": {
           "optional": false,
@@ -3557,7 +3674,7 @@
         }
       }
     },
-    "T56": {
+    "T59": {
       "object": {
         "week": {
           "optional": false,
@@ -3610,7 +3727,7 @@
         }
       }
     },
-    "T57": {
+    "T60": {
       "object": {
         "stage": {
           "optional": false,
@@ -3772,7 +3889,7 @@
         }
       }
     },
-    "T58": {
+    "T61": {
       "object": {
         "type": {
           "optional": false,
@@ -3834,7 +3951,7 @@
         }
       }
     },
-    "T59": {
+    "T62": {
       "object": {
         "tram": {
           "optional": false,
@@ -3881,7 +3998,7 @@
         }
       }
     },
-    "T60": {
+    "T63": {
       "object": {
         "line": {
           "optional": false,
@@ -3989,13 +4106,13 @@
         }
       }
     },
-    "T61": {
+    "T64": {
       "object": {},
       "values": {
-        "ref": "T62"
+        "ref": "T65"
       }
     },
-    "T62": {
+    "T65": {
       "object": {
         "id": {
           "optional": false,
@@ -4101,7 +4218,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T63"
+                "ref": "T66"
               }
             ]
           }
@@ -4163,13 +4280,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T64"
+            "ref": "T67"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T65"
+            "ref": "T68"
           }
         },
         "staffVehicles": {
@@ -4177,7 +4294,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T66"
+                "ref": "T69"
               }
             ]
           }
@@ -4185,13 +4302,13 @@
         "offered": {
           "optional": false,
           "shape": {
-            "ref": "T67"
+            "ref": "T70"
           }
         },
         "known": {
           "optional": false,
           "shape": {
-            "ref": "T67"
+            "ref": "T70"
           }
         },
         "evadingTax": {
@@ -4351,7 +4468,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T68"
+                "ref": "T71"
               }
             ]
           }
@@ -4379,7 +4496,7 @@
         "history": {
           "optional": false,
           "shape": {
-            "ref": "T70"
+            "ref": "T73"
           }
         },
         "scorePeaks": {
@@ -4387,7 +4504,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T72"
+                "ref": "T75"
               }
             ]
           }
@@ -4395,13 +4512,13 @@
         "lastWeekIncome": {
           "optional": false,
           "shape": {
-            "ref": "T73"
+            "ref": "T76"
           }
         },
         "lastWeekCosts": {
           "optional": false,
           "shape": {
-            "ref": "T74"
+            "ref": "T77"
           }
         },
         "finances": {
@@ -4409,7 +4526,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T75"
+                "ref": "T78"
               }
             ]
           }
@@ -4419,14 +4536,14 @@
           "shape": {
             "union": [
               {
-                "ref": "T75"
+                "ref": "T78"
               }
             ]
           }
         }
       }
     },
-    "T63": {
+    "T66": {
       "object": {
         "kind": {
           "optional": false,
@@ -4497,7 +4614,7 @@
         }
       }
     },
-    "T64": {
+    "T67": {
       "object": {
         "explosives": {
           "optional": false,
@@ -4537,7 +4654,7 @@
         }
       }
     },
-    "T65": {
+    "T68": {
       "object": {
         "coupe": {
           "optional": false,
@@ -4559,7 +4676,7 @@
         }
       }
     },
-    "T66": {
+    "T69": {
       "object": {
         "accountant": {
           "optional": false,
@@ -4601,7 +4718,7 @@
         }
       }
     },
-    "T67": {
+    "T70": {
       "object": {},
       "values": {
         "union": [
@@ -4623,13 +4740,13 @@
         ]
       }
     },
-    "T68": {
+    "T71": {
       "object": {},
       "values": {
-        "ref": "T69"
+        "ref": "T72"
       }
     },
-    "T69": {
+    "T72": {
       "object": {
         "prisonId": {
           "optional": false,
@@ -4658,12 +4775,12 @@
         }
       }
     },
-    "T70": {
+    "T73": {
       "array": {
-        "ref": "T71"
+        "ref": "T74"
       }
     },
-    "T71": {
+    "T74": {
       "object": {
         "week": {
           "optional": false,
@@ -4725,7 +4842,7 @@
         }
       }
     },
-    "T72": {
+    "T75": {
       "object": {
         "cash": {
           "optional": false,
@@ -4743,136 +4860,6 @@
           "optional": false,
           "shape": {
             "type": "number"
-          }
-        }
-      }
-    },
-    "T73": {
-      "object": {
-        "legal": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "illegal": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "protection": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "other": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T74": {
-      "object": {
-        "wages": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "purchases": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "upkeep": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        }
-      }
-    },
-    "T75": {
-      "object": {
-        "week": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "openingCash": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "closingCash": {
-          "optional": false,
-          "shape": {
-            "type": "number"
-          }
-        },
-        "income": {
-          "optional": false,
-          "shape": {
-            "ref": "T76"
-          }
-        },
-        "costs": {
-          "optional": false,
-          "shape": {
-            "ref": "T77"
-          }
-        },
-        "partial": {
-          "optional": false,
-          "shape": {
-            "type": "boolean"
-          }
-        },
-        "taxableProfit": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "riskyIncome": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "closedSiteUpkeep": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
-          }
-        },
-        "campaignCost": {
-          "optional": true,
-          "shape": {
-            "union": [
-              {
-                "type": "number"
-              }
-            ]
           }
         }
       }
@@ -4924,6 +4911,136 @@
           "shape": {
             "type": "number"
           }
+        }
+      }
+    },
+    "T78": {
+      "object": {
+        "week": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "openingCash": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "closingCash": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "income": {
+          "optional": false,
+          "shape": {
+            "ref": "T79"
+          }
+        },
+        "costs": {
+          "optional": false,
+          "shape": {
+            "ref": "T80"
+          }
+        },
+        "partial": {
+          "optional": false,
+          "shape": {
+            "type": "boolean"
+          }
+        },
+        "taxableProfit": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "riskyIncome": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "closedSiteUpkeep": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "campaignCost": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "T79": {
+      "object": {
+        "legal": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "illegal": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "protection": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "other": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T80": {
+      "object": {
+        "wages": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "purchases": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "upkeep": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
         },
         "tax": {
           "optional": false,
@@ -4933,13 +5050,13 @@
         }
       }
     },
-    "T78": {
+    "T81": {
       "object": {},
       "values": {
-        "ref": "T79"
+        "ref": "T82"
       }
     },
-    "T79": {
+    "T82": {
       "object": {
         "id": {
           "optional": false,
@@ -4974,13 +5091,13 @@
         "weapons": {
           "optional": false,
           "shape": {
-            "ref": "T64"
+            "ref": "T67"
           }
         },
         "vehicles": {
           "optional": false,
           "shape": {
-            "ref": "T65"
+            "ref": "T68"
           }
         },
         "allocatedBlockIds": {
@@ -5003,13 +5120,13 @@
         }
       }
     },
-    "T80": {
+    "T83": {
       "object": {},
       "values": {
-        "ref": "T81"
+        "ref": "T84"
       }
     },
-    "T81": {
+    "T84": {
       "object": {
         "id": {
           "optional": false,
@@ -5152,7 +5269,7 @@
         "opts": {
           "optional": false,
           "shape": {
-            "ref": "T82"
+            "ref": "T85"
           }
         },
         "assignedIds": {
@@ -5218,7 +5335,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T83"
+                "ref": "T86"
               }
             ]
           }
@@ -5329,7 +5446,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T85"
+                "ref": "T88"
               }
             ]
           }
@@ -5339,7 +5456,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T86"
+                "ref": "T89"
               }
             ]
           }
@@ -5349,7 +5466,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T87"
+                "ref": "T90"
               }
             ]
           }
@@ -5359,7 +5476,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T88"
+                "ref": "T91"
               }
             ]
           }
@@ -5481,7 +5598,7 @@
         }
       }
     },
-    "T82": {
+    "T85": {
       "object": {
         "repeat": {
           "optional": false,
@@ -5584,12 +5701,12 @@
         }
       }
     },
-    "T83": {
+    "T86": {
       "array": {
-        "ref": "T84"
+        "ref": "T87"
       }
     },
-    "T84": {
+    "T87": {
       "object": {
         "line": {
           "optional": false,
@@ -5605,7 +5722,7 @@
         }
       }
     },
-    "T85": {
+    "T88": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5643,7 +5760,7 @@
         }
       }
     },
-    "T86": {
+    "T89": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5653,7 +5770,7 @@
         }
       }
     },
-    "T87": {
+    "T90": {
       "object": {
         "officeId": {
           "optional": false,
@@ -5669,7 +5786,7 @@
         }
       }
     },
-    "T88": {
+    "T91": {
       "object": {
         "warehouseId": {
           "optional": false,
@@ -5685,17 +5802,17 @@
         }
       }
     },
-    "T89": {
+    "T92": {
       "array": {
-        "ref": "T81"
+        "ref": "T84"
       }
     },
-    "T90": {
+    "T93": {
       "array": {
-        "ref": "T91"
+        "ref": "T94"
       }
     },
-    "T91": {
+    "T94": {
       "object": {
         "id": {
           "optional": false,
@@ -5819,7 +5936,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T92"
+                "ref": "T95"
               }
             ]
           }
@@ -5849,7 +5966,7 @@
         }
       }
     },
-    "T92": {
+    "T95": {
       "object": {
         "agency": {
           "optional": false,
@@ -5910,13 +6027,13 @@
         "statements": {
           "optional": false,
           "shape": {
-            "ref": "T93"
+            "ref": "T96"
           }
         },
         "evidence": {
           "optional": false,
           "shape": {
-            "ref": "T95"
+            "ref": "T98"
           }
         },
         "identityConfidence": {
@@ -6066,6 +6183,16 @@
             ]
           }
         },
+        "prosecutionReviewedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
         "reviewDueAt": {
           "optional": true,
           "shape": {
@@ -6118,15 +6245,55 @@
               }
             ]
           }
+        },
+        "sceneExaminedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "proceduralError": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T100"
+              }
+            ]
+          }
+        },
+        "politicalPressure": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T101"
+              }
+            ]
+          }
+        },
+        "interrogation": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T102"
+              }
+            ]
+          }
         }
       }
     },
-    "T93": {
+    "T96": {
       "array": {
-        "ref": "T94"
+        "ref": "T97"
       }
     },
-    "T94": {
+    "T97": {
       "object": {
         "witnessId": {
           "optional": false,
@@ -6214,6 +6381,16 @@
             ]
           }
         },
+        "plate": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
         "description": {
           "optional": true,
           "shape": {
@@ -6239,12 +6416,12 @@
         }
       }
     },
-    "T95": {
+    "T98": {
       "array": {
-        "ref": "T96"
+        "ref": "T99"
       }
     },
-    "T96": {
+    "T99": {
       "object": {
         "kind": {
           "optional": false,
@@ -6270,6 +6447,12 @@
               },
               {
                 "literal": "informant"
+              },
+              {
+                "literal": "plate"
+              },
+              {
+                "literal": "interrogation"
               }
             ]
           }
@@ -6316,6 +6499,26 @@
             ]
           }
         },
+        "vehicleKey": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "plate": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
         "note": {
           "optional": false,
           "shape": {
@@ -6324,13 +6527,115 @@
         }
       }
     },
-    "T97": {
-      "object": {},
-      "values": {
-        "ref": "T98"
+    "T100": {
+      "object": {
+        "officerId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "at": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "dueAt": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "correctedAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "correctedBy": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        }
       }
     },
-    "T98": {
+    "T101": {
+      "object": {
+        "sourceId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "appliedAt": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "until": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T102": {
+      "object": {
+        "interviewerId": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "at": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        },
+        "outcome": {
+          "optional": false,
+          "shape": {
+            "union": [
+              {
+                "literal": "no-comment"
+              },
+              {
+                "literal": "inconsistent"
+              },
+              {
+                "literal": "new-lead"
+              }
+            ]
+          }
+        },
+        "reliability": {
+          "optional": false,
+          "shape": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "T103": {
+      "object": {},
+      "values": {
+        "ref": "T104"
+      }
+    },
+    "T104": {
       "object": {
         "id": {
           "optional": false,
@@ -6460,6 +6765,9 @@
                 "literal": "awaiting"
               },
               {
+                "literal": "appealing"
+              },
+              {
                 "literal": "dismissed"
               },
               {
@@ -6524,10 +6832,56 @@
               }
             ]
           }
+        },
+        "appealFiledAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "appealDueAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "appealCount": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "appealDecision": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": "pending"
+              },
+              {
+                "literal": "overturned"
+              },
+              {
+                "literal": "upheld"
+              }
+            ]
+          }
         }
       }
     },
-    "T99": {
+    "T105": {
       "object": {
         "active": {
           "optional": false,
@@ -6544,7 +6898,7 @@
         "candidates": {
           "optional": false,
           "shape": {
-            "ref": "T100"
+            "ref": "T106"
           }
         },
         "lastResultWeek": {
@@ -6558,7 +6912,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T102"
+                "ref": "T108"
               }
             ]
           }
@@ -6581,19 +6935,19 @@
           "shape": {
             "union": [
               {
-                "ref": "T103"
+                "ref": "T109"
               }
             ]
           }
         }
       }
     },
-    "T100": {
+    "T106": {
       "array": {
-        "ref": "T101"
+        "ref": "T107"
       }
     },
-    "T101": {
+    "T107": {
       "object": {
         "id": {
           "optional": false,
@@ -6638,7 +6992,7 @@
         }
       }
     },
-    "T102": {
+    "T108": {
       "object": {
         "personId": {
           "optional": false,
@@ -6654,7 +7008,7 @@
         }
       }
     },
-    "T103": {
+    "T109": {
       "object": {
         "week": {
           "optional": false,
@@ -6671,17 +7025,17 @@
         "candidates": {
           "optional": false,
           "shape": {
-            "ref": "T104"
+            "ref": "T110"
           }
         }
       }
     },
-    "T104": {
+    "T110": {
       "array": {
-        "ref": "T105"
+        "ref": "T111"
       }
     },
-    "T105": {
+    "T111": {
       "object": {
         "id": {
           "optional": false,
@@ -6726,12 +7080,12 @@
         }
       }
     },
-    "T106": {
+    "T112": {
       "array": {
-        "ref": "T107"
+        "ref": "T113"
       }
     },
-    "T107": {
+    "T113": {
       "object": {
         "week": {
           "optional": false,
@@ -6885,12 +7239,12 @@
         }
       }
     },
-    "T108": {
+    "T114": {
       "array": {
-        "ref": "T109"
+        "ref": "T115"
       }
     },
-    "T109": {
+    "T115": {
       "object": {
         "sound": {
           "optional": true,
@@ -6967,7 +7321,7 @@
         }
       }
     },
-    "T110": {
+    "T116": {
       "object": {
         "delay": {
           "optional": false,
@@ -6978,7 +7332,7 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T111"
+            "ref": "T117"
           }
         },
         "waited": {
@@ -6989,12 +7343,12 @@
         }
       }
     },
-    "T111": {
+    "T117": {
       "array": {
         "type": "boolean"
       }
     },
-    "T112": {
+    "T118": {
       "object": {
         "delay": {
           "optional": false,
@@ -7005,18 +7359,18 @@
         "halted": {
           "optional": false,
           "shape": {
-            "ref": "T111"
+            "ref": "T117"
           }
         }
       }
     },
-    "T113": {
+    "T119": {
       "object": {},
       "values": {
-        "ref": "T114"
+        "ref": "T120"
       }
     },
-    "T114": {
+    "T120": {
       "object": {
         "id": {
           "optional": false,
@@ -7179,13 +7533,13 @@
         }
       }
     },
-    "T115": {
+    "T121": {
       "object": {},
       "values": {
-        "ref": "T116"
+        "ref": "T122"
       }
     },
-    "T116": {
+    "T122": {
       "object": {
         "kind": {
           "optional": false,
@@ -7319,7 +7673,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T117"
+                "ref": "T123"
               }
             ]
           }
@@ -7329,7 +7683,7 @@
           "shape": {
             "union": [
               {
-                "ref": "T118"
+                "ref": "T124"
               }
             ]
           }
@@ -7346,7 +7700,7 @@
         }
       }
     },
-    "T117": {
+    "T123": {
       "object": {
         "goods": {
           "optional": false,
@@ -7404,7 +7758,7 @@
         }
       }
     },
-    "T118": {
+    "T124": {
       "object": {
         "buildingId": {
           "optional": false,
@@ -7420,13 +7774,13 @@
         }
       }
     },
-    "T119": {
+    "T125": {
       "object": {},
       "values": {
-        "ref": "T120"
+        "ref": "T126"
       }
     },
-    "T120": {
+    "T126": {
       "object": {
         "sourceId": {
           "optional": false,
@@ -7556,13 +7910,13 @@
         }
       }
     },
-    "T121": {
+    "T127": {
       "object": {},
       "values": {
-        "ref": "T122"
+        "ref": "T128"
       }
     },
-    "T122": {
+    "T128": {
       "object": {
         "week": {
           "optional": false,
@@ -7584,7 +7938,7 @@
         }
       }
     },
-    "T123": {
+    "T129": {
       "object": {},
       "values": {
         "union": [
@@ -7592,12 +7946,12 @@
             "literal": null
           },
           {
-            "ref": "T124"
+            "ref": "T130"
           }
         ]
       }
     },
-    "T124": {
+    "T130": {
       "object": {
         "personId": {
           "optional": false,

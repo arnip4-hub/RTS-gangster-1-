@@ -94,6 +94,14 @@ export function refreshCaseIdentity(w: WorldState, crime: CrimeRecord, court?: C
     const confidence = ['financial', 'rescue', 'direct'].includes(e.kind) ? 85 : Math.min(75, e.strength + 35);
     list.push(confidence); ratings.set(e.personId, list);
   }
+  // A plate points to its registered driver, not necessarily the person who
+  // committed the crime. It is a lead only and cannot establish identity alone.
+  for (const e of liveEvidence(w, crime, court)) {
+    if (e.kind !== 'plate' || e.personId == null || !w.people[e.personId]) continue;
+    const list = ratings.get(e.personId) ?? [];
+    list.push(40);
+    ratings.set(e.personId, list);
+  }
   const candidates = [...ratings].map(([id, values]) => {
     values.sort((a, b) => b - a);
     return { id, confidence: cap(values[0] + Math.min(12, (values.length - 1) * 6)) };

@@ -84,7 +84,7 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
       keepContactDistance([p], target);
       const blow = exchange(w, rng, p, target, true, loadout);
       if (blow?.lethal) {
-        killPerson(w, target, 'killed in close combat');
+        killPerson(w, target, 'killed in close combat', p.gangId ?? undefined);
         recordCrime(w, rng, { gangId: p.gangId, perpetratorId: p.id, type: 'streetKill', pos: target.pos, victimId: target.id, severity: 10 });
         addMessage(w, 'combat', `${target.name} was killed in close combat by ${p.name}.`, target.pos, p.id);
         endCloseCombat(p); p.streetOrder = null; standDown(w, p);
@@ -113,7 +113,7 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
         else target.hp -= spec.damage * rng.range(0.7, 1.25);
         const lethal = target.hp <= 0;
         if (lethal) {
-          killPerson(w, target, weapon ? 'shot down in the street' : 'killed in close combat');
+          killPerson(w, target, weapon ? 'shot down in the street' : 'killed in close combat', p.gangId ?? undefined);
         }
         // One response for this actor's attack order, including after a save/load.
         // Misses have no victim attribution; later hits/death do not add it again.
@@ -154,7 +154,7 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
       const blow = exchange(w, rng, p, target, false, loadout);
       if (!blow) continue;
       if (blow.lethal) {
-        killPerson(w, target, 'beaten to death');
+        killPerson(w, target, 'beaten to death', p.gangId ?? undefined);
         recordCrime(w, rng, { gangId: p.gangId, perpetratorId: p.id, type: 'streetKill', pos: target.pos, victimId: target.id, severity: 10 });
         addMessage(w, 'combat', `${target.name} died from a beating by ${p.name}.`, target.pos, p.id);
         endCloseCombat(p); p.streetOrder = null; standDown(w, p);
@@ -209,7 +209,7 @@ function exchange(w: WorldState, rng: Rng, p: Person, target: Person, kill: bool
   const answer = closeCombatBlow(rng, target, p, meleeWeapon(target, kill), loadout.get(target.id), w.minute, w.week, meleeKills);
   presentAttack(w, target, p, undefined, answer.hit, { attack: answer.attack, reaction: answer.entry[0] });
   if (answer.lethal) {
-    killPerson(w, p, 'killed in close combat');
+    killPerson(w, p, 'killed in close combat', target.gangId ?? undefined);
     addMessage(w, 'combat', `${p.name} was killed in close combat by ${target.name}.`, p.pos, target.id);
   }
   return blow;

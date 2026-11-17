@@ -1,9 +1,11 @@
 import { fearOf } from './attitudes';
+import { memoryWitnessBonus } from './personalHistory';
 import { campaignMinute, hourOfDay } from './calendar';
 import { cityBlockAt, lotRect } from './cityLayout';
 import { CELL } from './constants';
 import type { CrimeParams } from './events';
 import { onGangPayroll } from './payrollMark';
+import { plateForVehicleKey } from './licensePlates';
 import type { Rng } from './rng';
 import type { Person, Vec2, WitnessStatement, WorldState } from './types';
 import { dist } from './world';
@@ -114,15 +116,23 @@ export function rtsWitnessStatements(w: WorldState, rng: Rng, params: CrimeParam
     const recognizes = visual && distance <= faceRange && (official || rng.chance(confidence / 100));
     const observation: WitnessStatement['observation'] = recognizes && official ? 'direct' : recognizes ? 'face'
       : visual && perp?.inVehicle && perp.vehicleKey ? 'vehicle' : visual ? 'description' : 'sound';
-    // Fear affects willingness to report, not the factual contents of memory.
-    const willingness = official ? 1 : Math.max(.12, (severity >= 5 ? .86 : .4) - fearOf(p, params.gangId) / 420);
+    // Fear affects willingness to report, not what the witness saw. Recent,
+    // attributed family trauma can push a witness toward reporting, but never
+    // removes the danger or makes a witness certain to cooperate.
+    const willingness = official ? 1 : Math.max(.12, Math.min(.98,
+      (severity >= 5 ? .86 : .4) - fearOf(p, params.gangId) / 420 +
+      memoryWitnessBonus(p, params.gangId, campaignMinute(w))));
     const reports = official || rng.chance(willingness);
     const reportedAt = reports ? now + (official ? 0 : p.status === 'beaten' ? rng.int(60, 120) : rng.int(5, 30)) : undefined;
+    const notedPlate = observation === 'vehicle' && perp?.vehicleKey && rng.chance(Math.max(.12, Math.min(.72, confidence / 130)))
+      ? plateForVehicleKey(perp.vehicleKey) : undefined;
+    const plate = notedPlate && rng.chance(.55) ? `${notedPlate.slice(0, -2)}??` : notedPlate;
     out.push({ witnessId: p.id, observation, confidence, reliability: Math.round(65 + p.skills.intelligence * 5),
       observedAt: now, ...(reportedAt == null ? {} : { reportedAt }),
       ...(official && reports ? { interviewedAt: now } : {}),
       ...(recognizes ? { suspectId: params.perpetratorId } : {}),
       ...(observation === 'vehicle' && perp?.vehicleKey ? { vehicleKey: perp.vehicleKey } : {}),
+      ...(plate ? { plate } : {}),
       description: observation === 'sound' ? 'Heard a disturbance; did not see who caused it.'
         : observation === 'description' ? 'Saw a person at the scene, without a clear facial identification.'
         : observation === 'vehicle' ? 'Saw a vehicle at the scene, without identifying its occupants.'

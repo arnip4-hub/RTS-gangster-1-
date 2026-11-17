@@ -50,6 +50,7 @@ import { campaignWeeklyCost, officeEntryCheck, enterElection, withdrawFromElecti
 import type { Rng } from './rng';
 import type {
   Building,
+  CourtCase,
   FreightPolicy,
   DiplomacyLevel,
   Gang,
@@ -67,7 +68,7 @@ import type {
 import { CELL, GO_STRAIGHT_ASSETS } from './constants';
 import { kidnappableBy } from './officialFamilies';
 import { freeCaptive } from './captivity';
-import { weekDuration } from './calendar';
+import { campaignMinute, FULL_DAY_MINUTES, weekDuration } from './calendar';
 import { roadPosition } from './vehicleNavigation';
 import { isStorageSite } from './goodsStorage';
 
@@ -609,7 +610,7 @@ export function killMember(w: WorldState, gangId: ID, personId: ID): ApiResult {
   const held = outOfReach(p);
   if (held) return fail(`${p.name} is ${held}: your people cannot get at him there.`);
   const crewId = p.teamId;
-  killPerson(w, p, `executed on the orders of ${gang.name}`);
+  killPerson(w, p, `executed on the orders of ${gang.name}`, gang.id);
   if (crewId != null) reestimateTeamOrders(w, w.teams[crewId]);
   // No police case — but the rest of the gang notices.
   for (const t of teamsOf(w, gang)) {
@@ -1035,6 +1036,31 @@ export function bribeOfficial(w: WorldState, gangId: ID, personId: ID): ApiResul
   return queueSpecialistJob(w, gangId, 'bribeOfficials', personId);
 }
 
+export const COURT_APPEAL_COST = 1250;
+
+/** A lawyer can file one paid appeal after conviction; the ruling is reviewed
+ * after a day, with the outcome determined by the saved case record. */
+export function fileCourtAppeal(w: WorldState, gangId: ID, caseId: ID): ApiResult {
+  const gang = w.gangs[gangId], court: CourtCase | undefined = w.cases[caseId];
+  if (!w.options.continuousTime) return fail('Appeals are available in continuous RTS games.');
+  if (!gang || !court || court.gangId !== gangId) return fail('That court file is not yours.');
+  if (court.status !== 'convicted') return fail('Only a conviction can be appealed.');
+  if ((court.appealCount ?? 0) >= 1) return fail('This conviction has already had its one appeal.');
+  if (!availableSpecialist(w, gang, 'lawyer')) return fail('You need an available lawyer to file an appeal.');
+  if (gang.cash < COURT_APPEAL_COST) return fail(`An appeal costs $${COURT_APPEAL_COST.toLocaleString('en-US')}.`);
+  const defendant = w.people[court.defendantId];
+  if (defendant?.status !== 'jailed') return fail('The convicted person is no longer in custody.');
+  payCash(w, gang, 'purchases', COURT_APPEAL_COST);
+  const now = campaignMinute(w);
+  court.status = 'appealing';
+  court.appealCount = 1;
+  court.appealFiledAt = now;
+  court.appealDueAt = now + FULL_DAY_MINUTES;
+  court.appealDecision = 'pending';
+  court.reviewAt = court.appealDueAt;
+  return ok(`The lawyer filed an appeal for ${defendant.name}. The court will review it in one game day.`);
+}
+
 export function employPoliceOfficer(w: WorldState, gangId: ID, personId: ID): ApiResult {
   const gang = w.gangs[gangId];
   const p = w.people[personId];
@@ -1163,7 +1189,7 @@ export function assaultPrisoner(w: WorldState, rng: Rng, gangId: ID, personId: I
   if (p.captivity) p.captivity.searchProgress += 15;
   p.hp -= rng.int(20, 45);
   if (p.hp <= 0) {
-    killPerson(w, p, 'died under interrogation');
+    killPerson(w, p, 'died under interrogation', gang.id);
     gang.prisonerIds = gang.prisonerIds.filter((id) => id !== personId);
     return ok(`${p.name} died under questioning.`);
   }
@@ -1179,7 +1205,7 @@ export function killPrisoner(w: WorldState, gangId: ID, personId: ID): ApiResult
   if (p.captivity?.stage === 'transport') return fail('The captive has not reached the safe house.');
   gang.evidence = Math.min(100, gang.evidence + (p.familyOfId != null ? 30 : 12));
   const rivalId = p.gangId;
-  killPerson(w, p, `killed in custody by ${gang.name}`);
+  killPerson(w, p, `killed in custody by ${gang.name}`, gang.id);
   gang.prisonerIds = gang.prisonerIds.filter((id) => id !== personId);
   // Word gets around, and the rival takes it badly (the player decides for himself).
   provoke(w, rivalId, gangId, INCIDENT_HOSTILITY.kill);

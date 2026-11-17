@@ -8,25 +8,19 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.2.0-beta.5
+## Windows download — 0.3.0-beta.1
 
-[Download RTS-gangster-beta-Setup-0.2.0-beta.5.exe](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261116.3/RTS-gangster-beta-Setup-0.2.0-beta.5.exe)
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.1.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261117.1/RTS-gangster-beta-Setup-0.3.0-beta.1.exe).
+The installer includes continuous-time city life, live police/FBI cases,
+variable investigators and court officials, witness plate leads, detention
+interviews and one possible appeal after conviction. The broken **Illustrated
+3D** option has been removed; **Detailed** is the default, and the drawn 1930s
+art remains an optional preview. Existing saves and their save folder are
+retained.
 
-This installer includes the illustrated 3D buildings, 50 civilian clothing
-combinations, eight uniforms, varied body builds and skin tones, and painted
-3D cars in twelve colours. New profiles start with **Illustrated 3D**.
-For an existing profile, choose **Book → Options → City artwork → Illustrated 3D**,
-then save and reopen the city. The existing save folder is retained.
-[Release notes and alternate download](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261116.1).
-
-This release introduces case-based RTS police and FBI investigations: delayed
-witness reports, imperfect identification, physical searches and arrests, and
-prosecutor reviews before charges. Hearings use their own evidence and live
-deadlines. Open **Book → Lawyer → Police and Bureau files** to investigate a
-file through your lawyer. The **24-real-minute day is unchanged**.
-The original 1.0.8 wide avenues are restored, including planted medians,
-tram beds and multi-lane markings. See [release notes](docs/releases/rts-beta-20261116.3.md) and the
-[police, FBI and court guide](docs/RTS_LAW.md).
+Read the [0.3.0-beta.1 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261117.1)
+for the additions in this beta, or see the [police, FBI and court guide](docs/RTS_LAW.md).
+The agreed **24-real-minute game day is unchanged**.
 
 ## Where the project stands
 
@@ -69,8 +63,11 @@ branch. The `main` branch keeps the earlier remake baseline.
   haulage company, jazz club, movie theater, theater, ice house, bookmaker and
   larger illegal brewery. The existing brothel is now labelled **Brothel**.
   Haulage companies and ice houses hold stock and send goods by truck; jazz
-  clubs buy liquor. Residents, officials and off-duty police take individual
-  leisure trips, especially at weekends. A rotating police shift remains on
+  clubs buy liquor. Residents, shopkeepers, officials and off-duty police take
+  individual leisure trips, especially at weekends. Shopkeepers work 8 a.m. to
+  6 p.m. on weekdays, travel to their business, and go home or visit a leisure
+  venue after hours; they use a tram when its schedule makes the trip faster.
+  A rotating police shift remains on
   call, while new routine FBI investigations pause over the weekend. Actual
   visitors affect weekly venue income. An official seen inside a gang-owned
   brothel or casino gives that gang a one-week discount on a lawyer-arranged
@@ -102,6 +99,11 @@ branch. The `main` branch keeps the earlier remake baseline.
   captive appear under **Prisoners**. There you can demand a ransom, press an
   official through a held relative, or release the captive. Demands may be
   refused and draw attention; pressure can fail and the leverage expires.
+  Relatives report a disappearance sooner than an unlinked household would.
+  Kidnappings, family pressure and attributed killings leave bounded personal
+  memories, visible in the character profile. They change fear and hostility;
+  recent, known family violence can also make a witness more willing to report,
+  while fear can still keep that witness quiet.
   Captives can escape, especially from an unguarded office. Reported crimes,
   missing people and ransom demands advance investigations. Police dispatch a
   car after tracing the office; a rival whose member is held must discover the
@@ -192,24 +194,12 @@ test saves remain accessible after the application is renamed.
 
 ## Getting started
 
-Game Options offers **Illustrated 1930s (preview)** under City artwork. It keeps
-the remake's directional people and car sprites plus 48 illustrated portraits.
-The latest street-corner trial adds newly painted brick, storefront, road and
-pavement materials in this mode. Save and reopen the city after changing the
-setting. It is independent of Light graphics. The trial and remaining visual
-work are shown in [Art direction](docs/ART_DIRECTION.md).
-That page also shows the first painted 3D character proof: an animated fedora
-man beside the illustrated buildings, currently in the development review scene.
-
-**Illustrated 3D** now brings the painted city and animated character wardrobe
-into normal play: 50 civilian clothing combinations, eight occupational
-uniforms, eight body builds, three heights and ten skin shades, with varied
-faces, hair and hats. Save and reopen the city after selecting this artwork
-option. [See the actual wardrobe and city captures](docs/ART_DIRECTION.md#illustrated-3d-wardrobe).
-Coat/skirt extensions and fur are still beta art and need further tailoring.
-The same mode now includes painted 3D coupe, delivery-truck and sports-car
-textures with twelve civilian body paints. Vehicle paint stays with the car;
-tyres, glass, chrome and fabric keep their own materials.
+The stable **Detailed** city artwork is selected by default. Game Options also
+offers **Illustrated 1930s (preview)**, with directional people and illustrated
+city materials; save and reopen the city after changing the setting. The
+previous animated Illustrated 3D wardrobe mode was removed from the game
+options because moving characters stretched their clothing meshes. The separate
+art direction page keeps its prototype captures for reference.
 
 ```bash
 git clone --branch rts-development https://github.com/arnip4-hub/RTS-gangster-1-.git

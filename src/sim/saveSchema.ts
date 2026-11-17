@@ -306,6 +306,12 @@ function validateReferences(w: WorldState, candidate: WorldState): void {
     if (p.familyOfId != null && (!w.people[p.familyOfId] || p.role!=='citizen' ||
       !['spouse','sibling'].includes(p.familyRelation ?? '')))
       throw Error('Save has an invalid family relationship.');
+    if (p.personalMemories && (!Array.isArray(p.personalMemories) || p.personalMemories.length > 12 ||
+      p.personalMemories.some(m => !['kidnapped','familyMissing','familyKidnapped','familyPressured','familyKilled'].includes(m.kind) ||
+        !Number.isSafeInteger(m.atMinute) || m.atMinute < 0 || m.atMinute > campaignMinute(w) ||
+        !Number.isInteger(m.intensity) || m.intensity < 1 || m.intensity > 100 ||
+        m.gangId != null && !w.gangs[m.gangId] || m.personId != null && !w.people[m.personId])))
+      throw Error('Save has invalid personal memories.');
     if (p.householdCash != null && (!Number.isSafeInteger(p.householdCash) || p.householdCash<0))
       throw Error('Save has invalid household money.');
     if (p.prisonOperation && (p.status !== 'jailed' || p.prisonOperation.dueAt < 0 ||

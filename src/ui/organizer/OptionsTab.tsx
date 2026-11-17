@@ -205,13 +205,9 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('detailed')}>Detailed</button>
           <button aria-pressed={visualStyle === 'illustrated'} className={`btn sm${visualStyle === 'illustrated' ? ' on' : ''}`}
             onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
-          <button aria-pressed={visualStyle === 'illustrated3d'} className={`btn sm${visualStyle === 'illustrated3d' ? ' on' : ''}`}
-            onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated 3D pairs painted buildings and cars with animated people, varied clothing, body builds and skin tones.
-          Illustrated 1930s uses drawn street figures. Both use original illustrated portraits.
-          Save and reopen the city to apply the street style; graphics quality is separate.
+          Illustrated 1930s uses drawn street figures and painted city artwork. Save and reopen the city to apply it; graphics quality is separate.
         </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>

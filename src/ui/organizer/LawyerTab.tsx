@@ -4,6 +4,8 @@ import {
   assignStaffVehicle,
   bribePrice,
   canGoStraight,
+  COURT_APPEAL_COST,
+  fileCourtAppeal,
   policeTourCapacity,
   hireRecruit,
   sackPerson,
@@ -405,7 +407,7 @@ export function LawyerTab() {
             <div key={c.id} style={{ padding: '5px 0', borderBottom: '1px dotted #bdb094' }}>
               <div className="row between">
                 <b className="tiny">{w.people[c.defendantId]?.name}</b>
-                <Pill kind={c.status === 'convicted' ? 'bad' : c.status === 'awaiting' || c.status === 'onTrial' ? 'warn' : 'good'}>
+                <Pill kind={c.status === 'convicted' ? 'bad' : c.status === 'awaiting' || c.status === 'onTrial' || c.status === 'appealing' ? 'warn' : 'good'}>
                   {c.status}
                 </Pill>
               </div>
@@ -413,7 +415,18 @@ export function LawyerTab() {
                 {c.crime} · Judge {w.people[c.judgeId]?.name} · DA {w.people[c.daId]?.name}
                 {continuous && c.trialAt != null && ['awaiting', 'onTrial'].includes(c.status)
                   ? ` · hearing ${lawDeadline(w, c.trialAt)}` : !continuous && c.weeksToTrial > 0 && ` · trial in ${c.weeksToTrial} week(s)`}
+                {continuous && c.status === 'appealing' && c.appealDueAt != null ? ` · appeal review ${lawDeadline(w, c.appealDueAt)}` : ''}
               </div>
+              {continuous && (w.people[c.judgeId]?.publicService || w.people[c.daId]?.publicService) && <div className="muted tiny">
+                Court records — Judge integrity {w.people[c.judgeId]?.publicService?.integrity ?? 'unknown'}; prosecutor integrity {w.people[c.daId]?.publicService?.integrity ?? 'unknown'}.
+              </div>}
+              {c.appealDecision === 'overturned' && <div className="tiny">Appeal overturned the conviction.</div>}
+              {c.appealDecision === 'upheld' && <div className="tiny">Appeal upheld the conviction.</div>}
+              {continuous && c.status === 'convicted' && (c.appealCount ?? 0) === 0 && <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
+                <span style={{ flex: 1 }}>File one appeal · ${COURT_APPEAL_COST.toLocaleString('en-US')}</span>
+                <button className="btn sm" disabled={!lawyer || gang.cash < COURT_APPEAL_COST || w.people[c.defendantId]?.status !== 'jailed'}
+                  onClick={() => notify(act(s => fileCourtAppeal(s.world, gang.id, c.id)))}>Appeal conviction</button>
+              </div>}
               {['awaiting', 'onTrial'].includes(c.status) && <div className="row wrap tiny" style={{ gap: 5, marginTop: 3 }}>
                 <span style={{ flex: 1 }}>Prosecutor: {w.people[c.daId]?.name ?? 'Unknown'}</span>
                 <button className="btn sm" disabled={!lawyer} onClick={() => beginSpecialistOrder('bribeOfficials', c.daId)}>Bribe</button>

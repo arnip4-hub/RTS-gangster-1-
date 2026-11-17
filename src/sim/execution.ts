@@ -15,6 +15,7 @@ import { campaignMinute, stampedMinute, weekDuration } from './calendar';
 import { ensureOwnerRelative, kidnappableBy } from './officialFamilies';
 import { recordSqueal } from './squealers';
 import { freeCaptive, ransomQuote } from './captivity';
+import { rememberPersonalEvent } from './personalHistory';
 import { cargoVehicles, cargoWarehouse, emptyGoods, goodsTotal, loadCargo, refreshExportCargo, unloadCargo } from './cargo';
 import { divertHijackedDelivery } from './goodsDelivery';
 import { goodsRoom, isStorageSite } from './goodsStorage';
@@ -1726,7 +1727,8 @@ function resolveTarget(
         victim.captivity={stage:'transport',officeId:office.id,crimeId:crime.id,startedAt:campaignMinute(w),
           reported:crime.reported,discovered:false,searchProgress:0,nextEscapeAt:campaignMinute(w)+360};
         if (victim.familyOfId != null && w.people[victim.familyOfId])
-          shiftAttitude(w.people[victim.familyOfId],gang.id,80,0);
+          shiftAttitude(w.people[victim.familyOfId],gang.id,80,30);
+        rememberPersonalEvent(w, victim, { kind: 'kidnapped', gangId: gang.id, intensity: 85 });
         if (victim.gangId==null) victim.householdCash ??= ransomQuote(w,victim);
         order.kidnapDelivery={officeId:office.id,victimId:victim.id}; order.state='travelling';
         for (const a of actors) setDestination(w,a,buildingDoor(w,office));
@@ -1739,7 +1741,7 @@ function resolveTarget(
         if (rng.chance(0.35) && actors.length) {
           const unlucky = rng.pick(actors);
           unlucky.hp -= 55;
-          if (unlucky.hp <= 0) killPerson(w, unlucky, 'killed during a botched kidnapping');
+          if (unlucky.hp <= 0) killPerson(w, unlucky, 'killed during a botched kidnapping', gang.id);
         }
       }
       break;
@@ -1787,7 +1789,7 @@ function resolveTarget(
           victimId: victim.id,
         });
         if (fatal) {
-          killPerson(w, victim, `beaten to death by ${gang.name}`);
+          killPerson(w, victim, `beaten to death by ${gang.name}`, gang.id);
           // Recorded as an attack while he lived; the death makes it a killing.
           provoke(w, victim.gangId, gang.id, INCIDENT_HOSTILITY.kill - INCIDENT_HOSTILITY.attacked);
           say(`${victim.name} died from the beating. That is a murder charge.`);
@@ -1922,7 +1924,7 @@ function resolveTarget(
         blastAtVictim(w, gang.id, victim, BLAST_DAMAGE.assault);
       } else if (success) {
         if (w.cityLayout?.original) blastAtVictim(w, gang.id, victim, BLAST_DAMAGE.kill);
-        killPerson(w, victim, `${armed ? 'shot' : 'killed in close combat'} on the orders of ${gang.name}`);
+        killPerson(w, victim, `${armed ? 'shot' : 'killed in close combat'} on the orders of ${gang.name}`, gang.id);
         // Recorded as an attack while he lived; the death makes it a killing.
         provoke(w, victim.gangId, gang.id, INCIDENT_HOSTILITY.kill - INCIDENT_HOSTILITY.attacked);
         say(`${victim.name} is dead.`);
@@ -2015,13 +2017,23 @@ function releaseManager(w: WorldState, b: Building): void {
   }
 }
 
-export function killPerson(w: WorldState, p: Person, reason: string): void {
+export function killPerson(w: WorldState, p: Person, reason: string, causeGangId?: ID): void {
   // Shot in a car, he falls on the pavement beside it, not under it in the lane.
   alight(w,p);
   if (p.status === 'dead') return;
   const diedOnStreet = (p.status === 'active' || p.status === 'beaten') && p.buildingId == null && !p.captivity;
   if(!p.burningEscape?.fatal)presentDeath(w,p);
   p.status = 'dead';
+  if (w.options.continuousTime) {
+    const gangId = causeGangId ?? p.capturedBy ?? p.burningEscape?.gangId;
+    for (const relative of peopleList(w)) {
+      if (relative.status === 'dead' || relative.id === p.id ||
+          relative.familyOfId !== p.id && p.familyOfId !== relative.id) continue;
+      rememberPersonalEvent(w, relative, { kind: 'familyKilled', personId: p.id,
+        ...(gangId == null ? {} : { gangId }), intensity: 100 });
+      if (gangId != null) shiftAttitude(relative, gangId, 90, 30);
+    }
+  }
   delete p.policeTask;
   delete p.custody;
   p.hp = 0;
