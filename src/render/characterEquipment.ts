@@ -203,6 +203,9 @@ export class CharacterEquipment {
     mesh.updateMatrix();this.attachmentRest.set(mesh,mesh.matrix.clone());
   }
 
+  /** Update rigid clothing shells after the skeleton pose has been sampled. */
+  syncWardrobe():void{this.wardrobeGarments?.sync();}
+
   /** Fit both hands to held objects after the animation has been sampled. */
   pose(action?:CharacterAction,authoredCombat=false):void {
     this.wardrobeGarments?.sync();

@@ -59,7 +59,9 @@ describe('shared job estimates', () => {
     const input: IssueOrderInput = { type: 'extort', teamId: t.id, buildingIds: sites, opts: { manpower: 1 } };
     const first = previewOrder(w, g.id, input)!;
     expect(first.targetBuildingIds).toHaveLength(8);
-    const lt = w.people[t.lieutenantId]; lt.skills.organization = lt.skills.intelligence = 5;
+    // Organization and intelligence let the lieutenant take a dangerous job;
+    // intimidation is the skill that makes this extortion crew faster.
+    const lt = w.people[t.lieutenantId]; lt.skills.organization = lt.skills.intelligence = lt.skills.intimidation = 5;
     expect(previewOrder(w, g.id, input)!.estimatedMinutes).toBeLessThan(first.estimatedMinutes);
     // Move far enough to exceed minute rounding even in a fast car.
     const last = w.lots[w.buildings[sites[7]].lotId]; last.center.x += 200;

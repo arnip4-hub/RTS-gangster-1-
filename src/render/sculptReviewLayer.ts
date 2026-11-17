@@ -12,7 +12,7 @@ import { CharacterMotion, characterClips, type CharacterFrame } from './characte
 import { THROW_RELEASE,liveCharacterAction } from './characterActions';
 import {loadWeaponMotions} from './weaponMotions';
 import {loadCombatMotions} from './combatMotions';
-import { characterSupports, characterFloor, type GroundSupport } from './characterGrounding';
+import { characterSupports, characterFloor, characterVisualFloor, type GroundSupport } from './characterGrounding';
 import type { VehicleId } from '../sim/types';
 import { createSculptVehicle, SCULPT_VEHICLE_KINDS } from './sculptVehicles';
 import { CharacterMorphologyCache } from './characterMorphology';
@@ -318,8 +318,8 @@ export class SculptReviewLayer {
     entry.group.visible = this.visible;
     // ActorMotion is already distance-based; sample this in-place cycle at its phase.
     entry.model.position.y=entry.baseY;
-    // Floor corrections are measured in world units; the group may be scaled
-    // (CHARACTER_SCALE), so convert them into its local units.
+    // Grip and throw calibration temporarily move only the skeletal model;
+    // floor correction moves the full actor, including rigid garments.
     const groupScale=Math.hypot(matrix.elements[4],matrix.elements[5],matrix.elements[6])||1;
     if(appearance?.weapon&&entry.equipment&&!entry.equipment.hasWeaponGrip){
       entry.motion.sample(phase,false,{clock:0,delta:0,action:{kind:'ready',weapon:appearance.weapon,time:0}});
@@ -341,11 +341,18 @@ export class SculptReviewLayer {
       if(active||entry.motion.standingWeight>.999){
         entry.ground??=characterSupports(entry.group);
         const heldCorpse=action?.kind==='burnDeath'&&action.time>=4.5;
-        const lift=heldCorpse?(entry.burntFloorLift??(entry.burntFloorLift=matrix.elements[13]-characterFloor(entry.ground))):active?matrix.elements[13]-characterFloor(entry.ground):
+        const needsExactFloor=!!action&&['death','burnDeath','strike','throw'].includes(action.kind)||
+          frame.posture!=null&&frame.posture!=='standing';
+        if(needsExactFloor)entry.equipment?.syncWardrobe();
+        // Falling can carry a coat shell below the skin support points. Scan
+        // the whole rig for these rare poses so both the body and its clothes
+        // meet the pavement; standing/walking keeps the cached fast path.
+        const floor=needsExactFloor?characterVisualFloor(entry.group):characterFloor(entry.ground);
+        const lift=heldCorpse?(entry.burntFloorLift??(entry.burntFloorLift=matrix.elements[13]-floor)):active?matrix.elements[13]-floor:
           entry.idleLift??(entry.idleLift=matrix.elements[13]-characterFloor(entry.ground));
-        entry.model.position.y+=lift/groupScale;entry.group.updateMatrixWorld(true);
+        entry.group.matrix.elements[13]+=lift;entry.group.matrixWorldNeedsUpdate=true;entry.group.updateMatrixWorld(true);
       }else if(entry.idleLift){
-        entry.model.position.y+=entry.idleLift*entry.motion.standingWeight/groupScale;entry.group.updateMatrixWorld(true);
+        entry.group.matrix.elements[13]+=entry.idleLift*entry.motion.standingWeight;entry.group.matrixWorldNeedsUpdate=true;entry.group.updateMatrixWorld(true);
       }
     }
     entry.equipment?.pose(liveCharacterAction(frame?.action,frame?.previewActions),true);

@@ -31,6 +31,16 @@ export function characterSupports(model:THREE.Object3D):GroundSupport[]{
  const result:GroundSupport[]=[];model.traverse(o=>{if(o instanceof THREE.SkinnedMesh)result.push({mesh:o,indices:supports(o.geometry)});});return result;
 }
 const point=new THREE.Vector3();
+/** Exact visible floor point for falls; includes rigid wardrobe shells, but
+ * excludes held equipment which CharacterEquipment grounds separately. */
+export function characterVisualFloor(root:THREE.Object3D):number {
+ const bounds=new THREE.Box3();
+ root.traverse(object=>{
+  if(!(object instanceof THREE.Mesh)||!object.visible||object.name.startsWith('equipment-'))return;
+  bounds.expandByObject(object,true);
+ });
+ return bounds.min.y;
+}
 export function characterFloor(support:GroundSupport[]):number {
  let min=Infinity;
  for(const {mesh,indices}of support)for(const index of indices){mesh.getVertexPosition(index,point).applyMatrix4(mesh.matrixWorld);min=Math.min(min,point.y);}

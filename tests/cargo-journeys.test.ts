@@ -159,11 +159,19 @@ describe('transport previews use the dispatched people and vehicles',()=>{
   expect(Math.min(...people.map(p=>personSpeed(p,s.w)))).toBe(speed);
  });
  it('does not promise an occupied car to another job or silently replace a busy named hood',()=>{
-  const s=fixture();s.t.vehicles={coupe:1,truck:0,speedster:0};const hq=Object.values(s.w.buildings).find(b=>b.isHQ&&b.ownerGangId===s.g.id)!,target=Object.values(s.w.buildings).find(b=>b.ownerGangId==null&&b.cls==='commercial'&&!typeOf(b)?.special&&dist(buildingDoor(s.w,b),buildingDoor(s.w,hq))>DRIVE_MIN_DISTANCE+10)!;
-  const p=s.w.people[s.t.memberIds[0]];issueOrder(s.w,s.g.id,{teamId:s.t.id,type:'extort',buildingIds:[target.id],opts:{manpower:1,preferredHoodId:p.id}});s.sim.launchWeek();
+  const s=fixture();s.t.vehicles={coupe:1,truck:0,speedster:0};
+  const hq=Object.values(s.w.buildings).find(b=>b.isHQ&&b.ownerGangId===s.g.id)!;
+  const targets=Object.values(s.w.buildings).filter(b=>b.ownerGangId==null&&b.cls==='commercial'&&!typeOf(b)?.special&&
+    dist(buildingDoor(s.w,b),buildingDoor(s.w,hq))>DRIVE_MIN_DISTANCE+10).slice(0,2);
+  expect(targets).toHaveLength(2);
+  const target=targets[0]!,nextTarget=targets[1]!,p=s.w.people[s.t.memberIds[0]];
+  expect(issueOrder(s.w,s.g.id,{teamId:s.t.id,type:'extort',buildingIds:[target.id],opts:{manpower:1,preferredHoodId:p.id}}).ok).toBe(true);
+  s.sim.launchWeek();
   const other=s.w.people[s.t.memberIds[1]];expect(plannedTravelSpeed(s.w,s.t,[other],'extort')).toBe(WALK_SPEED);
-  issueOrder(s.w,s.g.id,{teamId:s.t.id,type:'extort',buildingIds:[target.id],opts:{manpower:1,preferredHoodId:p.id}});
-  const queued=s.w.orders[s.t.orderIds.at(-1)!];tickOrders(s.w,s.sim.rng,1);expect(queued.state).toBe('queued');expect(queued.assignedIds).toEqual([]);
+  expect(issueOrder(s.w,s.g.id,{teamId:s.t.id,type:'extort',buildingIds:[nextTarget.id],opts:{manpower:1,preferredHoodId:p.id}}).ok).toBe(true);
+  const queued=s.w.orders[s.t.orderIds.at(-1)!];
+  expect(queued.targetBuildingIds).toEqual([nextTarget.id]);
+  tickOrders(s.w,s.sim.rng,1);expect(queued.state).toBe('queued');expect(queued.assignedIds).toEqual([]);
   // This stepping check also exercises the ordinary car API on the same world.
   stepPerson(p,.01,undefined,s.w);expect(personSpeed(p,s.w)).toBeGreaterThan(WALK_SPEED);
  });

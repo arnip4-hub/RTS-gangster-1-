@@ -75,9 +75,10 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
       continue;
     }
 
-    // Original city: a Kill without a gun becomes an Assault (0x4D6E40 sets
-    // order type 0x18), so it ends when the victim is down or spent.
-    if (so.type === 'kill' && !weapon && w.cityLayout?.original && !w.options.continuousTime) so.type = 'assault';
+    // Original city rules: a Kill without a gun becomes an Assault
+    // (0x4D6E40 sets order type 0x18), including in continuous time. It ends
+    // when the victim is down or spent instead of endlessly repeating blows.
+    if (so.type === 'kill' && !weapon && w.cityLayout?.original) so.type = 'assault';
 
     if (so.type === 'kill' && !weapon) {
       // Close combat: the original's Cart.txt exchange (closeCombat.ts).
