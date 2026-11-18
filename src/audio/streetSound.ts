@@ -14,11 +14,18 @@ interface Rig {
   dry: GainNode;
   wet: GainNode;
   noise: AudioBuffer;
-  traffic: { gain: GainNode; filter: BiquadFilterNode; src: AudioBufferSourceNode; recorded: boolean } | null;
+  traffic: { gain: GainNode; filter: BiquadFilterNode; src: AudioBufferSourceNode | MediaElementAudioSourceNode; element: HTMLAudioElement | null; recorded: boolean } | null;
   fire: { gain: GainNode; stop: () => void; recorded: boolean } | null;
 }
 
 let rig: Rig | null = null;
+const CITY_AMBIENCE = ['bed-street.mp3', 'bed-street-sidewalk.mp3', 'bed-street-sidewalk-alt.mp3'];
+
+function stopTraffic(traffic: NonNullable<Rig['traffic']>): void {
+  if (traffic.element) { traffic.element.pause(); traffic.element.removeAttribute('src'); }
+  else try { (traffic.src as AudioBufferSourceNode).stop(); } catch { /* already stopped */ }
+  try { traffic.src.disconnect(); } catch { /* already disconnected */ }
+}
 
 function ready(): Rig | null {
   const bus = audio.bus();
@@ -194,7 +201,7 @@ export const streetSound = {
   /** Stop the beds outright (the city view is gone). */
   quiet(): void {
     if (!rig) return;
-    try { rig.traffic?.src.stop(); } catch { /* already stopped */ }
+    if (rig.traffic) stopTraffic(rig.traffic);
     try { rig.fire?.stop(); } catch { /* already stopped */ }
     rig.traffic = null; rig.fire = null;
   },
@@ -202,15 +209,26 @@ export const streetSound = {
   setBeds(traffic: number, fire: number): void {
     const r = ready(); if (!r) return;
     const now = r.ctx.currentTime;
-    // A recorded bed replaces the synthesised one as soon as it has loaded.
-    const street = sample('bed-street');
-    if (r.traffic && !r.traffic.recorded && street) { r.traffic.src.stop(); r.traffic = null; }
     if (!r.traffic && traffic > 0) {
-      const src = r.ctx.createBufferSource(); src.buffer = street ?? r.noise; src.loop = true;
-      const filter = r.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = street ? 1200 : 420;
+      const file = CITY_AMBIENCE[Math.floor(Math.random() * CITY_AMBIENCE.length)];
+      const element = new Audio(`${import.meta.env.BASE_URL}audio/${file}`);
+      element.loop = true; element.preload = 'auto';
+      const src = r.ctx.createMediaElementSource(element);
+      const filter = r.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1200;
       const gain = r.ctx.createGain(); gain.gain.value = 0;
-      src.connect(filter).connect(gain).connect(r.dry); src.start(0, street ? Math.random() * street.duration : 0);
-      r.traffic = { gain, filter, src, recorded: !!street };
+      src.connect(filter).connect(gain).connect(r.dry);
+      const stream: NonNullable<Rig['traffic']> = { gain, filter, src, element, recorded: true };
+      r.traffic = stream;
+      const fallback = () => {
+        if (r.traffic !== stream) return;
+        element.pause(); element.removeAttribute('src');
+        try { src.disconnect(); } catch { /* already disconnected */ }
+        const noise = r.ctx.createBufferSource(); noise.buffer = r.noise; noise.loop = true;
+        noise.connect(filter); noise.start();
+        r.traffic = { gain, filter, src: noise, element: null, recorded: false };
+      };
+      element.onerror = fallback;
+      void element.play().catch(fallback);
     }
     if (r.traffic) {
       // Far off, the street is a muffled hum; close, its detail comes through.

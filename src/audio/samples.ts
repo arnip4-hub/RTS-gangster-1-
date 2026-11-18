@@ -8,11 +8,11 @@ import { audio } from './audio';
  */
 export type SampleName =
   | 'shot-pistol' | 'shot-shotgun' | 'shot-rifle' | 'shot-tommy' | 'shot-twin' | 'explosion' | 'punch' | 'fall'
-  | 'camera-flash' | 'horn' | 'siren' | 'car-speed' | 'car-door' | 'bed-street' | 'bed-fire' | 'ui-click' | 'ui-page' | 'ui-cash'
+  | 'camera-flash' | 'horn' | 'siren' | 'car-speed' | 'car-door' | 'bed-fire' | 'ui-click' | 'ui-page' | 'ui-cash'
   | 'music-planning' | 'music-week' | 'music-menu';
 
 const ALL: SampleName[] = ['ui-click', 'ui-page', 'ui-cash', 'shot-pistol', 'shot-shotgun', 'shot-rifle', 'shot-tommy', 'shot-twin',
-  'explosion', 'punch', 'fall', 'camera-flash', 'horn', 'siren', 'car-speed', 'car-door', 'bed-street', 'bed-fire', 'music-menu', 'music-planning', 'music-week'];
+  'explosion', 'punch', 'fall', 'camera-flash', 'horn', 'siren', 'car-speed', 'car-door', 'bed-fire', 'music-menu', 'music-planning', 'music-week'];
 
 const buffers = new Map<SampleName, AudioBuffer>();
 let loading: Promise<void> | null = null;

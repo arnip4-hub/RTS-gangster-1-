@@ -8,18 +8,15 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.3
+## Windows download — 0.3.0-beta.4
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.3.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.1/RTS-gangster-beta-Setup-0.3.0-beta.3.exe).
-This update fills specialist recruitment venues with larger local pools,
-shows where each available accountant or lawyer works, and lets you identify
-and target a rival's key staff through snitches or prisoner intelligence. It
-also improves multi-stop extortion routing and shows current order progress.
-The 24-real-minute day, continuous city, and live police/FBI case work remain.
-Existing saves and their save folder are retained.
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.4.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.2/RTS-gangster-beta-Setup-0.3.0-beta.4.exe).
+This update replaces the score for the menu, planning desk and working week
+with the supplied 1930s jazz pieces. It also adds three city ambience recordings,
+chosen at random and streamed while the 3D city is open.
 
-Read the [0.3.0-beta.3 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.1)
-for the additions in this beta, or see the [police, FBI and court guide](docs/RTS_LAW.md).
+Read the [0.3.0-beta.4 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.2)
+for the full list, or see the [police, FBI and court guide](docs/RTS_LAW.md).
 The agreed **24-real-minute game day is unchanged**.
 
 ## Where the project stands
