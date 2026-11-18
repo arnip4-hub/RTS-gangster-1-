@@ -1,6 +1,6 @@
 # Police, FBI and courts in RTS gangster beta
 
-The continuous-time police and court simulation is available in **0.3.0-beta.3**.
+The continuous-time police and court simulation is available in **0.3.0-beta.6**.
 Classic five-day mode keeps its own case rules.
 
 ## From a crime report to a verdict
@@ -49,6 +49,10 @@ hours. Both deadlines persist in saves. Independent staff can review recorded
 mistakes, and an investigation resumes after a finite delay.
 
 Open **Book → Lawyer → Police and Bureau files** to view disclosed file details.
+Asking a lawyer to investigate one reported crime is a single visit to the
+courthouse. The review takes 30 game minutes after arrival; the panel shows
+whether the lawyer is travelling or how many minutes remain, then the lawyer
+returns to HQ. If assigned a staff car, the lawyer uses it for the trip.
 The panel can show the lead officer's record, statements, plate matches,
 investigative errors, political delays, detention-interview result, evidence and
 prosecutor decision. Your lawyer or an investigator you have compromised can

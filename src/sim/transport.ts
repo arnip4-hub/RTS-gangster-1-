@@ -159,14 +159,8 @@ export function startStaffJourney(w:WorldState,p:Person,to:Vec2):void {
   if(current&&p.inVehicle){setDestination(w,p,to);return;}
   if(!kind){p.inVehicle=false;setDestination(w,p,to);return;}
   const key=`staff:${p.id}`,v=makeVehicle(w,key,kind,p.gangId!,null,p.id,0,p.pos);
-  // Fetch the car only when walking to it and driving on is quicker than
-  // walking there (a lawyer crossed the city on foot for his car).
-  const drive=DRIVE_SPEED*VEHICLES[kind].speed*(.75+p.skills.driving*.1);
-  // Nearer than the original's driving distance he walks, as he does when fetching it would be slower.
-  if(dist(p.pos,to)<=DRIVE_MIN_DISTANCE||(dist(p.pos,v.pos)>8&&dist(p.pos,v.pos)/WALK_SPEED+dist(v.pos,to)/drive>=dist(p.pos,to)/WALK_SPEED)){
-    if(p.vehicleKey===key)dismount(w,p);
-    p.inVehicle=false;setDestination(w,p,to);return;
-  }
+  // An assigned staff car is dedicated transport for every work trip,
+  // including short visits. Without one, the specialist travels on foot.
   reserve(w,key,v,[p],to,null);
 }
 /** Leaving parks the vehicle; it does not copy its keys to the whole team. */

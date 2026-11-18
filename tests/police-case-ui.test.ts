@@ -26,7 +26,7 @@ function fixture() {
 }
 function render(w: WorldState, crime: CrimeRecord) {
   return renderToStaticMarkup(createElement(PoliceCaseFiles, { world: w, viewer: 1, crimes: [crime], canInquire: true,
-    canHit: true, isInvestigating: () => false, onInquiry() {}, onBribeOfficer() {}, onPlanHit() {} }));
+    canHit: true, investigationStatus: () => null, onInquiry() {}, onBribeOfficer() {}, onPlanHit() {} }));
 }
 
 describe('RTS police file presentation', () => {

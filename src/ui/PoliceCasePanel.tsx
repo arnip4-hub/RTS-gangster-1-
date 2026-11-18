@@ -8,20 +8,20 @@ interface Props {
   crimes: CrimeRecord[];
   canInquire: boolean;
   canHit: boolean;
-  isInvestigating: (crimeId: ID) => boolean;
+  investigationStatus: (crimeId: ID) => string | null;
   onInquiry: (crimeId: ID) => void;
   onBribeOfficer: (personId: ID) => void;
   onPlanHit: (personId: ID) => void;
 }
 
 /** The lawyer's view of a file, rather than the simulation's incident record. */
-export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, isInvestigating,
-  onInquiry, onBribeOfficer, onPlanHit }: Props) {
+export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
+  investigationStatus, onInquiry, onBribeOfficer, onPlanHit }: Props) {
   return <Panel title="Police and Bureau files">
     {!crimes.length ? <Empty>No reported police files against your gang.</Empty> : crimes.slice(-16).map(crime => {
       const view = policeCaseView(w, crime, viewer), file = crime.police;
       const officer = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
-      const reviewing = isInvestigating(crime.id);
+      const status = investigationStatus(crime.id), reviewing = status != null;
       return <article key={crime.id} className="police-file" aria-label={`Case file ${crime.id}`}>
         <div className="row between tiny">
           <b>#{crime.id} · {view.title}</b>
@@ -39,8 +39,9 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit, 
         </div> : <div className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
           <span style={{ flex: 1 }}>{view.disclosed ? 'An investigator has not been assigned.' : 'File contents not disclosed.'}</span>
           {!view.disclosed && <button className="btn sm" disabled={!canInquire || reviewing}
-            onClick={() => onInquiry(crime.id)}>{reviewing ? 'Investigating · multi-week file work' : 'Ask lawyer to investigate'}</button>}
+            onClick={() => onInquiry(crime.id)}>{reviewing ? 'Investigation in progress' : 'Ask lawyer to investigate'}</button>}
         </div>}
+        {reviewing && <div className="muted tiny" style={{ marginTop: 4 }}>{status}</div>}
         {view.disclosed && <>
           {officer?.publicService && <div className="muted tiny">Investigator record: {officer.publicService.casesHandled} case(s), {officer.publicService.mistakes} recorded error(s), integrity {officer.publicService.integrity}/100.</div>}
           <dl className="police-file-facts tiny">

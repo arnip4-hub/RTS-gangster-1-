@@ -8,14 +8,15 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.5
+## Windows download — 0.3.0-beta.6
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.5.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.3/RTS-gangster-beta-Setup-0.3.0-beta.5.exe).
-City ambience now has its own volume control, separate from music and sound
-effects. Random city horns are much quieter and less frequent. The 1930s jazz
-score and streamed city recordings from beta.4 remain.
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.6.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.4/RTS-gangster-beta-Setup-0.3.0-beta.6.exe).
+Lawyer case-file inquiries now take one 30-minute visit at the courthouse,
+show whether the lawyer is travelling or working, and then return him to HQ.
+An assigned lawyer or accountant car is used on every work trip; assigning a
+car remains optional.
 
-Read the [0.3.0-beta.5 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.3)
+Read the [0.3.0-beta.6 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.4)
 for the full list, or see the [police, FBI and court guide](docs/RTS_LAW.md).
 The agreed **24-real-minute game day is unchanged**.
 

@@ -27,7 +27,7 @@ import { personMapPosition } from '../../sim/mapIntel';
 import { personListIds, togglePersonList } from '../../sim/personLists';
 import { reportedSquealers } from '../../sim/squealers';
 import type { OrderType } from '../../sim/types';
-import { queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
+import { CRIME_INQUIRY_REQUIRED_MINUTES, queueCrimeInquiry, specialistJobActive } from '../../sim/specialistJobs';
 import { knownPrisonRivals, PRISON_NAMES, prisonOf, requestPrisonAttack, requestPrisonContact, requestPrisonProtection } from '../../sim/prison';
 import { specialistAskingWage } from '../../sim/originalWages';
 import { campaignMinute } from '../../sim/calendar';
@@ -75,6 +75,14 @@ export function LawyerTab() {
   const lawyerInvestigation = (crimeId: number) => Object.values(w.specialistJobs ?? {}).find(j =>
     j.crimeId === crimeId && specialistJobActive(j));
   const lawyerInvestigating = (crimeId: number) => !!lawyerInvestigation(crimeId);
+  const lawyerInquiryStatus = (crimeId: number) => {
+    const job = lawyerInvestigation(crimeId);
+    if (!job) return null;
+    if (job.paused) return 'Lawyer waiting; the file visit will resume when available.';
+    if (job.state === 'queued') return 'Lawyer is preparing to leave for the courthouse.';
+    if (job.state === 'travelling') return 'Lawyer is travelling to the courthouse.';
+    return `At the courthouse · ${Math.min(CRIME_INQUIRY_REQUIRED_MINUTES, Math.floor(job.progressMinutes ?? 0))}/${CRIME_INQUIRY_REQUIRED_MINUTES} minutes`;
+  };
 
   const officials: Person[] = (() => {
     switch (officialKind) {
@@ -370,7 +378,7 @@ export function LawyerTab() {
       </Panel>
 
       {continuous ? <PoliceCaseFiles world={w} viewer={gang.id} crimes={investigations}
-        canInquire={!!lawyer} canHit={gang.teamIds.length > 0} isInvestigating={lawyerInvestigating}
+        canInquire={!!lawyer} canHit={gang.teamIds.length > 0} investigationStatus={lawyerInquiryStatus}
         onInquiry={crimeId => notify(act(s => queueCrimeInquiry(s.world, gang.id, crimeId)))}
         onBribeOfficer={id => beginSpecialistOrder('bribeOfficials', id)} onPlanHit={id => planAgainst('kill', id)} /> :
       <Panel title="Police Investigations">
@@ -388,7 +396,7 @@ export function LawyerTab() {
                 <span style={{ flex: 1 }}>Lead officer unknown</span>
                 <button className="btn sm" disabled={!lawyer || lawyerInvestigating(crime.id)}
                   onClick={() => notify(act(s => queueCrimeInquiry(s.world, gang.id, crime.id)))}>
-                  {lawyerInvestigating(crime.id) ? `Investigating · ${lawyerInvestigation(crime.id)?.result || 'just started'}` : 'Ask lawyer'}
+                  {lawyerInvestigating(crime.id) ? `Investigating · ${lawyerInquiryStatus(crime.id)}` : 'Ask lawyer'}
                 </button>
               </div>}
             </div>;

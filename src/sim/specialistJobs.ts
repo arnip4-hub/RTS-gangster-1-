@@ -16,8 +16,8 @@ export const SPECIALIST_JOB_NAMES = { audit: 'Audit', bribeOfficials: 'Bribe Off
 export const specialistJobActive = (j: SpecialistJob) => ['queued', 'travelling', 'working'].includes(j.state);
 const roleFor = (j: Pick<SpecialistJob, 'type'>) => j.type === 'audit' ? 'accountant' : 'lawyer';
 const workMinutes = (j: SpecialistJob) => j.type === 'audit' ? 30 : 5;
-const CRIME_INQUIRY_REQUIRED_MINUTES = 5 * 24 * 60;
-const CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE = 0.12;
+export const CRIME_INQUIRY_REQUIRED_MINUTES = 30;
+const CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE = 1;
 
 /** The inspection is followed by bookkeeping at HQ until Friday's report. */
 export function reservedAudit(w: WorldState, gangId: ID): SpecialistJob | undefined {
@@ -71,7 +71,7 @@ export function queueSpecialistJob(w: WorldState, gangId: ID, type: SpecialistJo
   return { ok: true, message: `${SPECIALIST_JOB_NAMES[type]} scheduled for ${actor.name}${price ? '; payment is due at the visit' : ''}.` };
 }
 
-/** A named lawyer spends time at the courthouse to identify one report's lead officer. */
+/** A lawyer makes one short courthouse visit to identify a report's lead officer. */
 export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiResult {
   const gang = w.gangs[gangId], crime = w.crimes.find(c => c.id === crimeId);
   if (!gang || !crime || crime.gangId !== gangId || !crime.reported || crime.charge)
@@ -122,7 +122,7 @@ export function cancelSpecialistVisits(w: WorldState, actorId: ID): void {
   for (const j of Object.values(w.specialistJobs ?? {})) if (j.actorId === actorId && specialistJobActive(j)) {
     if (j.type === 'investigateCrime') {
       // This casework is not a personal visit to the person being moved or
-      // recalled. Keep the lawyer at the courthouse and preserve its progress.
+      // recalled. Preserve the courthouse visit and its progress.
       continue;
     } else cancelSpecialistJob(w, j.gangId, j.id);
   }
@@ -206,10 +206,9 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
   for (const j of Object.values(w.specialistJobs ?? {})) {
     if (j.type === 'investigateCrime' && j.week < w.week && specialistJobActive(j)) {
       j.week = w.week;
-      if (j.state !== 'queued') j.state = 'working';
     }
-    // Courthouse file work is a continuous, multi-week investigation. Its
-    // owning week is historical metadata; it must survive week rollover.
+    // A courthouse visit can cross a weekly settlement while travelling;
+    // preserve the actual travel/work state until it is complete.
     if ((j.week !== w.week && j.type !== 'investigateCrime') || !specialistJobActive(j)) continue;
     const gang = w.gangs[j.gangId];
     if (j.type === 'investigateCrime' && j.actorId < 0) {
@@ -230,8 +229,8 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       if (j.type === 'investigateCrime' && j.actorId !== actor.id) { j.actorId = -1; continue; }
     }
     if (j.type === 'investigateCrime' && (!gang || !actor || actor.id !== j.actorId || actor.status !== 'active')) {
-      // A file inquiry is independent office work: a street emergency must
-      // not erase accumulated progress. Only a lawyer leaving the post pauses it.
+      // A file inquiry is independent office work: preserve progress if its
+      // lawyer temporarily becomes unavailable.
       if (j.state === 'travelling') j.state = 'queued';
       j.paused = !actor || actor.status !== 'active';
       continue;
@@ -260,7 +259,7 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       j.progressMinutes = Math.min(CRIME_INQUIRY_REQUIRED_MINUTES,
         (j.progressMinutes ?? 0) + minutes * CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE);
       if (j.progressMinutes < CRIME_INQUIRY_REQUIRED_MINUTES) {
-        j.result = `The lawyer is building the case file (${Math.floor(j.progressMinutes / CRIME_INQUIRY_REQUIRED_MINUTES * 100)}% complete).`;
+        j.result = `At the courthouse: ${Math.floor(j.progressMinutes)}/${CRIME_INQUIRY_REQUIRED_MINUTES} minutes.`;
         continue;
       }
       if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active')
