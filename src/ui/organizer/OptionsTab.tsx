@@ -76,6 +76,7 @@ export function OptionsTab() {
   const gang = sim.playerGang;
   const [name, setName] = useState(`${w.people[gang.bossId]?.name ?? 'Boss'} — Week ${w.week}`);
   const [music, setMusic] = useState(audio.musicVolume);
+  const [ambience, setAmbience] = useState(audio.ambienceVolume);
   const [menuMusic, setMenuMusic] = useState(audio.menuMusic);
   const [gameMusic, setGameMusic] = useState(audio.gameMusic);
   const [sfx, setSfx] = useState(audio.sfxVolume);
@@ -235,6 +236,23 @@ export function OptionsTab() {
               const v = Number(e.target.value);
               setMusic(v);
               audio.setMusicVolume(v);
+            }}
+          />
+        </div>
+        <div className="field">
+          <label htmlFor="organizer-OptionsTab-field-3">
+            City ambience<span className="value">{Math.round(ambience * 100)}%</span>
+          </label>
+          <input id="organizer-OptionsTab-field-3"
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={ambience}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setAmbience(v);
+              audio.setAmbienceVolume(v);
             }}
           />
         </div>

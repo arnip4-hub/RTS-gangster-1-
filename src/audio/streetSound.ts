@@ -13,6 +13,7 @@ interface Rig {
   ctx: AudioContext;
   dry: GainNode;
   wet: GainNode;
+  ambience: GainNode;
   noise: AudioBuffer;
   traffic: { gain: GainNode; filter: BiquadFilterNode; src: AudioBufferSourceNode | MediaElementAudioSourceNode; element: HTMLAudioElement | null; recorded: boolean } | null;
   fire: { gain: GainNode; stop: () => void; recorded: boolean } | null;
@@ -29,8 +30,9 @@ function stopTraffic(traffic: NonNullable<Rig['traffic']>): void {
 
 function ready(): Rig | null {
   const bus = audio.bus();
+  const ambienceBus = audio.ambienceBus();
   // A context still waiting for a click would play everything queued at once.
-  if (!bus || bus.ctx.state !== 'running') return null;
+  if (!bus || !ambienceBus || bus.ctx.state !== 'running') return null;
   if (rig?.ctx === bus.ctx) return rig;
   const { ctx, out, noise } = bus;
   // Street reverb: 1.4 s of decaying, slightly darkened noise as an impulse.
@@ -53,7 +55,7 @@ function ready(): Rig | null {
   const dry = ctx.createGain(); dry.gain.value = 1;
   wet.connect(convolver).connect(out);
   dry.connect(out);
-  rig = { ctx, dry, wet, noise, traffic: null, fire: null };
+  rig = { ctx, dry, wet, ambience: ambienceBus.out, noise, traffic: null, fire: null };
   return rig;
 }
 
@@ -216,7 +218,7 @@ export const streetSound = {
       const src = r.ctx.createMediaElementSource(element);
       const filter = r.ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = 1200;
       const gain = r.ctx.createGain(); gain.gain.value = 0;
-      src.connect(filter).connect(gain).connect(r.dry);
+      src.connect(filter).connect(gain).connect(r.ambience);
       const stream: NonNullable<Rig['traffic']> = { gain, filter, src, element, recorded: true };
       r.traffic = stream;
       const fallback = () => {

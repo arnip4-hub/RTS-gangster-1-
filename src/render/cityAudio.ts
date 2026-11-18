@@ -19,7 +19,7 @@ export class CityAudio {
   private week = -1;
   private window = 0;
   private started = 0;
-  private nextHorn = 3;
+  private nextHorn = 25;
   private nextSiren = 0;
   private clock = 0;
   /** When each gunman in a car was last given the engine roar, and which step-outs have had their door. */
@@ -76,8 +76,8 @@ export class CityAudio {
 
     if (!running || fast) return;
     if (this.clock > this.nextHorn) {
-      this.nextHorn = this.clock + 5 + Math.random() * 12;
-      streetSound.horn((.3 + .5 * Math.random()) * near, Math.random() * 1.6 - .8);
+      this.nextHorn = this.clock + 30 + Math.random() * 45;
+      streetSound.horn((.08 + .08 * Math.random()) * near, Math.random() * 1.6 - .8);
     }
     if (responders > 0 && this.clock > this.nextSiren) {
       this.nextSiren = this.clock + 9 + Math.random() * 6;

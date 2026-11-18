@@ -16,14 +16,15 @@ const PREFS_KEY = 'og.audio';
 
 /** Sound settings kept between sessions, with the original's two music
  * switches: music at the menus (InterfaceAmbient) and in the game (GameAmbient). */
-interface AudioPrefs { music: number; sfx: number; menuMusic: boolean; gameMusic: boolean }
+interface AudioPrefs { music: number; sfx: number; ambience: number; menuMusic: boolean; gameMusic: boolean }
 
 function readPrefs(): AudioPrefs {
-  const prefs: AudioPrefs = { music: 0.35, sfx: 0.5, menuMusic: true, gameMusic: true };
+  const prefs: AudioPrefs = { music: 0.35, sfx: 0.5, ambience: 0.5, menuMusic: true, gameMusic: true };
   try {
     const saved = JSON.parse(localStorage.getItem(PREFS_KEY) ?? '{}') as Partial<AudioPrefs>;
     if (typeof saved.music === 'number' && saved.music >= 0 && saved.music <= 1) prefs.music = saved.music;
     if (typeof saved.sfx === 'number' && saved.sfx >= 0 && saved.sfx <= 1) prefs.sfx = saved.sfx;
+    if (typeof saved.ambience === 'number' && saved.ambience >= 0 && saved.ambience <= 1) prefs.ambience = saved.ambience;
     if (typeof saved.menuMusic === 'boolean') prefs.menuMusic = saved.menuMusic;
     if (typeof saved.gameMusic === 'boolean') prefs.gameMusic = saved.gameMusic;
   } catch { /* defaults */ }
@@ -34,6 +35,7 @@ class AudioEngine {
   private ctx: AudioContext | null = null;
   private musicGain: GainNode | null = null;
   private sfxGain: GainNode | null = null;
+  private ambienceGain: GainNode | null = null;
   private band: JazzBand | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private started = false;
@@ -43,6 +45,7 @@ class AudioEngine {
   private prefs = readPrefs();
   musicVolume = this.prefs.music;
   sfxVolume = this.prefs.sfx;
+  ambienceVolume = this.prefs.ambience;
   get menuMusic(): boolean { return this.prefs.menuMusic; }
   get gameMusic(): boolean { return this.prefs.gameMusic; }
 
@@ -62,6 +65,9 @@ class AudioEngine {
       this.sfxGain = this.ctx.createGain();
       this.sfxGain.gain.value = this.sfxVolume;
       this.sfxGain.connect(this.ctx.destination);
+      this.ambienceGain = this.ctx.createGain();
+      this.ambienceGain.gain.value = this.ambienceVolume;
+      this.ambienceGain.connect(this.ctx.destination);
 
       const len = 2 * this.ctx.sampleRate;
       const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -80,6 +86,11 @@ class AudioEngine {
     return this.ctx && this.sfxGain && this.noiseBuffer ? { ctx: this.ctx, out: this.sfxGain, noise: this.noiseBuffer } : null;
   }
 
+  /** Separate mix bus for continuous city ambience, away from discrete effects. */
+  ambienceBus(): { ctx: AudioContext; out: GainNode } | null {
+    return this.ctx && this.ambienceGain ? { ctx: this.ctx, out: this.ambienceGain } : null;
+  }
+
   setMusicVolume(v: number): void {
     this.musicVolume = v;
     if (this.musicGain) this.musicGain.gain.value = v * 0.5;
@@ -90,6 +101,12 @@ class AudioEngine {
     this.sfxVolume = v;
     if (this.sfxGain) this.sfxGain.gain.value = v;
     this.savePrefs({ sfx: v });
+  }
+
+  setAmbienceVolume(v: number): void {
+    this.ambienceVolume = v;
+    if (this.ambienceGain) this.ambienceGain.gain.value = v;
+    this.savePrefs({ ambience: v });
   }
 
   /** The original's music switches; the score follows at once. */

@@ -8,14 +8,14 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.4
+## Windows download — 0.3.0-beta.5
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.4.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.2/RTS-gangster-beta-Setup-0.3.0-beta.4.exe).
-This update replaces the score for the menu, planning desk and working week
-with the supplied 1930s jazz pieces. It also adds three city ambience recordings,
-chosen at random and streamed while the 3D city is open.
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.5.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.3/RTS-gangster-beta-Setup-0.3.0-beta.5.exe).
+City ambience now has its own volume control, separate from music and sound
+effects. Random city horns are much quieter and less frequent. The 1930s jazz
+score and streamed city recordings from beta.4 remain.
 
-Read the [0.3.0-beta.4 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.2)
+Read the [0.3.0-beta.5 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.3)
 for the full list, or see the [police, FBI and court guide](docs/RTS_LAW.md).
 The agreed **24-real-minute game day is unchanged**.
 
