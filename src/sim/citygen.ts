@@ -17,7 +17,7 @@ import { ORIGINAL_ECONOMICS } from './data/originalEconomics';
 import { ourTypeForOriginalKind } from './data/originalKinds';
 import { createOriginalBusinessSeeding } from './originalBusinesses';
 import { originalStartingSites, placeOriginalHeadquarters } from './originalBootstrap';
-import { replenishOriginalRecruits } from './recruitPool';
+import { replenishRecruitPool } from './recruitPool';
 import { C as OC, generateOriginalCitySafe, isParkContent, isRiverContent } from './originalCityGen';
 import { originalTramLines } from './trams';
 import { bossFace, heritageOfSurname, sitterFromSeed } from './heritage';
@@ -645,9 +645,8 @@ export function createWorld(options: GameOptions): { world: WorldState; rng: Rng
   }
 
   // Unaffiliated hoods available for recruitment, loitering at recruit sites.
-  // The original city stocks each site to the original's weekly quota instead.
-  if (original) replenishOriginalRecruits(w, rng);
-  else {
+  // The original city stocks hoods to its venue quotas instead.
+  if (!original) {
     const recruitSites = Object.values(w.buildings).filter(
       (b) => BUILDING_BY_ID[b.typeId]?.recruit === 'hood',
     );
@@ -660,26 +659,10 @@ export function createWorld(options: GameOptions): { world: WorldState; rng: Rng
       });
       p.payDemand = hoodPayDemand(p, 'hood');
     }
-    // Free specialists.
-    const acctSites = Object.values(w.buildings).filter((b) => BUILDING_BY_ID[b.typeId]?.recruit === 'accountant');
-    const lawSites = Object.values(w.buildings).filter((b) => BUILDING_BY_ID[b.typeId]?.recruit === 'lawyer');
-    for (let i = 0; i < 6; i++) {
-      const site = acctSites.length ? rng.pick(acctSites) : rng.pick(Object.values(w.buildings));
-      const p = createPerson(w, rng, 'accountant', w.lots[site.lotId].center, {
-        quality: 1.1,
-        buildingId: site.id,
-      });
-      p.payDemand = hoodPayDemand(p, 'accountant');
-    }
-    for (let i = 0; i < 6; i++) {
-      const site = lawSites.length ? rng.pick(lawSites) : rng.pick(Object.values(w.buildings));
-      const p = createPerson(w, rng, 'lawyer', w.lots[site.lotId].center, {
-        quality: 1.1,
-        buildingId: site.id,
-      });
-      p.payDemand = hoodPayDemand(p, 'lawyer');
-    }
   }
+  // Specialists are stocked at each eligible venue, rather than in a small
+  // city-wide random pool. The same per-site quota is replenished weekly.
+  replenishRecruitPool(w, rng);
 
   // ------------------------------------------------------------ gangs
   const colorPool: GangColorName[] = ['red', 'green', 'blue', 'orange'];

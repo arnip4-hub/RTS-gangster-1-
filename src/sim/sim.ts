@@ -40,7 +40,7 @@ import { tickPrison } from './prison';
 import { dailyNews, weeklyNews } from './systems/news';
 import { territoryGoodwill, weeklyOpinion } from './systems/opinion';
 import { weeklyPolitics } from './systems/politics';
-import { replenishOriginalRecruits } from './recruitPool';
+import { replenishRecruitPool } from './recruitPool';
 import { replacePoliceChief } from './officials';
 import { weeklyProtectionFear } from './attitudes';
 import { restoreElectionTiming } from './electionTiming';
@@ -421,7 +421,7 @@ export class Sim {
         if (w.options.continuousTime) carryBuildingEmergencies(w, oldWeek, weekDuration(w));
         finishBuildingRepairs(w);
         finishTradingRestarts(w);
-        replenishOriginalRecruits(w, this.rng);
+        replenishRecruitPool(w, this.rng);
         replacePoliceChief(w, this.rng);
         weeklyProtectionFear(w);
         w.minute = 0;

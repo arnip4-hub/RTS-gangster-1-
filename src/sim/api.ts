@@ -36,6 +36,7 @@ import {
   disbandTeam,
   estimateMinutes,
   expandTargets,
+  orderExtortionStops,
   forgetWhatWasThere,
   isValidAreaTarget,
   killPerson,
@@ -228,6 +229,7 @@ export function previewOrder(w: WorldState, gangId: ID, input: IssueOrderInput):
       order.huntStopIds = huntStops(w, gangId);
     }
   }
+  orderExtortionStops(w, order);
   order.estimatedMinutes = estimateMinutes(w, team, order);
   return order;
 }
@@ -1246,13 +1248,13 @@ function revealRivalIntel(w: WorldState, rng: Rng, gang: Gang, prisoner: Person)
   );
   if (unknownPeople.length && rng.chance(0.6)) {
     const n = Math.min(unknownPeople.length, rng.int(1, 3));
-    const names: string[] = [];
-    for (let i = 0; i < n; i++) {
-      const t = unknownPeople[i];
-      gang.knownPeople.push(t.id);
-      names.push(t.name);
-    }
-    return `He named ${names.join(', ')}.`;
+    const staffIds = new Set<ID>([rival.accountantId, rival.lawyerId].filter((id): id is ID => id != null));
+    const revealed = [
+      ...unknownPeople.filter((p) => staffIds.has(p.id)),
+      ...unknownPeople.filter((p) => !staffIds.has(p.id)),
+    ].slice(0, n);
+    for (const p of revealed) gang.knownPeople.push(p.id);
+    return `He named ${revealed.map((p) => `${p.name} (${p.role})`).join(', ')}.`;
   }
 
   const hiddenSites = allBuildings(w).filter(
@@ -1313,8 +1315,22 @@ export function buySnitchInfo(
 
   rng.shuffle(candidates);
   const n = Math.min(candidates.length, rng.int(2, SNITCH_MOST_NAMES));
-  for (let i = 0; i < n; i++) gang.knownPeople.push(candidates[i].id);
-  return ok(`${snitch.name} named ${n} people for ${price.toLocaleString('en-US')}.`);
+  // A paid source is especially useful for identifying a rival's two key
+  // specialists. Keep the number of names sold unchanged, but put their staff
+  // ahead of ordinary roster names in the report.
+  const staffIds = new Set<ID>();
+  for (const rivalId of targetGangIds) {
+    const rival = w.gangs[rivalId];
+    if (rival?.accountantId != null) staffIds.add(rival.accountantId);
+    if (rival?.lawyerId != null) staffIds.add(rival.lawyerId);
+  }
+  const selected = [
+    ...candidates.filter((p) => staffIds.has(p.id)),
+    ...candidates.filter((p) => !staffIds.has(p.id)),
+  ].slice(0, n);
+  for (const p of selected) gang.knownPeople.push(p.id);
+  const names = selected.map((p) => `${p.name} (${p.role})`).join(', ');
+  return ok(`${snitch.name} named ${names} for ${price.toLocaleString('en-US')}.`);
 }
 
 /** At most this many names can be sold at one sitting. */

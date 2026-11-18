@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultGameOptions, newCampaignOptions } from '../src/app/newGame';
-import { buyWeapon, defaultOptions, issueOrder, killMember, transferVehicle } from '../src/sim/api';
+import { buyWeapon, defaultOptions, issueOrder, killMember, previewOrder, transferVehicle } from '../src/sim/api';
 import { DRIVE_MIN_DISTANCE, MINUTES_PER_WEEK } from '../src/sim/constants';
 import { expandTargets, fitsWeek, isValidAreaTarget, weekCharge } from '../src/sim/execution';
 import { crewPeople, readyForPlanning } from '../src/sim/orderStaffing';
@@ -52,6 +52,29 @@ describe('issue 10 item 13: a crew sent after a person by car', () => {
 });
 
 describe('issue 11: the crew\'s week is its people\'s time', () => {
+  it('keeps the selected first property and routes later extortion stops by proximity', () => {
+    const { w, gang, team } = fixture();
+    const sites = allBuildings(w).filter(b => isValidAreaTarget(w, gang.id, 'extort', b)).slice(0, 8).reverse();
+    const input = { type: 'extort' as const, teamId: team.id, buildingIds: sites.map(b => b.id), opts: { manpower: 1 } };
+    const preview = previewOrder(w, gang.id, input)!;
+    const expected = [sites[0].id];
+    const remaining = sites.slice(1).map(b => b.id);
+    let current = buildingDoor(w, sites[0]);
+    while (remaining.length) {
+      remaining.sort((a, b) => {
+        const pa = buildingDoor(w, w.buildings[a]), pb = buildingDoor(w, w.buildings[b]);
+        return (Math.abs(pa.x - current.x) + Math.abs(pa.y - current.y)) -
+          (Math.abs(pb.x - current.x) + Math.abs(pb.y - current.y)) || a - b;
+      });
+      const id = remaining.shift()!;
+      expected.push(id);
+      current = buildingDoor(w, w.buildings[id]);
+    }
+    expect(preview.targetBuildingIds).toEqual(expected);
+    expect(issueOrder(w, gang.id, input).ok).toBe(true);
+    expect(w.orders[team.orderIds[0]].targetBuildingIds).toEqual(expected);
+  });
+
   it('charges a job by the share of the crew it takes, but never accepts one longer than the week', () => {
     const { w, gang, team } = fixture();
     const bodies = crewPeople(w, team).filter(p => readyForPlanning(w, p)).length;

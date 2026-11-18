@@ -1,8 +1,9 @@
 /**
- * Free hoods and specialists in the original city, after the weekly visitor
- * spawner (0x661160): every week each recruitment site is topped up to a fixed
- * number of unaffiliated people of its kind. The quotas are immediates in the
- * function (the 10-entry visitor list before them is separate):
+ * The recruitment pool is stocked by venue, rather than by a small city-wide
+ * headcount. The original city uses the recovered quotas below; the generated
+ * RTS city uses matching quotas for its newer business types. The original
+ * weekly visitor spawner (0x661160) tops each venue up to its quota. The quotas
+ * are immediates in the function (the 10-entry visitor list before them is separate):
  *
  *   kind 0 Accountants      1 accountant (person type 26)
  *   kind 67 Bank (Large)    5 accountants
@@ -36,17 +37,23 @@ const BY_KIND: Record<number, Quota> = {
   57: { role: 'hood', count: 2 }, 91: { role: 'hood', count: 2 }, 124: { role: 'hood', count: 5 },
 };
 const BY_CIVIC: Record<string, Quota> = { courthouse: { role: 'lawyer', count: 5 }, labourExchange: { role: 'hood', count: 5 } };
+/** Generated RTS cities have larger offices, so each can host a small staff pool. */
+const BY_TYPE: Record<string, Quota> = {
+  accountancy: { role: 'accountant', count: 3 },
+  financeCompany: { role: 'accountant', count: 3 },
+  bankLarge: { role: 'accountant', count: 5 },
+  lawFirm: { role: 'lawyer', count: 3 },
+};
 
 export function recruitQuota(b: Building): Quota | undefined {
   if (b.cls === 'municipal') return BY_CIVIC[b.typeId];
-  return b.originalKind != null ? BY_KIND[b.originalKind] : undefined;
+  return b.originalKind != null ? BY_KIND[b.originalKind] : BY_TYPE[b.typeId];
 }
 
 const serving = (b: Building) => b.state === 'trading' || b.cls === 'municipal' && b.state !== 'destroyed';
 
-/** Top every original recruitment site up to its quota. Returns people added. */
-export function replenishOriginalRecruits(w: WorldState, rng: Rng): number {
-  if (!w.cityLayout?.original) return 0;
+/** Top recruitment venues up to their role-specific quota. Returns people added. */
+export function replenishRecruitPool(w: WorldState, rng: Rng): number {
   const present = new Map<string, number>();
   for (const p of peopleList(w)) {
     if (p.gangId != null || p.status !== 'active' || p.employedBy != null || p.buildingId == null) continue;
@@ -65,3 +72,6 @@ export function replenishOriginalRecruits(w: WorldState, rng: Rng): number {
   }
   return added;
 }
+
+/** Backwards-compatible name used by older save and simulation tests. */
+export const replenishOriginalRecruits = replenishRecruitPool;

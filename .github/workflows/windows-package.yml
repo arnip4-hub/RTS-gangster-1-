@@ -47,6 +47,6 @@ jobs:
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version — Police files and property" --notes-file $notes
+            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version — Specialists and rival intelligence" --notes-file $notes
           }
           gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber

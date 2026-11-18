@@ -8,18 +8,17 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.2
+## Windows download — 0.3.0-beta.3
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.2.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261117.2/RTS-gangster-beta-Setup-0.3.0-beta.2.exe).
-The installer includes continuous-time city life and live police/FBI case
-work. Lawyer-led file investigations now build progress over several weeks and
-survive week boundaries; hired police stay on the gang's payroll until
-dismissed. Damaged but standing properties can be bought at a 40% discount,
-with their repair bill still due. The broken **Illustrated 3D** option has been
-removed; **Detailed** is the default, and the drawn 1930s art remains an
-optional preview. Existing saves and their save folder are retained.
+[Download the RTS-gangster-beta-Setup-0.3.0-beta.3.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.1/RTS-gangster-beta-Setup-0.3.0-beta.3.exe).
+This update fills specialist recruitment venues with larger local pools,
+shows where each available accountant or lawyer works, and lets you identify
+and target a rival's key staff through snitches or prisoner intelligence. It
+also improves multi-stop extortion routing and shows current order progress.
+The 24-real-minute day, continuous city, and live police/FBI case work remain.
+Existing saves and their save folder are retained.
 
-Read the [0.3.0-beta.2 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261117.2)
+Read the [0.3.0-beta.3 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.1)
 for the additions in this beta, or see the [police, FBI and court guide](docs/RTS_LAW.md).
 The agreed **24-real-minute game day is unchanged**.
 

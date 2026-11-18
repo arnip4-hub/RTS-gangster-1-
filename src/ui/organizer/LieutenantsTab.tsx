@@ -53,6 +53,21 @@ function describeTargets(o: Order, w: WorldState): string {
   return 'a place';
 }
 
+/** The weekly order card stays visible while work is underway, so show the
+ * current stop there instead of making movement look like an idle journey. */
+function liveOrderProgress(o: Order, w: WorldState): string {
+  if (o.state === 'queued') return o.dispatchWaitReason ? `Queued · ${o.dispatchWaitReason}` : 'Queued · waiting to start';
+  if (o.state === 'done') return `Complete · ${o.cursor} of ${o.targetBuildingIds.length} stops visited`;
+  if (o.state === 'failed') return `Stopped${o.failReason ? ` · ${o.failReason}` : ''}`;
+  const site = w.buildings[o.targetBuildingIds[o.cursor]];
+  const stop = o.targetBuildingIds.length ? `stop ${Math.min(o.cursor + 1, o.targetBuildingIds.length)} of ${o.targetBuildingIds.length}` : '';
+  const where = site ? `${placeName(w, site)}${stop ? ` · ${stop}` : ''}` : stop || 'the assigned location';
+  if (o.state === 'travelling') return `On the way to ${where}`;
+  if (o.state === 'executing') return `Working at ${where}`;
+  if (o.state === 'waiting') return `Waiting at ${where}`;
+  return '';
+}
+
 /** Every site of an order with who holds it, as far as this gang knows: the tooltip of its journal line. */
 function targetDetails(o: Order, w: WorldState, gangId: ID): string {
   const lines = o.targetBuildingIds.map((id) => w.buildings[id]).filter(Boolean).slice(0, 14).map((b) => {
@@ -366,20 +381,24 @@ export function LieutenantsTab() {
                   </Kicker>
                   {orders.map((o) => (
                     <div key={o.id} className="row between report-item">
-                      <span>
-                        <Icon name={`orders/${o.type}`} size={15} /> <b style={{ fontWeight: 500 }}>{ORDERS[o.type].name}</b> ·{' '}
-                        <button className={`order-target-link${reviewOrderId === o.id ? ' on' : ''}`} aria-pressed={reviewOrderId === o.id}
-                          title={targetDetails(o, w, gang.id)} onClick={() => showOrder(o)}>
-                          {describeTargets(o, w)}
-                        </button>
-                        {o.type === 'recruit' && o.opts.recruitKind && ` · ${o.opts.recruitKind}s`}
-                        {o.opts.manpower > 1 && ` · ${o.opts.manpower} men`}
-                        {o.opts.repeat && ' · repeats'}
-                        {o.opts.priority && ' · priority'}
-                        {o.opts.wait && ' · waits'}
-                        <span className="muted"> · {hours(o.estimatedMinutes)}</span>
-                        {o.dispatchWaitReason && <span className="muted"> · Queued: {o.dispatchWaitReason}</span>}
-                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div>
+                          <Icon name={`orders/${o.type}`} size={15} /> <b style={{ fontWeight: 500 }}>{ORDERS[o.type].name}</b> ·{' '}
+                          <button className={`order-target-link${reviewOrderId === o.id ? ' on' : ''}`} aria-pressed={reviewOrderId === o.id}
+                            title={targetDetails(o, w, gang.id)} onClick={() => showOrder(o)}>
+                            {describeTargets(o, w)}
+                          </button>
+                          {o.type === 'recruit' && o.opts.recruitKind && ` · ${o.opts.recruitKind}s`}
+                          {o.opts.manpower > 1 && ` · ${o.opts.manpower} men`}
+                          {o.opts.repeat && ' · repeats'}
+                          {o.opts.priority && ' · priority'}
+                          {o.opts.wait && ' · waits'}
+                          <span className="muted"> · {hours(o.estimatedMinutes)}</span>
+                        </div>
+                        {liveOrderProgress(o, w) && <div className="muted tiny" style={{ marginTop: 3 }}>{liveOrderProgress(o, w)}</div>}
+                        {o.type === 'recruit' && o.results.length > 0 &&
+                          <div className="muted tiny" style={{ marginTop: 2 }}>Last stop: {o.results[o.results.length - 1]}</div>}
+                      </div>
                       <span className="row" style={{ gap: 4 }}>
                         <button className="btn sm" onClick={() => editOrder(o)} title="Open the job card again">
                           Edit

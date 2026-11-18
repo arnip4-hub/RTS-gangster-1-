@@ -306,6 +306,38 @@ export function standingBlocks(w: WorldState, order: Order): ID[] {
     .map(id => w.blocks[id]?.layout?.mergedInto ?? id))].filter(id => !!w.blocks[id]);
 }
 
+/** Extortion sites have no dependencies, so keep the player's first stop and
+ * then send the crew to the closest remaining business. Large selections in
+ * click order made a lieutenant criss-cross the city between every visit. */
+export function orderExtortionStops(w: WorldState, order: Order): void {
+  if (order.type !== 'extort' || order.targetBuildingIds.length < 3) return;
+  const first = w.buildings[order.targetBuildingIds[0]];
+  if (!first) return;
+  let current = buildingDoor(w, first);
+  const remaining = order.targetBuildingIds.slice(1);
+  const route: ID[] = [first.id];
+  while (remaining.length) {
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < remaining.length; i++) {
+      const building = w.buildings[remaining[i]];
+      if (!building) continue;
+      const door = buildingDoor(w, building);
+      // Manhattan distance is a good fit for the city's orthogonal street grid.
+      const distance = Math.abs(door.x - current.x) + Math.abs(door.y - current.y);
+      if (distance < bestDistance || distance === bestDistance && remaining[i] < remaining[best]) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    const [id] = remaining.splice(best, 1);
+    route.push(id);
+    const building = w.buildings[id];
+    if (building) current = buildingDoor(w, building);
+  }
+  order.targetBuildingIds = route;
+}
+
 /** A person who can still be found on the street (not dead, held or in custody). */
 function onTheStreet(p: Person): boolean {
   return p.status === 'active' || p.status === 'beaten';
@@ -519,6 +551,8 @@ function assignOrder(w: WorldState, team: Team, order: Order, atWeekStart = fals
   // A man turned round on his way home from the last job leaves that journey
   // (and the car taking him home, which is then free to be taken again).
   if (!atWeekStart) for (const p of chosen) { if (p.vehicleKey) alight(w, p); clearDestination(p); }
+
+  orderExtortionStops(w, order);
 
   const tp = targetPos(w, order);
   for (const p of chosen) {

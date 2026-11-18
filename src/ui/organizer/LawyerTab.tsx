@@ -16,7 +16,7 @@ import {
 import { GO_STRAIGHT_ASSETS } from '../../sim/constants';
 import { campaignWeeklyCost, officeEntryCheck, electionBlocksRequired } from '../../sim/systems/politics';
 import type { Person } from '../../sim/types';
-import { gangAssets, money, territoryCount } from '../../sim/world';
+import { gangAssets, money, placeName, territoryCount } from '../../sim/world';
 import { Avatar, ConfirmDialog, Empty, Hint, Panel, Pill, Stars } from '../common';
 import { VEHICLES, VEHICLE_ORDER } from '../../sim/constants';
 import { SpecialistJobList } from '../SpecialistJobCard';
@@ -95,8 +95,8 @@ export function LawyerTab() {
   })();
 
   const freeLawyers = peopleList(w).filter(
-    (p) => p.role === 'lawyer' && p.gangId == null && p.status === 'active',
-  );
+    (p) => p.role === 'lawyer' && p.gangId == null && p.employedBy == null && p.status === 'active',
+  ).sort((a, b) => Number(gang.recruitIds.includes(b.id)) - Number(gang.recruitIds.includes(a.id)) || a.name.localeCompare(b.name));
 
   return (
     <div>
@@ -147,25 +147,31 @@ export function LawyerTab() {
             {freeLawyers.length > 0 && (
               <div style={{ marginTop: 6 }}>
                 <div className="muted tiny" style={{ marginBottom: 4 }}>
-                  Recruit at a law office or the courthouse to bring one in.
+                  {freeLawyers.length} free lawyers in the city · {freeLawyers.filter((p) => gang.recruitIds.includes(p.id)).length} willing to join. Recruit at law offices or the courthouse to find more.
                 </div>
-                {freeLawyers.slice(0, 4).map((p) => (
-                  <div key={p.id} className="row between" style={{ padding: '3px 0' }}>
-                    <span className="tiny">{p.name}</span>
-                    <div className="row" style={{ gap: 5 }}>
-                      <Stars value={p.skills.intelligence} />
-                      <span className="muted tiny mono">{money(specialistAskingWage(w, p, gang.id))}</span>
-                      {gang.recruitIds.includes(p.id) && (
-                        <button
-                          className="btn sm"
-                          onClick={() => notify(act((s) => hireRecruit(s.world, gang.id, p.id, 'pool'))!)}
-                        >
-                          Hire
-                        </button>
-                      )}
+                <div style={{ maxHeight: 190, overflowY: 'auto', paddingRight: 4 }}>
+                  {freeLawyers.map((p) => (
+                    <div key={p.id} className="row between" style={{ padding: '3px 0', gap: 8 }}>
+                      <span className="tiny" style={{ minWidth: 0 }}>
+                        {p.name}<br />
+                        <span className="muted">{p.buildingId != null && w.buildings[p.buildingId] ? placeName(w, w.buildings[p.buildingId]) : 'Location unknown'}</span>
+                      </span>
+                      <div className="row" style={{ gap: 5, flexShrink: 0 }}>
+                        <span className="muted tiny">{gang.recruitIds.includes(p.id) ? 'Willing' : 'Not on your list'}</span>
+                        <Stars value={p.skills.intelligence} />
+                        <span className="muted tiny mono">{money(specialistAskingWage(w, p, gang.id))}</span>
+                        {gang.recruitIds.includes(p.id) && (
+                          <button
+                            className="btn sm"
+                            onClick={() => notify(act((s) => hireRecruit(s.world, gang.id, p.id, 'pool'))!)}
+                          >
+                            Hire
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </>

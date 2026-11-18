@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { act, useGame } from '../../app/store';
+import { selectableOrderPerson } from '../../app/orderSelection';
 import { buySnitchInfo, setDiplomacy, snitchPrice } from '../../sim/api';
 import { GANG_COLORS } from '../../sim/constants';
-import { DIPLOMACY_ORDER, type DiplomacyLevel, type ID } from '../../sim/types';
+import { DIPLOMACY_ORDER, type DiplomacyLevel, type ID, type OrderType } from '../../sim/types';
 import { gangAssets, gangManpower, money, powerRating, territoryCount } from '../../sim/world';
 import { crestUrl } from '../art';
 import { Empty, Hint, Icon, Panel, Pill } from '../common';
@@ -27,6 +28,10 @@ export function DiplomacyTab() {
   const sim = useGame((s) => s.sim)!;
   const notify = useGame((s) => s.notify);
   const centreOnPerson = useGame((s) => s.centreOnPerson);
+  const setTab = useGame((s) => s.setTab);
+  const beginOrder = useGame((s) => s.beginOrder);
+  const updateJobCard = useGame((s) => s.updateJobCard);
+  const setOrganizerOpen = useGame((s) => s.setOrganizerOpen);
   useGame((s) => s.version);
   const [snitchTargets, setSnitchTargets] = useState<ID[]>([]);
   const [viewGang, setViewGang] = useState<ID | null>(null);
@@ -45,6 +50,15 @@ export function DiplomacyTab() {
           .map((id) => w.people[id])
           .filter((p) => p && p.gangId === viewed.id && p.status !== 'dead')
       : [];
+
+  const planAgainst = (type: OrderType, personId: ID) => {
+    const teamId = gang.teamIds[0];
+    if (teamId == null) return;
+    setTab('lieutenants');
+    beginOrder(type, teamId);
+    updateJobCard({ personId });
+    setOrganizerOpen(true);
+  };
 
   return (
     <div>
@@ -128,6 +142,34 @@ export function DiplomacyTab() {
             <b>{viewed.personality}</b>
           </div>
           <div style={{ marginTop: 8 }}>
+            <b className="tiny">Key staff</b>
+            <div className="tiny muted" style={{ margin: '3px 0 6px' }}>
+              A snitch or an interrogated rival may identify these people. Once identified, they can be selected for an order.
+            </div>
+            {([
+              ['accountant', viewed.accountantId],
+              ['lawyer', viewed.lawyerId],
+            ] as const).map(([role, id]) => {
+              const person = id == null || !gang.knownPeople.includes(id) ? null : w.people[id];
+              return (
+                <div key={role} className="row between wrap" style={{ padding: '3px 0', gap: 5 }}>
+                  <span>{role[0].toUpperCase() + role.slice(1)}: {person ? (person.status === 'dead' ? `${person.name} · dead` : person.name) : 'Unknown'}</span>
+                  {person && person.status !== 'dead' && (
+                    <div className="row wrap" style={{ gap: 3 }}>
+                      {(['assault', 'kidnap', 'kill'] as const).map((type) => (
+                        <button key={type} className={`btn sm${type === 'kill' ? ' danger' : ''}`}
+                          disabled={!gang.teamIds.length || !selectableOrderPerson(w, gang.id, type, person)}
+                          onClick={() => planAgainst(type, person.id)}>
+                          {type === 'assault' ? 'Beat' : type === 'kidnap' ? 'Kidnap' : 'Kill'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 8 }}>
             <b className="tiny">People you have identified ({knownOfViewed.length})</b>
             {knownOfViewed.length === 0 ? (
               <Empty>None. Explore their streets, take a prisoner, or buy from a snitch.</Empty>
@@ -153,9 +195,10 @@ export function DiplomacyTab() {
         <Hint>
           A snitch sells you the names of people you have not identified: a rival gang's members, or the
           unattached hoods about town (worth knowing before you recruit). Named people appear on the Clipboard
-          and can be made the target of an order. Choose whose names you want, then the snitch to buy them from:
-          the price is for the names asked for, whichever snitch you use. One purchase a week; they sell names,
-          never places, and never anybody you already know.
+          and can be made the target of an order. When you ask about one gang, its accountant and lawyer are
+          named before ordinary members if either is still unknown. Choose whose names you want, then the snitch
+          to buy them from: the price is for the names asked for, whichever snitch you use. One purchase a week;
+          they sell names, never places, and never anybody you already know.
         </Hint>
         <div className="row wrap" style={{ gap: 4, marginBottom: 8 }}>
           {rivals.map((r) => (

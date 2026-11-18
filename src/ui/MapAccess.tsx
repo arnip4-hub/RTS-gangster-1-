@@ -55,12 +55,17 @@ function MapChooser({ onClose }: { onClose: () => void }) {
   const hq = office ? w.lots[office.lotId].center : null;
   const away = (p: { x: number; y: number }) => (hq ? dist(hq, p) : 0);
   const far = (p: { x: number; y: number }) => (hq ? ` · ${(away(p) / CELL).toFixed(1)} blocks from HQ` : '');
-  const people = peopleList(w).filter(p => staff ? specialistTargetEligible(w, gang.id, staff.type, p) : picking ? selectableOrderPerson(w, gang.id, card.type, p)
+  const choosingPersonTarget = picking && ORDERS[card.type].target === 'person';
+  const people = peopleList(w).filter(p => staff ? specialistTargetEligible(w, gang.id, staff.type, p) : choosingPersonTarget ? selectableOrderPerson(w, gang.id, card.type, p)
     : p.status !== 'dead' && (p.gangId === gang.id || p.gangId == null || gang.knownPeople.includes(p.id)) &&
       (!streetPeople || !['dead', 'jailed', 'kidnapped'].includes(p.status) && !mode.personIds.includes(p.id)));
   const needle = query.toLowerCase();
   const rows = kind === 'people'
-    ? people.map(p => ({ id: p.id, label: p.name, hit: { personId: p.id, buildingId: null, blockId: null, point: p.pos } }))
+    ? people.map(p => {
+      const site = p.buildingId != null ? w.buildings[p.buildingId] : null;
+      return { id: p.id, label: `${p.name} · ${p.role}${site ? ` · ${buildingName(w, site.id)}` : ''}`,
+        hit: { personId: p.id, buildingId: null, blockId: null, point: p.pos } };
+    })
     : kind === 'blocks'
       ? activeBlocks(w).filter(b => (!lieutenant || lieutenant.available.has(b.id)) && (!picking || ORDERS[card.type].target === 'point' || blockOrderSites(w, gang.id, card, b.id).length > 0))
         .map(b => ({ id: b.id, label: `Block ${b.gx},${b.gy}`, hit: { personId: null, buildingId: null, blockId: b.id, point: b.center } }))
@@ -74,6 +79,7 @@ function MapChooser({ onClose }: { onClose: () => void }) {
   const blockAvailable = block && (!lieutenant || lieutenant.available.has(block.id)) && (!picking || ORDERS[card.type].target === 'point' || blockOrderSites(w, gang.id, card, block.id).length > 0);
   return <Modal title="Choose on map" onClose={onClose}>
       <p>{lieutenant ? 'Choose your territory to allocate it, or select an assigned block again to remove it. Another lieutenant must release their area before you can take it.'
+        : several && kind === 'people' ? 'Search for a person to centre the map on them. This order still targets places; choose Buildings to pick stops.'
         : several ? 'Type a name (pool hall, cafe…) and tick every place you want: the list stays open, nearest your headquarters first. Click a ticked place again to drop it, then close.'
         : 'Select a person, site or block to perform the current map action. Area selections can include several blocks.'}</p>
       <label>Find <input className="text-input" value={query} onChange={e => setQuery(e.target.value)} /></label>

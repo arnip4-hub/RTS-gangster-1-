@@ -171,8 +171,9 @@ describe('confirmed planning orders', () => {
     expect(team.orderIds).toEqual([]);
     expect(issueOrder(w, g.id, trimmed).ok).toBe(true);
     const order = w.orders[team.orderIds[0]];
-    expect(order.targetBuildingIds).toEqual(trimmed.buildingIds);
-    expect(order.targetBuildingIds).toEqual(expandTargets(w, g.id, card().type, card().blockIds, card().buildingIds));
+    expect(order.targetBuildingIds[0]).toBe(trimmed.buildingIds[0]);
+    expect(new Set(order.targetBuildingIds)).toEqual(new Set(trimmed.buildingIds));
+    expect(new Set(order.targetBuildingIds)).toEqual(new Set(expandTargets(w, g.id, card().type, card().blockIds, card().buildingIds)));
     const restored = Sim.fromSave(JSON.parse(JSON.stringify(w)));
     expect(restored.world.orders[order.id]).toEqual(order);
   });

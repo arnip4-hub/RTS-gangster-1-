@@ -4,6 +4,7 @@ import { buySnitchInfo, hireRecruit, snitchPrice } from '../src/sim/api';
 import { createWorld, hoodPayDemand } from '../src/sim/citygen';
 import { originalWageQuote, specialistAskingWage } from '../src/sim/originalWages';
 import { SKILLS } from '../src/sim/types';
+import { selectableOrderPerson } from '../src/app/orderSelection';
 
 function fixture(original = false) {
   const options = original ? newCampaignOptions() : { ...defaultGameOptions(), citySize: 10 };
@@ -47,6 +48,29 @@ describe('snitch quote and charge', () => {
     const { w, gang } = snitchFixture(50);
     const rival = Object.values(w.gangs).find(g => !g.isPlayer)!;
     expect(snitchPrice(w, gang.id, [0, rival.id])).toBe(980);
+  });
+
+  it('reveals a rival accountant and lawyer before ordinary names, then makes them selectable targets', () => {
+    const { w, rng, gang } = fixture();
+    const rival = Object.values(w.gangs).find(g => !g.isPlayer)!;
+    const accountant = Object.values(w.people).find(p => p.role === 'accountant' && p.gangId == null && p.status === 'active')!;
+    const lawyer = Object.values(w.people).find(p => p.role === 'lawyer' && p.gangId == null && p.status === 'active')!;
+    expect(hireRecruit(w, rival.id, accountant.id, 'pool').ok).toBe(true);
+    expect(hireRecruit(w, rival.id, lawyer.id, 'pool').ok).toBe(true);
+    gang.knownPeople = gang.knownPeople.filter(id => id !== accountant.id && id !== lawyer.id);
+
+    const snitch = Object.values(w.people).find(p => p.role === 'snitch')!;
+    const result = buySnitchInfo(w, rng, gang.id, snitch.id, [rival.id]);
+    if (!result.ok) throw new Error(result.error);
+    expect(gang.knownPeople).toContain(accountant.id);
+    expect(gang.knownPeople).toContain(lawyer.id);
+    expect(result.message).toContain(`${accountant.name} (accountant)`);
+    expect(result.message).toContain(`${lawyer.name} (lawyer)`);
+    for (const p of [accountant, lawyer]) {
+      expect(selectableOrderPerson(w, gang.id, 'assault', p)).toBe(true);
+      expect(selectableOrderPerson(w, gang.id, 'kidnap', p)).toBe(true);
+      expect(selectableOrderPerson(w, gang.id, 'kill', p)).toBe(true);
+    }
   });
 
   it('rejects an unaffordable quote without payment, disclosure or consuming the purchase', () => {
