@@ -301,7 +301,7 @@ function progressCases(w: WorldState, rng: Rng): void {
       c.status = 'convicted';
       const isBoss = defendant.role === 'boss';
       defendant.status = 'jailed';
-      defendant.jailWeeks = isBoss ? 999 : rng.int(2, 6);
+      defendant.jailWeeks = sentenceWeeks(c.crime, isBoss, rng);
       placeInPrison(w, defendant);
       w.weekLog.push(`${defendant.name} was convicted of ${c.crime}.`);
       if (gang.isPlayer) addMessage(w, 'police', `${defendant.name} was convicted and jailed.`);
@@ -355,6 +355,16 @@ function releasePrisoners(w: WorldState): void {
       w.weekLog.push(`${p.name} was released from prison.`);
     }
   }
+}
+
+/** Weeks served. A boss does not come out. Murder is years, not a fortnight. */
+export function sentenceWeeks(crime: string, isBoss: boolean, rng: { int: (a: number, b: number) => number }): number {
+  if (isBoss) return 999;
+  const c = crime.toLowerCase();
+  if (c.includes('murder') || c.includes('homicide') || c === 'kill') return rng.int(104, 208);
+  if (c.includes('bomb') || c.includes('kidnap')) return rng.int(52, 104);
+  if (c.includes('assault') || c.includes('firearm') || c.includes('robbery')) return rng.int(16, 40);
+  return rng.int(12, 26);
 }
 
 export function describeCrime(kind: string): string {

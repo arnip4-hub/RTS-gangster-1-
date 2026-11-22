@@ -9,7 +9,7 @@ import { availableSpecialist } from './specialists';
 import { specialistJobActive } from './specialistJobs';
 import type { CourtCase, CrimeRecord, ID, Person, WorldState } from './types';
 import { peopleList } from './entityLists';
-import { describeCrime } from './systems/law';
+import { describeCrime, sentenceWeeks } from './systems/law';
 import { ensurePublicService, recordServiceCase, serviceQuality } from './publicService';
 
 /** Game-time deadlines; none of these change the agreed RTS clock rate. */
@@ -329,10 +329,10 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
     closeCase(w, court, convicted ? 'convicted' : 'acquitted');
     if (convicted) {
       defendant.status = 'jailed';
-      defendant.jailWeeks = defendant.role === 'boss' ? 999 : rng.int(2, 6);
+      defendant.jailWeeks = sentenceWeeks(court.crime, defendant.role === 'boss', rng);
       placeInPrison(w, defendant);
       w.weekLog.push(`${defendant.name} was convicted of ${court.crime}.`);
-      if (gang.isPlayer) addMessage(w, 'police', `${defendant.name} was convicted and jailed.`);
+      if (gang.isPlayer) addMessage(w, 'police', `${defendant.name} was convicted and jailed${defendant.jailWeeks >= 999 ? '' : ` for ${defendant.jailWeeks} weeks`}.`);
       addNews(w, { section: 'law', headline: 'GUILTY VERDICT RETURNED', body: `${defendant.name} was found guilty of ${court.crime}.`, gangId: gang.id });
     } else {
       w.weekLog.push(`${defendant.name} was acquitted.`);
