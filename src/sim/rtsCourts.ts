@@ -118,7 +118,10 @@ function reviewCustody(w: WorldState, rng: Rng): void {
     const file = crime?.police;
     if (crime && file) refreshCaseIdentity(w, crime);
     if (!crime || !file || !crime.reported || file.suspectId !== person.id || person.gangId == null) {
-      if (file) file.prosecutorDecision = 'decline';
+      if (file) {
+        file.prosecutorDecision = 'decline';
+        file.statusNote = 'The arrest file does not identify this suspect.';
+      }
       releaseCustody(w, person, crime, 'the arrest file does not identify this suspect');
       continue;
     }
@@ -137,13 +140,25 @@ function reviewCustody(w: WorldState, rng: Rng): void {
     const strength = caseEvidenceStrength(w, crime);
     if (file.identityConfidence < RTS_IDENTITY_THRESHOLD || strength < 25 || file.stage === 'closed') {
       file.prosecutorDecision = 'decline';
+      file.statusNote = file.identityConfidence < RTS_IDENTITY_THRESHOLD
+        ? `Identification is ${Math.round(file.identityConfidence)}; charging needs ${RTS_IDENTITY_THRESHOLD}.`
+        : `Evidence is ${Math.round(strength)}; the prosecutor declined.`;
       releaseCustody(w, person, crime, 'the prosecutor declined the evidence');
       continue;
     }
-    const prosecutorFavor = prosecutor.bribedBy === person.gangId || (prosecutor.opinion[person.gangId] ?? 0) > 55;
-    const chargeThreshold = Math.min(75, RTS_CHARGE_THRESHOLD + (prosecutorFavor ? 12 : 0));
+    // A bought prosecutor protects the man. A merely friendly one is reluctant.
+    if (prosecutor.bribedBy === person.gangId) {
+      file.prosecutorDecision = 'decline';
+      file.statusNote = 'The prosecutor is sitting on this case.';
+      releaseCustody(w, person, crime, 'the prosecutor is sitting on the case');
+      continue;
+    }
+    const reluctant = (prosecutor.opinion[person.gangId] ?? 0) > 55;
+    const chargeThreshold = reluctant ? Math.min(75, RTS_CHARGE_THRESHOLD + 12) : RTS_CHARGE_THRESHOLD;
+    if (reluctant) file.statusNote = `The prosecutor is reluctant to charge. Evidence is ${Math.round(strength)}; he wants ${chargeThreshold}.`;
     if (strength < chargeThreshold) {
       file.prosecutorDecision = 'investigate';
+      if (!reluctant) file.statusNote = `Evidence is ${Math.round(strength)}; charging needs ${chargeThreshold}.`;
       file.nextReviewAt = Math.min(file.nextReviewAt, now + 30);
       if (now >= custody.releaseAt) releaseCustody(w, person, crime, 'further investigation is needed');
       else custody.reviewAt = Math.min(custody.releaseAt, now + 2 * 60);

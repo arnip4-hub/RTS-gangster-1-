@@ -176,6 +176,7 @@ function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number
   homicide: boolean, victimId?: ID): void {
   const existing = recentGunfight(w, shooter.id, pos, homicide ? victimId : undefined);
   if (existing) {
+    existing.shots = (existing.shots ?? 1) + 1;
     if (homicide) {
       existing.kind = SHOOTOUT_HOMICIDE;
       if (existing.victimId == null && victimId != null) existing.victimId = victimId;
@@ -187,6 +188,7 @@ function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number
     pos, ...(homicide && victimId != null ? { victimId } : {}),
     severity: homicide ? 9 : 4,
   });
+  crime.shots = 1;
   if (homicide) crime.kind = SHOOTOUT_HOMICIDE;
 }
 

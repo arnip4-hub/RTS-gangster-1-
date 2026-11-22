@@ -950,6 +950,8 @@ export interface PoliceFile {
   politicalPressure?: { sourceId: ID; appliedAt: number; until: number };
   /** A detention interview is saved once and does not reveal hidden crime truth. */
   interrogation?: { interviewerId: ID; at: number; outcome: 'no-comment' | 'inconsistent' | 'new-lead'; reliability: number };
+  /** Why the file is where it is: shown to the player, never a hidden culprit. */
+  statusNote?: string;
 }
 
 export interface PoliceTask {
@@ -1000,6 +1002,8 @@ export interface CrimeRecord {
   /** The charge laid at an arrest, not a fresh crime: weekly passes that
    * count the week's crimes (suspicion, the newspaper, opinion, history) skip it. */
   charge?: true;
+  /** Shots absorbed into this gunfight file. Absent means a single incident. */
+  shots?: number;
 }
 
 export interface CourtCase {

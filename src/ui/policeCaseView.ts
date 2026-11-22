@@ -1,5 +1,6 @@
 import { campaignMinute } from '../sim/calendar';
-import { caseHasWarrant } from '../sim/caseEvidence';
+import { caseEvidenceStrength, caseHasWarrant } from '../sim/caseEvidence';
+import { RTS_CHARGE_THRESHOLD, RTS_IDENTITY_THRESHOLD } from '../sim/rtsCourts';
 import type { CrimeRecord, ID, Person, PoliceFile, WorldState } from '../sim/types';
 
 /** File access is learned through the lawyer or the officer actually handling it. */
@@ -36,6 +37,32 @@ export function policeStageLabel(file: PoliceFile, at = Infinity): string {
   return STAGES[file.stage];
 }
 
+
+/** Why this file is where it is. Never names the simulation's true culprit. */
+function caseStatusReason(w: WorldState, crime: CrimeRecord, disclosed: boolean): string | null {
+  const file = crime.police;
+  if (!file) return null;
+  const bits: string[] = [];
+  const victim = crime.victimId == null ? undefined : w.people[crime.victimId];
+  if (victim) bits.push(`Victim: ${victim.name}`);
+  if ((crime.shots ?? 0) > 1) bits.push(`${crime.shots} shots in this fight`);
+  if (file.statusNote) bits.push(file.statusNote);
+  if (!disclosed) return bits.join(' · ') || null;
+  const naming = file.statements.filter(s => !s.withdrawn && s.suspectId != null && ['face', 'direct'].includes(s.observation));
+  const named = new Set(naming.map(s => s.suspectId));
+  if (named.size === 0 && file.suspectId == null) bits.push('No face identification; the offender is not named.');
+  else if (named.size > 1 && file.identityConfidence <= 60 && file.identityConfidence > 0)
+    bits.push('Two identifications are too close to name one man.');
+  else if (file.suspectId != null && file.identityConfidence < RTS_IDENTITY_THRESHOLD)
+    bits.push(`Identification ${Math.round(file.identityConfidence)}; a warrant needs ${RTS_IDENTITY_THRESHOLD}.`);
+  if (!file.statusNote && (file.prosecutorDecision === 'investigate' || file.prosecutorDecision === 'pending')) {
+    const strength = Math.round(caseEvidenceStrength(w, crime));
+    if (strength > 0 && strength < RTS_CHARGE_THRESHOLD)
+      bits.push(`Evidence ${strength}; charging needs ${RTS_CHARGE_THRESHOLD}.`);
+  }
+  return [...new Set(bits)].join(' · ') || null;
+}
+
 /** Exposing a report never exposes the simulation's true culprit. */
 export function policeCaseView(w: WorldState, crime: CrimeRecord, viewer: ID) {
   const file = crime.police;
@@ -67,6 +94,7 @@ export function policeCaseView(w: WorldState, crime: CrimeRecord, viewer: ID) {
     evidence: disclosed ? collectedEvidence : [],
     prosecutorId: disclosed || court ? file?.prosecutorId ?? court?.daId : undefined,
     prosecutorDecision: disclosed ? file?.prosecutorDecision : undefined,
+    reason: caseStatusReason(w, crime, disclosed),
     court,
   };
 }

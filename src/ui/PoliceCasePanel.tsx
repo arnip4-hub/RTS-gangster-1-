@@ -29,6 +29,7 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
             ? file?.agency === 'fbi' ? 'FBI' : 'Police' : 'Authorities'}</Pill>
         </div>
         <div className="tiny">{view.status}</div>
+        {view.reason && <div className="muted tiny">{view.reason}</div>}
         <div className="muted tiny">{view.suspectName ? `Named suspect: ${view.suspectName}`
           : view.disclosed ? 'No offender has been identified.' : 'Suspect details require a file inquiry.'}</div>
         {view.disclosed && officer ? <div className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
