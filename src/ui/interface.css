@@ -29,6 +29,25 @@
 
 .week-windows { position: absolute; inset: 88px 10px auto; display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; align-content: flex-start; max-height: calc(100% - 285px); overflow: auto; pointer-events: none; padding: 0 0 5px; }
 .week-windows > * { pointer-events: auto; min-width: 0; }
+.hood-command-bar { position: absolute; z-index: 5; top: 76px; left: 10px; right: 10px; pointer-events: auto; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px 10px; padding: 5px 7px; border: 2px ridge #a89268; background: linear-gradient(100deg,#786b52,#b7a582 52%,#786b52); box-shadow: 1px 2px 5px #0007; }
+.hood-command-roster { display: flex; align-items: center; gap: 5px; overflow-x: auto; min-width: 0; }
+.hood-command-label { flex: 0 0 auto; padding: 0 5px; color: #f5e7c5; font: 600 12px var(--font-heading); text-transform: uppercase; letter-spacing: .08em; }
+.hood-command-chip { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; min-width: 132px; max-width: 190px; padding: 3px 6px; text-align: left; border: 1px solid #746447; background: linear-gradient(#e0d4b8,#bfb18f); box-shadow: inset 1px 1px #f1e6ce; color: #342b1c; }
+.hood-command-chip[aria-pressed="true"] { background: linear-gradient(#8d784f,#695637); color: #fff0cc; border-color: #342914; box-shadow: inset 1px 1px #5c4c31; }
+.hood-command-chip > span { min-width: 0; display: grid; }
+.hood-command-chip b, .hood-command-chip small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hood-command-chip b { font: 600 13px var(--font-heading); }
+.hood-command-chip small { font-size: 10px; opacity: .85; }
+.hood-command-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.hood-action { padding: 4px 7px; border: 1px outset #d1c19a; background: var(--control-face); color: #382e20; font: 600 12px var(--font-heading); white-space: nowrap; }
+.hood-action:hover:not(:disabled) { filter: brightness(1.08); }
+.hood-action:disabled { opacity: .55; }
+.hood-team-status { grid-column: 1 / -1; display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; padding: 3px 5px 0; border-top: 1px solid #756448; color: #fff0ce; font-size: 11px; }
+.hood-team-status > b { flex: 0 0 auto; font: 600 13px var(--font-heading); }
+.hood-team-status > button { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; padding: 2px 4px; color: #352d20; border: 1px solid #93805c; background: #ded2b4; font-size: 10px; }
+.hood-team-status > button span { white-space: nowrap; }
+.classic-hud .right-sheet { top: 150px; z-index: 8; }
+.week-windows { top: 142px; max-height: calc(100% - 338px); }
 .interface-window, .classic-hud .tagged-window { border: 2px solid #938163; outline: 1px solid #423a2b; box-shadow: 2px 3px 7px #0007; background: #ded3b7; }
 .classic-hud .tagged-window { flex: 0 0 auto; width: 294px; max-width: 100%; background: transparent; }
 .interface-window-heading { display: flex; align-items: center; gap: 7px; min-height: 29px; padding: 3px 5px; background: linear-gradient(#77684f,#594d3d); color: #fff2d2; border-bottom: 1px solid #322b20; }
@@ -108,6 +127,10 @@
 .journal-help { color: #f1ddb2; border: 1px solid #9d8252; padding: 1px 8px; font: 600 15px var(--font-heading); }
 
 @media (max-width: 1000px) {
+  .hood-command-bar { grid-template-columns: minmax(0,1fr); top: 96px; }
+  .hood-command-actions { justify-content: flex-start; overflow-x: auto; }
+  .week-windows { top: 166px; max-height: calc(100% - 304px); }
+  .classic-hud .right-sheet { top: 190px; left: 10px; right: 10px; bottom: 96px; width: auto; }
   .week-windows { gap: 8px; }
   .classic-hud .tagged-window { width: 270px; }
   .street-list { width: 270px; }
@@ -124,7 +147,9 @@
   .game-shell.planning-interface:has(.journal) .map-buttons { width: auto; max-width: calc(100vw - 20px); }
 }
 @media (max-width: 700px) {
-  .week-windows { top: 98px; max-height: calc(100% - 240px); gap: 8px; }
+  .hood-command-bar { top: 126px; }
+  .week-windows { top: 196px; max-height: calc(100% - 338px); gap: 8px; }
+  .classic-hud .right-sheet { top: 220px; }
   .classic-hud .tagged-window, .street-list { width: calc(50% - 4px); }
   .classic-hud .tagged-viewport { height: 120px; }
   .street-list-content { max-height: 180px; }
@@ -134,7 +159,7 @@
   .planning-interface .organizer-frame .journal-tabs .jtab .label { gap: 3px; font-size: 12px; }
 }
 @media (max-width: 480px) {
-  .week-windows { max-height: calc(100% - 238px); }
+  .week-windows { max-height: calc(100% - 336px); }
   .classic-hud .tagged-window, .street-list { width: 280px; }
   .week-titlebar { gap: 8px; }
   .week-status { display: none; }

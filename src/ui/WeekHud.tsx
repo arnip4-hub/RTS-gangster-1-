@@ -33,6 +33,8 @@ import { TutorialPanel } from './TutorialPanel';
 import { WeekClock, weekTime, WEEK_DAYS } from './WeekClock';
 import './interface.css';
 import { buildingList } from '../sim/entityLists';
+import { RightSheet } from './organizer/RightSheet';
+import { Portrait } from './Portrait';
 
 const CATEGORIES:Record<MessageCategory,{name:string;short:string;key:string}>={
   combat:{name:'Combat messages',short:'Combat',key:'F5'},
@@ -68,6 +70,8 @@ export function WeekHud() {
   const [removed,setRemoved]=useState(false),[flipped,setFlipped]=useState(false);
   const [rosterOpen,setRosterOpen]=useState(false),[rosterMode,setRosterMode]=useState<'people'|'orders'>('people');
   const [messageId,setMessageId]=useState<number|null>(null);
+  const selectedTeamId=useGame(s=>s.selectedTeamId);
+  const sheet=useGame(s=>s.sheet);
   // The street under the view, in the original's words (manual p.74).
   const [place,setPlace]=useState('');
   const [flashes,setFlashes]=useState<MessageCategory[]>([]);
@@ -102,6 +106,17 @@ export function WeekHud() {
   const zoom=(mode:CityViewMode)=>{setView(mode);cameraApi.ref?.setZoom(VIEW_ZOOM[mode]);};
   const watch=(p:Person)=>{state().selectPerson(p.id);state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));};
   const eventView=(m:typeof message|undefined)=>{if(!m)return;if(m.pos)state().requestCamera(m.pos);if(m.personId!=null)state().selectPerson(m.personId);};
+  const selectedTeam=w.teams[selectedTeamId ?? -1];
+  const teamPeople=selectedTeam ? [w.people[selectedTeam.lieutenantId],...selectedTeam.memberIds.map(id=>w.people[id])].filter((p):p is Person=>!!p&&p.status!=='dead') : [];
+  const selectedHoodId=useGame(s=>s.selectedPersonId);
+  const selectedHood=selectedHoodId!=null?w.people[selectedHoodId]:null;
+  const selectHood=(p:Person)=>{state().focusPerson(p.id);state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));};
+  const orderTeamToMap=()=>{
+    const people=selectedTeam?teamPeople:[selectedHood].filter((p):p is Person=>!!p);
+    const personIds=people.filter(p=>p.status==='active').map(p=>p.id);
+    if(!personIds.length)return;
+    state().setPickMode({kind:'streetOrder',orderType:'goTo',personIds});
+  };
   return <div className="classic-hud">
     <header className="week-bars">
       <div className="week-titlebar">
@@ -145,6 +160,38 @@ export function WeekHud() {
         <MapAccess className="interface-map-search" label="Find…"/>
       </nav>
     </header>
+    <section className="hood-command-bar" aria-label="Hoods and crews">
+      <div className="hood-command-roster">
+        <span className="hood-command-label">Crews</span>
+        {gang.teamIds.map(id=>{
+          const t=w.teams[id], lt=t&&w.people[t.lieutenantId];
+          if(!t||!lt)return null;
+          const status=currentOrder(lt,w);
+          return <button key={id} className="hood-command-chip" aria-pressed={selectedTeamId===id} title={`${lt.name} · ${status}`} onClick={()=>state().selectTeam(id)}>
+            <Portrait person={lt} gang={gang} size={30}/><span><b>{t.name}</b><small>{lt.name} · {status}</small></span>
+          </button>;
+        })}
+        {gang.poolIds.map(id=>{const p=w.people[id];if(!p||p.status==='dead')return null;return <button key={`p${id}`} className="hood-command-chip" aria-pressed={false} title={`${p.name} · ${currentOrder(p,w)}`} onClick={()=>selectHood(p)}>
+          <Portrait person={p} gang={gang} size={30}/><span><b>{p.name}</b><small>Pool · {currentOrder(p,w)}</small></span>
+        </button>;})}
+      </div>
+      <div className="hood-command-actions">
+        {(selectedTeam || selectedHood) && <>
+          <button className="hood-action" onClick={orderTeamToMap} disabled={selectedTeam?!teamPeople.some(p=>p.status==='active'):selectedHood?.status!=='active'} title="Choose a point on the city map for this crew or hood">Go to map</button>
+          {selectedHood && <button className="hood-action" onClick={()=>state().selectPerson(selectedHood.id)} title="Open the selected hood">Hood details</button>}
+        </>}
+        {selectedTeam && <>
+          <button className="hood-action" onClick={()=>teamPeople[0]&&state().selectPerson(teamPeople[0].id)} title="Open the selected crew leader">Crew details</button>
+        </>}
+        <button className="hood-action" onClick={()=>state().setSheet({kind:'hoods'})} title="Open the existing hood pool">Pool · {gang.poolIds.length}</button>
+        <button className="hood-action" onClick={()=>state().setSheet({kind:'recruits'})} title="Open the existing recruitment list">Recruit · {gang.recruitIds.length}</button>
+        <button className="hood-action" onClick={()=>state().setSheet({kind:'weapons'})} title="Open existing weapon stock and purchase controls">Weapons</button>
+        <button className="hood-action" onClick={()=>state().setSheet({kind:'vehicles'})} title="Open existing vehicle stock and purchase controls">Cars</button>
+      </div>
+      {selectedTeam && <div className="hood-team-status" aria-live="polite">
+        <b>{selectedTeam.name}</b>{teamPeople.map(p=><button key={p.id} onClick={()=>selectHood(p)} title={`Select and follow ${p.name}`}><Portrait person={p} gang={gang} size={20}/><span>{p.name} · {currentOrder(p,w)}</span></button>)}
+      </div>}
+    </section>
     <div className="week-windows">
       {taggedIds.map(id=><TaggedWindow key={id} id={id}/>)}
       <div className="week-tutorial"><TutorialPanel/></div>
@@ -170,6 +217,7 @@ export function WeekHud() {
           <button aria-pressed={rosterMode==='orders'} onClick={()=>setRosterMode('orders')}>Orders</button>
         </footer>
       </section>}
+      {sheet && <RightSheet />}
     </div>
     <div className={`week-minimap${messageBox?' has-message':''}`}><Minimap size={144}/><span>City plan</span></div>
     <WeekClock/>
