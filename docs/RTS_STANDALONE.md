@@ -34,8 +34,8 @@ They are code dependencies, not separate GitHub branches.
 workflow. It runs selected regression suites and packages both Setup and
 Portable. It can be run manually with an optional prerelease tag, and it
 validates pull requests targeting `rts-development`.
-A GitHub Pages workflow still targets `main`; revisit it when changing
-the default branch.
+GitHub Pages now builds the RTS game when `rts-development` receives a push.
+Review the GitHub Pages environment before changing the default branch.
 
 ## Refactor boundaries
 
