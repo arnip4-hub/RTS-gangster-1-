@@ -3,7 +3,7 @@ import { cityBlockAt } from '../cityLayout';
 import { inAmbushArea, isOnStreet, validAmbushTarget } from '../ambush';
 import { clearDestination } from '../movement';
 import { allocateWeapons, attackProfile, type Loadout } from '../weapons';
-import { addMessage, recordCrime } from '../events';
+import { addMessage, appendGunfightWitnesses, recordCrime } from '../events';
 import { completeAmbush, killPerson } from '../execution';
 import { dismount, stepOut } from '../transport';
 import { onRoad, pavementBeside } from '../vehicleNavigation';
@@ -181,6 +181,10 @@ function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number
       existing.kind = SHOOTOUT_HOMICIDE;
       if (existing.victimId == null && victimId != null) existing.victimId = victimId;
     }
+    appendGunfightWitnesses(w, rng, existing, {
+      gangId: shooter.gangId!, perpetratorId: shooter.id, type: 'shootout', pos,
+      ...(homicide && victimId != null ? { victimId } : {}),
+    }, homicide ? 9 : 4);
     return;
   }
   const crime = recordCrime(w, rng, {

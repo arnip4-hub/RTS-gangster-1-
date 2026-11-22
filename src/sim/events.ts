@@ -291,6 +291,20 @@ function recordRtsCrime(w: WorldState, rng: Rng, params: CrimeParams, severity: 
   return crime;
 }
 
+
+/** Later shots in the same fight add observations to the open file. The same
+ * witness saying the same thing twice is not a second statement. */
+export function appendGunfightWitnesses(w: WorldState, rng: Rng, crime: CrimeRecord,
+  params: CrimeParams, severity: number): void {
+  const file = crime.police ?? ensurePoliceFile(w, crime, params.pos);
+  const fresh = rtsWitnessStatements(w, rng, params, severity);
+  for (const s of fresh) {
+    if (file.statements.some(old => old.witnessId === s.witnessId && old.observation === s.observation)) continue;
+    file.statements.push(s);
+  }
+  publishWitnessReports(w, crime);
+}
+
 /** Saved report deadlines advance on the agreed game clock, across weekends
  * and week boundaries. A captive or arrested witness cannot make a fresh call. */
 export function tickWitnessReports(w: WorldState): void {

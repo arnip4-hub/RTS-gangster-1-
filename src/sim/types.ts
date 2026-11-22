@@ -1012,6 +1012,8 @@ export interface CourtCase {
   gangId: ID;
   crime: string;
   sourceCrimeId?: ID;
+  /** Other homicide files naming the same suspect, charged with this case. */
+  companionCrimeIds?: ID[];
   investigatorId?: ID;
   investigatorKnown?: boolean;
   judgeId: ID;

@@ -66,6 +66,11 @@ export function completeOfficialBribe(w: WorldState, gangId: ID, p: Person, pric
       else c.knowsJurors = true;
     }
   }
+  for (const crime of w.crimes) {
+    const file = crime.police;
+    if (!file || file.prosecutorId !== p.id || p.role !== 'da' || file.prosecutorDecision === 'charge') continue;
+    file.statusNote = 'The prosecutor is sitting on this case.';
+  }
   if (w.options.continuousTime) refreshPoliceWanted(w);
   return { ok: true, message: `${p.name} took the money.` };
 }

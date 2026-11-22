@@ -175,22 +175,38 @@ function reviewCustody(w: WorldState, rng: Rng): void {
     file.prosecutorDecision = 'charge';
     file.chargedAt = now;
     file.stage = 'charged';
-    const witnessIds = [...new Set([...file.statements.filter(s => s.reportedAt != null && s.reportedAt <= now && !s.withdrawn)
-      .map(s => s.witnessId), ...file.evidence.map(e => e.witnessId).filter((id): id is ID => id != null)])];
+    const companions = w.crimes.filter(c => c.id !== crime.id && c.kind === 'Shootout and homicide' &&
+      c.police?.suspectId === person.id && c.police.prosecutorDecision !== 'charge' &&
+      !Object.values(w.cases).some(existing => existing.sourceCrimeId === c.id || existing.companionCrimeIds?.includes(c.id)));
+    for (const extra of companions) {
+      if (!extra.police) continue;
+      extra.police.prosecutorDecision = 'charge';
+      extra.police.chargedAt = now;
+      extra.police.stage = 'charged';
+      extra.police.statusNote = `Charged with case #${crime.id}.`;
+    }
+    const companionStrength = companions.reduce((n, c) => n + Math.round(caseEvidenceStrength(w, c) * .5), 0);
+    const witnessIds = [...new Set([
+      ...file.statements.filter(s => s.reportedAt != null && s.reportedAt <= now && !s.withdrawn).map(s => s.witnessId),
+      ...file.evidence.map(e => e.witnessId).filter((id): id is ID => id != null),
+      ...companions.flatMap(c => c.police?.statements.filter(s => !s.withdrawn).map(s => s.witnessId) ?? []),
+    ])];
     const court: CourtCase = {
       id: w.sequences.court++, defendantId: person.id, gangId: gang.id,
-      crime: describeCrime(crime.kind), sourceCrimeId: crime.id,
+      crime: companions.length ? `${describeCrime(crime.kind)} (${companions.length + 1} counts)` : describeCrime(crime.kind),
+      sourceCrimeId: crime.id,
+      ...(companions.length ? { companionCrimeIds: companions.map(c => c.id) } : {}),
       investigatorId: crime.investigatorId, investigatorKnown: crime.investigatorKnown,
       judgeId: rng.pick(judges), daId: prosecutor.id, witnessIds, jurorIds: chooseJurors(w, rng),
       weeksToTrial: 0, status: 'awaiting', knowsWitnesses: false, knowsJurors: false,
-      judgeBribed: false, strength, openedAt: now, trialAt: now + rng.int(1, 2) * FULL_DAY_MINUTES,
+      judgeBribed: false, strength: Math.min(100, strength + companionStrength), openedAt: now, trialAt: now + rng.int(1, 2) * FULL_DAY_MINUTES,
       reviewAt: now + RTS_COURT_REVIEW_MINUTES,
     };
     serviceQuality(prosecutor);
     serviceQuality(w.people[court.judgeId]);
     w.cases[court.id] = court;
     person.status = 'onTrial';
-    if (gang.isPlayer) addMessage(w, 'police', `${prosecutor.name} charged ${person.name} with ${court.crime}.`, person.pos, person.id);
+    if (gang.isPlayer) addMessage(w, 'police', `${prosecutor.name} charged ${person.name} with ${court.crime}${companions.length ? `, including #${companions.map(c => c.id).join(', #')}` : ''}.`, person.pos, person.id);
   }
 }
 
