@@ -1,22 +1,20 @@
-import { DAY_START_HOUR, MINUTES_PER_DAY, MINUTES_PER_WEEK } from './constants';
 import type { WorldState } from './types';
+import { calendarMode } from './calendarModes';
 
-/** The RTS city runs through every hour of all seven days. Older saves retain
- * their five eight-hour days, so their in-flight clocks remain meaningful. */
-export const FULL_DAY_MINUTES = 24 * 60;
-export const FULL_WEEK_MINUTES = 7 * FULL_DAY_MINUTES;
+export { FULL_DAY_MINUTES, FULL_WEEK_MINUTES } from './calendarModes';
 
+/** RTS uses complete seven-day weeks; old saves retain their five working days. */
 export function dayDuration(continuous = false): number {
-  return continuous ? FULL_DAY_MINUTES : MINUTES_PER_DAY;
+  return calendarMode(continuous).dayMinutes;
 }
 
 export function weekDuration(w: Pick<WorldState, 'options'>): number {
-  return w.options.continuousTime ? FULL_WEEK_MINUTES : MINUTES_PER_WEEK;
+  return calendarMode(!!w.options.continuousTime).weekMinutes;
 }
 
-/** Classic play skips closed hours. The RTS calendar uses actual midnight. */
 export function hourOfDay(minute: number, continuous = false): number {
-  return ((continuous ? 0 : DAY_START_HOUR) + (minute % dayDuration(continuous)) / 60) % 24;
+  const mode = calendarMode(continuous);
+  return ((mode.startHour + (minute % mode.dayMinutes) / 60) % 24);
 }
 
 /** Absolute clock used by movement, combat and traffic across a settlement. */

@@ -7,7 +7,7 @@
     "node": "^20.19.0 || ^22.12.0 || >=24.0.0"
   },
   "packageManager": "npm@11.6.2",
-  "description": "RTS gangster beta: an experimental real-time strategy fork of Original Gangster",
+  "description": "Standalone RTS gangster beta based on Original Gangster (MIT)",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

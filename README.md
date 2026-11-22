@@ -1,6 +1,7 @@
 # RTS gangster beta
 
-An experimental real-time strategy fork of [Original Gangster](https://github.com/daleeb/original-gangster-release),
+A standalone real-time strategy adaptation based on the MIT-licensed
+[Original Gangster](https://github.com/daleeb/original-gangster-release),
 the independent fan reimagining of *Gangsters: Organized Crime* (1998). The goal is
 to run your gang from the city itself: move crews, issue orders while time passes,
 and open the Organizer whenever you need it.

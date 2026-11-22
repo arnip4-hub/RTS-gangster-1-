@@ -1,9 +1,9 @@
-# Publishes the browser version to GitHub Pages on every push to main.
+# Publishes the browser version to GitHub Pages on every push to the RTS development branch.
 name: Pages
 
 on:
   push:
-    branches: [main]
+    branches: [rts-development]
   workflow_dispatch:
 
 permissions:
