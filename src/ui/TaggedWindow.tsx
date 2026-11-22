@@ -64,7 +64,7 @@ export function TaggedWindow({id}: {id: number}) {
   const pursuit = streetTarget ? person.halted ? 'Waiting for traffic' : person.dest ? 'Approaching' :
     person.streetOrder?.type === 'tail' ? 'Watching' : 'Attacking' : null;
   const orderName = person.streetOrder
-    ? ({ goTo: 'Go to', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
+    ? ({ goTo: 'Go to', guard: 'Guard', patrol: 'Patrol', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
     : cargoActivity(w,person) ?? (order ? ORDERS[order.type].name : staff ? SPECIALIST_JOB_NAMES[staff.type] : restingStatus(w, person));
   const cargo=person.vehicleKey?w.vehicleFleet?.[person.vehicleKey]?.cargo:undefined;
   const command = (kind: 'kill' | 'assault' | 'tail' | 'goTo') => {

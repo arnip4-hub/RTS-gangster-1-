@@ -65,7 +65,11 @@ export function GameScreen() {
     if (pickMode?.kind === 'policeArea') return 'Click the blocks the lawyer should tour, again to drop one · confirm on the Lawyer page · Esc when done';
     if (pickMode?.kind === 'specialist') return 'Choose a highlighted person or premises, or use the Clipboard · Esc cancels';
     if (pickMode?.kind === 'streetOrder')
-      return pickMode.orderType === 'goTo' ? 'Click where they should go · Esc cancels' : 'Click the person to target · Esc cancels';
+      return ['goTo', 'guard', 'patrol'].includes(pickMode.orderType)
+        ? pickMode.orderType === 'patrol' ? 'Click the other end of the patrol route · Esc cancels'
+          : pickMode.orderType === 'guard' ? 'Click where they should hold position · Esc cancels'
+          : 'Click where they should go · Esc cancels'
+        : 'Click the person to target · Esc cancels';
     return null;
   })();
 

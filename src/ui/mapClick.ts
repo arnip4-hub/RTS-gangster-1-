@@ -118,12 +118,12 @@ export function handleMapHit(hit: PickResult, opts: MapClickOptions = {}): void 
   // ---- live street orders
   if (mode?.kind === 'streetOrder') {
     let res;
-    if (mode.orderType === 'goTo') {
+    if (mode.orderType === 'goTo' || mode.orderType === 'guard' || mode.orderType === 'patrol') {
       if (!onMap) {
         state.notify('Click somewhere in the city.');
         return;
       }
-      res = act((sim) => issueStreetOrder(sim.world, sim.playerGang.id, mode.personIds, 'goTo', null, hit.point));
+      res = act((sim) => issueStreetOrder(sim.world, sim.playerGang.id, mode.personIds, mode.orderType, null, hit.point));
     } else if (hit.personId != null) {
       res = act((sim) => issueStreetOrder(sim.world, sim.playerGang.id, mode.personIds, mode.orderType, hit.personId, null));
     } else {

@@ -51,6 +51,28 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
       continue;
     }
 
+    // Guard holds the map position; patrol loops between the original location
+    // and the point selected on the map until cancelled or recalled.
+    if (so.type === 'guard' || so.type === 'patrol') {
+      if (!so.pos || (so.type === 'patrol' && !so.patrolOrigin)) {
+        p.streetOrder = null;
+        clearDestination(p);
+        continue;
+      }
+      if (so.type === 'guard') {
+        if (!p.dest && dist(p.pos, so.pos) > 1) setDestination(w, p, so.pos);
+        if (p.dest) stepPerson(p, minutes, trafficContext(w));
+        continue;
+      }
+      const targetPos = so.patrolReturning ? so.patrolOrigin! : so.pos;
+      if (!p.dest) setDestination(w, p, targetPos);
+      if (stepPerson(p, minutes, trafficContext(w))) {
+        so.patrolReturning = !so.patrolReturning;
+        setDestination(w, p, so.patrolReturning ? so.patrolOrigin! : so.pos);
+      }
+      continue;
+    }
+
     const target = so.targetPersonId != null ? w.people[so.targetPersonId] : null;
     if (!target || (target.status !== 'active' && target.status !== 'beaten')) {
       p.streetOrder = null;

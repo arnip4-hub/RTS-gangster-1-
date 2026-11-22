@@ -263,41 +263,84 @@
 }
 .week-minimap > span { color: #2b1d10; font-family: 'Cinzel', serif; }
 
-/* Standalone live Hoods command bar, adapted from work commit 3d0cc1a.
-   Keep the roster scrollable and resource panel above the floating windows. */
-.hood-command-bar { position: absolute; z-index: 5; top: 76px; left: 10px; right: 10px; pointer-events: auto; display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 5px 10px; padding: 5px 7px; border: 2px ridge #a89268; background: linear-gradient(100deg,#786b52,#b7a582 52%,#786b52); box-shadow: 1px 2px 5px #0007; }
-.hood-command-roster { display: flex; align-items: center; gap: 5px; overflow-x: auto; min-width: 0; }
-.hood-command-label { flex: 0 0 auto; padding: 0 5px; color: #f5e7c5; font: 600 12px var(--font-heading); text-transform: uppercase; letter-spacing: .08em; }
-.hood-command-chip { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; min-width: 132px; max-width: 190px; padding: 3px 6px; text-align: left; border: 1px solid #746447; background: linear-gradient(#e0d4b8,#bfb18f); box-shadow: inset 1px 1px #f1e6ce; color: #342b1c; }
-.hood-command-chip[aria-pressed="true"] { background: linear-gradient(#8d784f,#695637); color: #fff0cc; border-color: #342914; box-shadow: inset 1px 1px #5c4c31; }
-.hood-command-chip > span { min-width: 0; display: grid; }
-.hood-command-chip b, .hood-command-chip small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hood-command-chip b { font: 600 13px var(--font-heading); }
-.hood-command-chip small { font-size: 10px; opacity: .85; }
-.hood-command-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
-.hood-action { padding: 4px 7px; border: 1px outset #d1c19a; background: var(--control-face); color: #382e20; font: 600 12px var(--font-heading); white-space: nowrap; }
-.hood-action:hover:not(:disabled) { filter: brightness(1.08); }
-.hood-action:disabled { opacity: .55; }
-.hood-team-status { grid-column: 1 / -1; display: flex; align-items: center; gap: 5px; min-width: 0; overflow-x: auto; padding: 3px 5px 0; border-top: 1px solid #756448; color: #fff0ce; font-size: 11px; }
-.hood-team-status > b { flex: 0 0 auto; font: 600 13px var(--font-heading); }
-.hood-team-status > button { flex: 0 0 auto; display: flex; align-items: center; gap: 3px; padding: 2px 4px; color: #352d20; border: 1px solid #93805c; background: #ded2b4; font-size: 10px; }
-.hood-team-status > button span { white-space: nowrap; }
-.classic-hud .right-sheet { top: 150px; z-index: 8; }
-.hood-team-status > button[aria-pressed="true"] { background: #8d784f; color: #fff0cc; }
-.classic-hud .right-sheet { position: absolute; top: 175px; right: 12px; bottom: 98px; width: min(440px, 35vw); max-height: none; z-index: 9; pointer-events: auto; }
-.classic-hud .week-windows { top: 170px; max-height: calc(100% - 370px); }
-@media (max-width: 1000px) {
-  .hood-command-bar { grid-template-columns: minmax(0, 1fr); top: 96px; }
-  .hood-command-actions { justify-content: flex-start; overflow-x: auto; }
-  .classic-hud .week-windows { top: 220px; max-height: calc(100% - 405px); }
-  .classic-hud .right-sheet { top: 222px; width: min(440px, calc(100vw - 20px)); }
+/* Hoods command centre: 8 stable slots, crew switcher, live orders, resource links. */
+.hood-command-bar {
+  position: absolute; z-index: 7; top: 80px; left: 10px; right: 10px;
+  display: grid; gap: 6px; padding: 8px 10px; pointer-events: auto;
+  border: 2px ridge #a89268; color: #f5ebd4;
+  background: linear-gradient(135deg,#322b23,#625037 45%,#322b23);
+  box-shadow: 0 4px 14px #0009;
 }
-@media (max-width: 700px) {
-  .hood-command-bar { top: 126px; }
-  .classic-hud .week-windows { top: 255px; max-height: calc(100% - 450px); }
-  .classic-hud .right-sheet { top: 258px; right: 10px; left: 10px; bottom: 96px; width: auto; }
+.hood-bar-header { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.hood-bar-title { flex: 0 0 auto; font: 800 17px var(--font-heading); letter-spacing: .08em; color: #f2d093; }
+.hood-bar-title small { display: block; font-size: 9px; letter-spacing: .13em; color: #f5ebd4; }
+.hood-crew-tabs { display: flex; flex: 1 1 auto; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.hood-crew-tabs button,.hood-bar-pages button,.hood-bar-collapse,.hood-bar-selection button,.hood-bar-resources button {
+  flex: 0 0 auto; padding: 4px 8px; color: #382916;
+  background: linear-gradient(#e9dcc0,#b8a47c); border: 1px solid #887249;
+  border-radius: 2px; font: 600 11px var(--font-heading);
+}
+.hood-crew-tabs button[aria-pressed="true"] { color: #ffedc0; border-color: #d7b370; background: linear-gradient(#8a6031,#55381d); }
+.hood-bar-collapse { white-space: nowrap; }
+.hood-bar-pages { display: flex; align-items: center; gap: 5px; font-size: 11px; white-space: nowrap; }
+.hood-bar-pages button { padding: 3px 9px; }
+.hood-bar-roster { display: grid; grid-template-columns: repeat(8,minmax(0,1fr)); gap: 5px; min-width: 0; }
+.hood-bar-slot,.hood-bar-empty {
+  position: relative; display: flex; align-items: center; gap: 5px; min-width: 0;
+  min-height: 61px; padding: 7px 5px 5px; border: 1px solid #a38d64;
+  color: #382a1a; background: linear-gradient(#e7d9b9,#c0ae8c);
+  box-shadow: inset 0 1px #fff3d9; text-align: left;
+}
+.hood-bar-slot[aria-pressed="true"] { color: #fff0cd; background: linear-gradient(#8c7049,#584024); border: 2px solid #f3c77f; box-shadow: inset 0 0 5px #0007; }
+.hood-bar-slot:disabled { opacity: .5; }
+.hood-bar-slot .portrait { flex: 0 0 auto; }
+.hood-bar-slot .hood-slot-text { display: grid; gap: 2px; min-width: 0; }
+.hood-slot-text b { font: 700 12px/1.1 var(--font-heading); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hood-slot-text small { font: 10px/1.1 var(--font-body); opacity: .8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hood-slot-number { position: absolute; top: 1px; right: 3px; color: #8c6332; font: bold 10px var(--font-body); }
+.hood-bar-slot[aria-pressed="true"] .hood-slot-number { color: #f8cf85; }
+.hood-bar-empty { justify-content: center; border-style: dashed; background: #6c604b; color: #dbc7a0; font-size: 11px; opacity: .65; }
+.hood-bar-controls { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hood-bar-selection { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; font-size: 11px; }
+.hood-bar-selection b { color: #f4d39b; }
+.hood-bar-orders { display: flex; align-items: center; flex: 1 1 auto; gap: 4px; overflow-x: auto; min-width: 0; }
+.hood-action { padding: 5px 11px; flex: 0 0 auto; color: #302416;
+  border: 1px outset #d1c19a; border-radius: 2px;
+  background: linear-gradient(#e4d5b1,#bda77c); font: bold 12px var(--font-heading); white-space: nowrap; }
+.hood-action[aria-pressed="true"] { color: white; background: #755327; border-color: #e4bd73; }
+.hood-action-retreat { color: #7a2a19; }
+.hood-action:hover:not(:disabled), .hood-bar-resources button:hover:not(:disabled),
+.hood-bar-selection button:hover:not(:disabled) { filter: brightness(1.13); }
+.hood-action:disabled, .hood-bar-resources button:disabled, .hood-bar-pages button:disabled,
+.hood-bar-selection button:disabled { opacity: .4; cursor: not-allowed; }
+.hood-bar-resources { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px; padding-top: 5px; border-top: 1px solid #8c744f; }
+.hood-bar-hint { margin-right: auto; font: 10px var(--font-body); color: #e1ceac; }
+.hood-command-bar.is-collapsed { padding-top: 5px; padding-bottom: 5px; }
+.hood-command-bar.is-collapsed .hood-bar-header { min-height: 28px; }
+.classic-hud .right-sheet { position: absolute; top: 280px; right: 12px; bottom: 98px; width: min(440px, 35vw); max-height: none; z-index: 9; pointer-events: auto; }
+.classic-hud .week-windows { top: 275px; max-height: calc(100% - 440px); }
+.classic-hud:has(.hood-command-bar.is-collapsed) .week-windows { top: 126px; max-height: calc(100% - 296px); }
+.classic-hud:has(.hood-command-bar.is-collapsed) .right-sheet { top: 136px; }
+@media (max-width: 1300px) {
+  .hood-bar-roster { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .hood-bar-header,.hood-bar-controls { flex-wrap: wrap; }
+  .classic-hud .right-sheet { top: 340px; width: min(440px, 45vw); }
+  .classic-hud .week-windows { top: 338px; max-height: calc(100% - 510px); }
+}
+@media (max-width: 800px) {
+  .hood-command-bar { top: 118px; left: 6px; right: 6px; gap: 4px; padding: 6px; max-height: 44vh; overflow-y: auto; }
+  .hood-bar-title { font-size: 13px; }
+  .hood-bar-roster { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .hood-bar-slot,.hood-bar-empty { min-height: 48px; }
+  .hood-bar-hint { width: 100%; }
+  .classic-hud .right-sheet { top: 44vh; right: 8px; left: 8px; bottom: 96px; width: auto; }
+  .classic-hud .week-windows { top: calc(44vh + 120px); max-height: 25vh; }
+  .classic-hud:has(.hood-command-bar.is-collapsed) .week-windows { top: 180px; max-height: calc(100% - 350px); }
+  .classic-hud:has(.hood-command-bar.is-collapsed) .right-sheet { top: 190px; }
 }
 @media (max-width: 480px) {
-  .hood-team-status { overflow-x: auto; }
-  .classic-hud .week-windows { max-height: calc(100% - 450px); }
+  .hood-bar-roster { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .hood-bar-header { gap: 4px; }
+  .hood-bar-title small { display: none; }
+  .hood-command-bar { max-height: 42vh; }
 }

@@ -255,12 +255,16 @@ export interface Person {
   };
   /** Live order given directly on the street during the working week. */
   streetOrder: {
-    type: 'kill' | 'assault' | 'tail' | 'goTo';
+    type: 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol';
     targetPersonId: ID | null;
     /** Go-to destination, or the last target position used to route a pursuit. */
     pos: Vec2 | null;
     /** First damaging hit already caused the Bureau response; survives save/load. */
     bureauResponseApplied?: boolean;
+    /** First position in a two-point live street patrol. */
+    patrolOrigin?: Vec2;
+    /** Whether the patrol is returning to its starting point. */
+    patrolReturning?: boolean;
   } | null;
   /** Absolute minute until which he counts as under fire (shot at, hit or not). */
   underFireUntil?: number;
