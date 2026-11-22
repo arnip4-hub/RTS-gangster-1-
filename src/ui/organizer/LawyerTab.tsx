@@ -362,15 +362,16 @@ export function LawyerTab() {
         {imprisoned.length === 0 ? <Empty>None of your people are serving a sentence.</Empty> : imprisoned.map(inmate => (
           <div key={inmate.id} style={{ padding: '5px 0', borderBottom: '1px dotted #bdb094' }}>
             <div className="row between tiny"><b>{inmate.name}</b><span>{PRISON_NAMES[prisonOf(w, inmate)]} · {inmate.jailWeeks} week(s)</span></div>
+              {(inmate.prisonProtectedUntil ?? 0) > campaignMinute(w) && <div className="muted tiny">Protected until {lawDeadline(w, inmate.prisonProtectedUntil!)}</div>}
             <div className="row wrap" style={{ gap: 5, marginTop: 4 }}>
               <button className="btn sm" disabled={!!inmate.prisonOperation} onClick={() => notify(act(s => requestPrisonContact(s.world, gang.id, inmate.id)))}>Ask around · $150</button>
               <button className="btn sm" onClick={() => notify(act(s => requestPrisonProtection(s.world, gang.id, inmate.id)))}>Protection · $500</button>
               {inmate.prisonOperation && <span className="muted tiny">{inmate.prisonOperation.kind} pending</span>}
             </div>
             {knownPrisonRivals(w, gang.id, inmate).map(target => <div key={target.id} className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
-              <span style={{ flex: 1 }}>Known inmate: {target.name}</span>
+              <span style={{ flex: 1 }}>Known inmate: {target.name} · {PRISON_NAMES[prisonOf(w, target)]}</span>
               <button className="btn sm danger" disabled={!!inmate.prisonOperation}
-                onClick={() => notify(act(s => requestPrisonAttack(s.world, gang.id, inmate.id, target.id)))}>Arrange attack · $650</button>
+                onClick={() => notify(act(s => requestPrisonAttack(s.world, gang.id, inmate.id, target.id)))}>Arrange attack · ${target.role === 'boss' ? '2,500' : '650'}</button>
             </div>)}
           </div>
         ))}

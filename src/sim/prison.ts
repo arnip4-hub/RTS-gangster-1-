@@ -1,5 +1,5 @@
 import { campaignMinute, FULL_DAY_MINUTES } from './calendar';
-import { addMessage, addNews } from './events';
+import { addMessage, addNews, recordCrime } from './events';
 import { killPerson } from './execution';
 import { payCash } from './finances';
 import type { Rng } from './rng';
@@ -9,6 +9,7 @@ export const PRISON_NAMES = ['County Jail', 'State Penitentiary'] as const;
 const contactFee = 150;
 const protectionFee = 500;
 const attackFee = 650;
+const bossAttackFee = 2500;
 
 export function placeInPrison(w: WorldState, person: Person): void {
   person.prisonId = (person.id % 2) as 0 | 1;
@@ -63,8 +64,9 @@ export function requestPrisonAttack(w: WorldState, gangId: ID, inmateId: ID, tar
   if (inmate.prisonOperation) return result(false, 'That inmate already has a prison task.');
   if (!knownPrisonRivals(w, gangId, inmate).some(p => p.id === targetId))
     return result(false, 'The target is not known to be in the same prison.');
-  if (gang.cash < attackFee) return result(false, 'You need $650 to arrange the attack.');
-  payCash(w, gang, 'purchases', attackFee);
+  const fee = target.role === 'boss' ? bossAttackFee : attackFee;
+  if (gang.cash < fee) return result(false, `You need $${fee.toLocaleString('en-US')} to arrange the attack.`);
+  payCash(w, gang, 'purchases', fee);
   inmate.prisonOperation = { kind: 'attack', targetId, dueAt: campaignMinute(w) + 240 };
   return result(true, `${inmate.name} will try to reach ${target.name} inside the prison.`);
 }
@@ -75,6 +77,25 @@ function observe(w: WorldState, gang: Gang, inmate: Person, target: Person, now:
 }
 
 /** Prison contacts are resolved at the morning roll call, without world-map sight. */
+
+/** A prison death is a killing the guards can report. It does not name the
+ * attacker by truth; a guard's direct observation is an ordinary lead. */
+function filePrisonKilling(w: WorldState, rng: Rng, attacker: Person, victim: Person): void {
+  if (attacker.gangId == null) return;
+  const crime = recordCrime(w, rng, {
+    gangId: attacker.gangId, perpetratorId: attacker.id, type: 'kill',
+    pos: attacker.pos, victimId: victim.id, severity: 9,
+  });
+  const guard = w.policeIds.map(id => w.people[id]).find(p => p?.status === 'active');
+  const file = crime.police;
+  if (!guard || !file) return;
+  file.statements.push({
+    witnessId: guard.id, observation: 'direct', confidence: 62, reliability: 70,
+    observedAt: campaignMinute(w), reportedAt: campaignMinute(w), suspectId: attacker.id,
+    description: 'A guard saw the attack on the wing.',
+  });
+}
+
 export function tickPrison(w: WorldState, rng: Rng): void {
   if (!w.options.continuousTime || w.phase !== 'week' || w.minute % FULL_DAY_MINUTES !== 360) return;
   const now = campaignMinute(w);
@@ -97,22 +118,33 @@ export function tickPrison(w: WorldState, rng: Rng): void {
           if (gang.isPlayer) addMessage(w, 'failed', `${inmate.name} lost track of the prison target.`, null, inmate.id);
           continue;
         }
-        const protectedTarget = (target.prisonProtectedUntil ?? 0) > now;
-        const chance = Math.max(.08, Math.min(.65, .25 + (inmate.skills.fists - target.skills.fists) * .065 - (protectedTarget ? .18 : 0)));
+        if ((target.prisonProtectedUntil ?? 0) > now) {
+          delete target.prisonProtectedUntil;
+          if (gang.isPlayer) addMessage(w, 'failed', `${inmate.name} could not reach ${target.name}; the protection held.`, null, target.id);
+          if (target.gangId != null && w.gangs[target.gangId]?.isPlayer && !gang.isPlayer)
+            addMessage(w, 'police', `${target.name}'s prison protection stopped an attack.`, null, target.id);
+          continue;
+        }
+        const chance = Math.max(.08, Math.min(.65, .25 + (inmate.skills.fists - target.skills.fists) * .065));
         const success = rng.chance(chance);
-        if (inmate.jailWeeks < 999) inmate.jailWeeks = Math.min(998, inmate.jailWeeks + (success ? 2 : 1));
-        gang.evidence = Math.min(100, gang.evidence + (success ? 8 : 4));
-        gang.suspicion = Math.min(100, gang.suspicion + (success ? 5 : 2));
         if (success) {
           target.hp = Math.max(0, target.hp - rng.int(65, 115));
-          if (target.hp === 0) {
+          const killed = target.hp === 0;
+          if (killed) {
             killPerson(w, target, `was killed in prison by an associate of ${gang.name}`, gang.id);
+            filePrisonKilling(w, rng, inmate, target);
             addNews(w, { section: 'crime', headline: 'PRISON KILLING', body: `${target.name} was killed in custody. Police are investigating.`, gangId: gang.id });
           }
-          if (gang.isPlayer) addMessage(w, 'combat', `${inmate.name} attacked ${target.name} in prison${target.status === 'dead' ? ', killing him' : ''}. The sentence was extended.`, null, target.id);
+          if (inmate.jailWeeks < 999) inmate.jailWeeks = Math.min(998, inmate.jailWeeks + (killed ? 8 : 2));
+          gang.evidence = Math.min(100, gang.evidence + (killed ? 12 : 8));
+          gang.suspicion = Math.min(100, gang.suspicion + (killed ? 8 : 5));
+          if (gang.isPlayer) addMessage(w, 'combat', `${inmate.name} attacked ${target.name} in prison${killed ? ', killing him' : ''}. The sentence was extended.`, null, target.id);
           if (target.gangId != null && w.gangs[target.gangId]?.isPlayer && !gang.isPlayer)
-            addMessage(w, 'combat', `${target.name} was attacked in prison${target.status === 'dead' ? ' and killed' : ''}.`, null, target.id);
-        } else if (gang.isPlayer) addMessage(w, 'failed', `${inmate.name} failed to attack ${target.name} in prison. The sentence was extended.`, null, target.id);
+            addMessage(w, 'combat', `${target.name} was attacked in prison${killed ? ' and killed' : ''}.`, null, target.id);
+        } else {
+          gang.suspicion = Math.min(100, gang.suspicion + 2);
+          if (gang.isPlayer) addMessage(w, 'failed', `${inmate.name} failed to attack ${target.name} in prison.`, null, target.id);
+        }
       }
     }
     // AI inmates hear only a few names after sharing a facility for a day.
