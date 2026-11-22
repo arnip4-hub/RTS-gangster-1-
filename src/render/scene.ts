@@ -1,3 +1,6 @@
+import { markerTexture, drawHand, drawBars } from './markerTextures';
+import { streetSurfaceHeight } from './streetSurface';
+import { makeGritTile } from './roadGrit';
 import { CHARACTER_SCALE } from './detailedCharacters';
 import { attitudeScore } from '../sim/attitudes';
 import {escapeSample,BURNING_TIMING} from '../sim/burningEscape';
@@ -3405,132 +3408,7 @@ export class CityRenderer {
 
 // ------------------------------------------------------------------ helpers
 
-/** A small card painted on a canvas: cream disc, dark glyph. */
-function markerTexture(draw: (ctx: CanvasRenderingContext2D) => void): THREE.Texture {
-  const cv = document.createElement('canvas');
-  cv.width = 64;
-  cv.height = 64;
-  const ctx = cv.getContext('2d')!;
-  ctx.fillStyle = '#efe4c8';
-  ctx.beginPath();
-  ctx.arc(32, 32, 28, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = '#2a1f14';
-  ctx.lineWidth = 3;
-  ctx.stroke();
-  ctx.fillStyle = '#2a1f14';
-  ctx.strokeStyle = '#2a1f14';
-  draw(ctx);
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
-}
-
-/** A raised palm: wait for the word. */
-function drawHand(ctx: CanvasRenderingContext2D): void {
-  ctx.lineWidth = 5;
-  ctx.lineCap = 'round';
-  // Fingers.
-  for (const [x, top] of [[22, 20], [28, 15], [34, 14], [40, 19]] as const) {
-    ctx.beginPath();
-    ctx.moveTo(x, 36);
-    ctx.lineTo(x, top);
-    ctx.stroke();
-  }
-  // Thumb and palm.
-  ctx.beginPath();
-  ctx.moveTo(19, 38);
-  ctx.lineTo(14, 30);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(19, 34);
-  ctx.lineTo(43, 34);
-  ctx.lineTo(43, 44);
-  ctx.quadraticCurveTo(31, 52, 19, 44);
-  ctx.closePath();
-  ctx.fill();
-}
-
-/** Prison bars: an arrest. */
-function drawBars(ctx: CanvasRenderingContext2D): void {
-  ctx.lineWidth = 4;
-  for (const x of [20, 28, 36, 44]) {
-    ctx.beginPath();
-    ctx.moveTo(x, 16);
-    ctx.lineTo(x, 48);
-    ctx.stroke();
-  }
-  ctx.beginPath();
-  ctx.moveTo(16, 16);
-  ctx.lineTo(48, 16);
-  ctx.moveTo(16, 48);
-  ctx.lineTo(48, 48);
-  ctx.stroke();
-}
-
-
 function rpickColor(id: number, salt: number): THREE.Color {
   return awningScratch.setHex(AWNING_COLORS[rint(id, salt, AWNING_COLORS.length)]);
 }
 
-const bankCache = new WeakMap<WorldState, Map<ID, { x: number; y: number; w: number; h: number }[]>>();
-
-/** Pavement height with a short visual step at the kerb; movement/collision remain in simulation metres. */
-function streetSurfaceHeight(w: WorldState, x: number, z: number): number {
-  if (w.cityLayout) {
-    const b = cityBlockAt(w, Math.floor(x / CELL), Math.floor(z / CELL));
-    if (b && (b.layout?.use === 'water' || avenueRoadway(b))) {
-      // On a river block (or under a crossing) only the banks are raised.
-      let banks = bankCache.get(w);
-      if (!banks) bankCache.set(w, banks = new Map());
-      let rects = banks.get(b.id);
-      if (!rects) banks.set(b.id, rects = riverBank(w, b).banks);
-      for (const r of rects) {
-        const inside = Math.min(x - r.x, r.x + r.w - x, z - r.y, r.y + r.h - z);
-        if (inside > -.16) return KERB_H * smoothstep(-.16, .16, inside);
-      }
-      return 0;
-    }
-    if (!b) return 0;
-    const r = blockRect(b), pave = paveWidth(w);
-    const inside = Math.min(x - r.x + pave, r.x + r.w + pave - x, z - r.y + pave, r.y + r.h + pave - z);
-    return KERB_H * smoothstep(-.16, .16, inside);
-  }
-  const lx = ((x % CELL) + CELL) % CELL - CELL / 2;
-  const lz = ((z % CELL) + CELL) % CELL - CELL / 2;
-  const inside = SLAB_HALF - Math.max(Math.abs(lx), Math.abs(lz));
-  return KERB_H * smoothstep(-.16, .16, inside);
-}
-
-/** A small tileable grit pattern used to break up the roadway. */
-function makeGritTile(): HTMLCanvasElement {
-  const c = document.createElement('canvas');
-  c.width = 256;
-  c.height = 256;
-  const ctx = c.getContext('2d');
-  if (!ctx) return c;
-  let seed = 12345;
-  const rnd = () => {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    return seed / 4294967296;
-  };
-  ctx.fillStyle = '#45474e';
-  ctx.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 5200; i++) {
-    const v = rnd();
-    ctx.fillStyle = v > 0.5 ? `rgba(150,150,148,${0.05 + rnd() * 0.14})` : `rgba(14,14,16,${0.05 + rnd() * 0.2})`;
-    ctx.fillRect(rnd() * 256, rnd() * 256, 1 + rnd() * 2.5, 1 + rnd() * 2.5);
-  }
-  for (let i = 0; i < 26; i++) {
-    const x = rnd() * 256;
-    const y = rnd() * 256;
-    const r = 12 + rnd() * 44;
-    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, `rgba(${rnd() > 0.5 ? '180,178,172' : '10,10,12'},0.09)`);
-    g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(x - r, y - r, r * 2, r * 2);
-  }
-  return c;
-}
