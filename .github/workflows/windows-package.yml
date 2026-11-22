@@ -29,7 +29,7 @@ jobs:
       - run: npm ci
 
       - name: Check targeting, pricing, skills, map and calendar regressions
-        run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts tests/calendar-modes.test.ts tests/continuous-week.test.ts tests/week-scheduling.test.ts
+        run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts tests/calendar-modes.test.ts tests/continuous-week.test.ts tests/week-scheduling.test.ts tests/hood-selection.test.ts tests/street-guard-patrol.test.ts
 
       - name: Check RTS investigations, custody, hearings and save compatibility
         run: npx vitest run tests/rts-police-core.test.ts tests/rts-witness-statements.test.ts tests/rts-fbi-cases.test.ts tests/rts-courts.test.ts tests/rts-law-integration.test.ts tests/rts-law-save-validation.test.ts tests/police-case-ui.test.ts tests/law-politics-outcomes.test.ts tests/live-law.test.ts tests/body-recovery.test.ts tests/building-emergency.test.ts tests/original-witnesses.test.ts tests/original-fbi.test.ts tests/original-fbi-accountant.test.ts tests/fbi-lifecycle.test.ts
