@@ -4518,6 +4518,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .case-picks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .case-pick { display: flex; gap: 6px; align-items: baseline; padding: 3px 8px; border: 1px solid var(--dots, #c4b49a); background: transparent; color: inherit; font: inherit; cursor: var(--cur-point, pointer); }
 .case-pick.selected { border-color: #8a5a20; background: rgba(138, 90, 32, 0.16); }
+.case-slots { display: flex; flex-direction: column; gap: 4px; }
+.case-slot { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; padding: 4px 8px; border: 1px solid var(--dots, #c4b49a); background: transparent; color: inherit; font: inherit; }
+.case-slot.empty { color: var(--ink-faint, #8a7d6b); border-style: dashed; }
+.case-slot.selected { border-color: #8a5a20; background: rgba(138, 90, 32, 0.16); }
+
 
 .police-file:last-child { border-bottom: 0; }
 .police-file-facts { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr); gap: 3px 8px; margin: 7px 0; }

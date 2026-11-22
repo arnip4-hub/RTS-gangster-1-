@@ -6,6 +6,7 @@ import { clearDestination } from './movement';
 import { placeInPrison } from './prison';
 import type { Rng } from './rng';
 import { availableSpecialist } from './specialists';
+import { specialistJobActive } from './specialistJobs';
 import type { CourtCase, CrimeRecord, ID, Person, WorldState } from './types';
 import { peopleList } from './entityLists';
 import { describeCrime } from './systems/law';
@@ -300,7 +301,16 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
       continue;
     }
     if (now < (court.trialAt ?? now + FULL_DAY_MINUTES)) { court.status = 'onTrial'; continue; }
-    const da = w.people[court.daId], lawyer = availableSpecialist(w, gang, 'lawyer');
+    const lawyer = availableSpecialist(w, gang, 'lawyer');
+    const lawyerBusy = !!lawyer && Object.values(w.specialistJobs ?? {}).some(j =>
+      j.actorId === lawyer.id && specialistJobActive(j));
+    if (lawyer && lawyerBusy) {
+      court.trialAt = now + 60;
+      court.status = 'onTrial';
+      if (gang.isPlayer) addMessage(w, 'police', `${defendant.name}'s hearing is delayed; counsel is occupied.`);
+      continue;
+    }
+    const da = w.people[court.daId];
     const friendlyJurors = court.jurorIds.filter(id => court.bribedJurorIds?.includes(id) || (w.people[id]?.opinion[gang.id] ?? 0) > 25).length;
     let prosecution = court.strength * .9 + da.skills.intelligence * 5 + (serviceQuality(da) - 50) * .08;
     prosecution *= .88 + (ensurePublicService(da)?.integrity ?? 60) * .0012;

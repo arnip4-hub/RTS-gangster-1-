@@ -104,17 +104,24 @@ function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick,
   const view = policeCaseView(w, crime, viewer);
   const file = crime.police;
   const court = view.court;
-  const officers = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
-  const prosecutors = w.daIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
-  const judges = w.judgeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
-  const lead = crime.investigatorId == null || !view.disclosed ? undefined : w.people[crime.investigatorId];
-  const assignedDa = view.prosecutorId == null ? undefined : w.people[view.prosecutorId];
+  const lead = view.disclosed && crime.investigatorId != null ? w.people[crime.investigatorId] : undefined;
+  const assignedDa = view.disclosed && view.prosecutorId != null ? w.people[view.prosecutorId] : undefined;
   const assignedJudge = court ? w.people[court.judgeId] : undefined;
-  const jurors = court?.knowsJurors ? court.jurorIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active') : [];
+  const jurorsKnown = !!court?.knowsJurors;
+  const jurors = jurorsKnown ? court!.jurorIds.map(id => w.people[id]).filter((p): p is Person => !!p) : [];
   const chosen = picked == null ? undefined : w.people[picked];
   const official = chosen && ['police', 'da', 'judge', 'policeChief', 'mayor'].includes(chosen.role);
   const charging = file?.prosecutorDecision ? ({ pending: 'Decision pending', investigate: 'Further investigation requested',
     charge: 'Proceed with charges', decline: 'Charges declined' })[file.prosecutorDecision] : undefined;
+  const charged = file?.prosecutorDecision === 'charge' || !!court;
+  const bribeEffect = !chosen ? ''
+    : chosen.role === 'da' && !charged ? 'He will sit on this case and your man will be released.'
+    : chosen.role === 'da' && court && !court.knowsWitnesses ? 'He will name the witnesses. A second bribe names the jurors.'
+    : chosen.role === 'da' && court && !court.knowsJurors ? 'He will name the jurors.'
+    : chosen.role === 'da' ? 'He has already opened the lists. This bribe buys nothing more.'
+    : chosen.role === 'judge' && court ? 'He will hear this case, and the prosecution will be weakened.'
+    : chosen.role === 'police' ? 'A bought lead officer weakens the prosecution.'
+    : 'A crew bribe. A bought juror helps the defence.';
   return <Modal title={`#${crime.id} · ${view.title}`} kicker="Case desk" onClose={onClose} width={640}
     footer={<button className="btn" onClick={onClose}>Close</button>}>
     <dl className="police-file-facts tiny">
@@ -130,46 +137,43 @@ function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick,
     {!view.disclosed && <button className="btn sm" disabled={!canInquire} onClick={() => onInquiry(crime.id)}>Ask lawyer to investigate</button>}
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Police</h4>
-    {lead ? <div className="muted tiny">Lead officer on this file: {lead.name}{lead.bribedBy === viewer ? ' · bought' : ''}</div>
-      : <div className="muted tiny">{view.disclosed ? 'No lead officer assigned.' : 'The lead officer is not disclosed.'}</div>}
-    <PickList people={officers} picked={picked} onPick={onPick} mark={p => p.id === lead?.id ? 'lead' : p.bribedBy === viewer ? 'bought' : p.employedBy === viewer ? 'on payroll' : ''} />
+    <Slot person={lead} empty={view.disclosed ? 'No lead officer assigned.' : '—  The lawyer has not opened this file.'}
+      picked={picked} onPick={onPick} tag={lead?.bribedBy === viewer ? 'bought' : lead?.employedBy === viewer ? 'on payroll' : ''} />
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Prosecutor</h4>
-    {assignedDa ? <div className="muted tiny">Assigned to this file: {assignedDa.name}{assignedDa.bribedBy === viewer ? ' · bought' : ''}</div>
-      : <div className="muted tiny">No prosecutor assigned yet. Buying one now means he sits on it later.</div>}
-    <PickList people={prosecutors} picked={picked} onPick={onPick} mark={p => p.id === assignedDa?.id ? 'assigned' : p.bribedBy === viewer ? 'bought' : ''} />
+    <Slot person={assignedDa} empty="—  No prosecutor assigned."
+      picked={picked} onPick={onPick} tag={assignedDa?.bribedBy === viewer ? 'bought' : ''} />
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Judge</h4>
-    {!court ? <div className="muted tiny">No judge until charges are filed.</div>
-      : <div className="muted tiny">Hearing judge: {assignedJudge?.name ?? 'Unassigned'}{court.judgeBribed ? ' · bought' : ''}</div>}
-    <PickList people={judges} picked={picked} onPick={onPick} mark={p => p.id === assignedJudge?.id ? 'hearing' : p.bribedBy === viewer ? 'bought' : ''} />
+    <Slot person={court ? assignedJudge : undefined} empty="—  No judge until charges are filed."
+      picked={picked} onPick={onPick} tag={court?.judgeBribed ? 'bought' : ''} />
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Jury</h4>
-    {!court ? <div className="muted tiny">No jury until charges are filed.</div>
-      : !court.knowsJurors ? <div className="muted tiny">Bribe the prosecutor to learn who is sitting. A second bribe names the jurors.</div>
-      : <PickList people={jurors} picked={picked} onPick={onPick} mark={p => court.bribedJurorIds?.includes(p.id) ? 'bought' : ''} />}
+    {!court ? <Slot empty="—  No jury until charges are filed." />
+      : !jurorsKnown ? <div className="case-slots">{Array.from({ length: 6 }, (_, i) =>
+          <Slot key={i} empty="—  Not disclosed." />)}</div>
+      : <div className="case-slots">{jurors.map(p => <Slot key={p.id} person={p} picked={picked} onPick={onPick}
+          tag={court.bribedJurorIds?.includes(p.id) ? 'bought' : ''} />)}</div>}
 
-    {chosen && <div className="row wrap tiny" style={{ gap: 6, marginTop: 12 }}>
-      <b style={{ flex: 1 }}>{chosen.name}{official ? ` · ${money(bribePrice(w, chosen, viewer))}` : ''}</b>
-      {official ? <button className="btn sm" disabled={!canInquire} onClick={() => onBribeOfficer(chosen.id)}>Bribe</button>
-        : <button className="btn sm" disabled={!canHit || !onBribeCitizen} onClick={() => onBribeCitizen?.(chosen.id)}>Bribe</button>}
-      <button className="btn sm danger" disabled={!canHit} onClick={() => onPlanHit(chosen.id)}>Plan hit</button>
+    {chosen && <div style={{ marginTop: 12 }}>
+      <div className="muted tiny" style={{ marginBottom: 6 }}>{bribeEffect}</div>
+      <div className="row wrap tiny" style={{ gap: 6 }}>
+        <b style={{ flex: 1 }}>{chosen.name}{official ? ` · ${money(bribePrice(w, chosen, viewer))}` : ''}</b>
+        {official ? <button className="btn sm" disabled={!canInquire} onClick={() => onBribeOfficer(chosen.id)}>Bribe</button>
+          : <button className="btn sm" disabled={!canHit || !onBribeCitizen} onClick={() => onBribeCitizen?.(chosen.id)}>Bribe</button>}
+        <button className="btn sm danger" disabled={!canHit} onClick={() => onPlanHit(chosen.id)}>Plan hit</button>
+      </div>
     </div>}
   </Modal>;
 }
 
-function PickList({ people, picked, onPick, mark }: {
-  people: Person[]; picked: ID | null; onPick: (id: ID) => void; mark: (p: Person) => string;
+function Slot({ person, empty, picked, onPick, tag }: {
+  person?: Person; empty?: string; picked?: ID | null; onPick?: (id: ID) => void; tag?: string;
 }) {
-  if (!people.length) return <div className="muted tiny">None available.</div>;
-  return <div className="case-picks">
-    {people.map(p => {
-      const tag = mark(p);
-      return <button key={p.id} type="button" className={`case-pick${picked === p.id ? ' selected' : ''}`}
-        aria-pressed={picked === p.id} onClick={() => onPick(p.id)}>
-        <span>{p.name}</span>
-        {tag && <span className="muted">{tag}</span>}
-      </button>;
-    })}
-  </div>;
+  if (!person) return <div className="case-slot empty">{empty ?? '—'}</div>;
+  return <button type="button" className={`case-slot${picked === person.id ? ' selected' : ''}`}
+    aria-pressed={picked === person.id} onClick={() => onPick?.(person.id)}>
+    <span>{person.name}</span>
+    {tag && <span className="muted">{tag}</span>}
+  </button>;
 }
