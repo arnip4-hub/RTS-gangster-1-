@@ -1,20 +1,29 @@
 import * as THREE from 'three';
-import type { VehicleId } from '../sim/types';
+import type { PersonRole, VehicleId } from '../sim/types';
 import { InstancePool } from './pool';
 import { patchInstancedUv } from './materialUv';
 import { VEHICLE_PROFILE } from './vehicles';
 
 const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'] as const;
-const ROW: Record<VehicleId, number> = { coupe: 0, truck: 1, speedster: 2 };
+export type VehicleSpriteKind = VehicleId | 'police' | 'fbi' | 'delivery';
+const KINDS: VehicleSpriteKind[] = ['coupe', 'truck', 'speedster', 'police', 'fbi', 'delivery'];
+const ROW: Record<VehicleSpriteKind, number> = { coupe: 0, truck: 1, speedster: 2, police: 3, fbi: 4, delivery: 5 };
+
+export function vehicleSpriteKind(kind: VehicleId, role?: PersonRole): VehicleSpriteKind {
+  if (kind !== 'coupe') return kind;
+  if (role === 'police' || role === 'policeChief') return 'police';
+  if (role === 'fbi' || role === 'fbiHead') return 'fbi';
+  return kind;
+}
 const WORLD_CELL: Record<VehicleId, number> = { coupe: 5.1, truck: 5.55, speedster: 5.0 };
-const ATLAS_IMAGE = `${import.meta.env.BASE_URL}art/city/vehicle-fleet-eight-atlas.png`;
-const ATLAS_REPORT = `${import.meta.env.BASE_URL}art/city/vehicle-fleet-eight-atlas.json`;
+const ATLAS_IMAGE = `${import.meta.env.BASE_URL}art/city/illustrated-vehicle-atlas.png`;
+const ATLAS_REPORT = `${import.meta.env.BASE_URL}art/city/illustrated-vehicle-atlas.json`;
 
 interface FrameBounds { bbox: [number, number, number, number] }
 interface AtlasReport {
   cell: number;
   directions: string[];
-  vehicles: Record<VehicleId, Record<string, FrameBounds>>;
+  vehicles: Record<VehicleSpriteKind, Record<string, FrameBounds>>;
 }
 
 /** Quantize a car's world-space nose into the eight directions seen by the camera. */
@@ -28,13 +37,13 @@ export function vehicleScreenDirection(yaw: number, right: THREE.Vector3, up: TH
 function validReport(value: unknown): value is AtlasReport {
   if (!value || typeof value !== 'object') return false;
   const report = value as Partial<AtlasReport>;
-  if (report.cell !== 224 || !Array.isArray(report.directions) ||
+  if (report.cell !== 320 || !Array.isArray(report.directions) ||
       report.directions.join('|') !== DIRECTIONS.join('|') || !report.vehicles) return false;
-  for (const kind of ['coupe', 'truck', 'speedster'] as const) {
+  for (const kind of KINDS) {
     for (const direction of DIRECTIONS) {
       const bbox = report.vehicles[kind]?.[direction]?.bbox;
       if (!Array.isArray(bbox) || bbox.length !== 4 ||
-          bbox.some(n => !Number.isInteger(n) || n < 0 || n > 224) ||
+          bbox.some(n => !Number.isInteger(n) || n < 0 || n > report.cell!) ||
           bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) return false;
     }
   }
@@ -46,7 +55,7 @@ export function vehicleSpriteRoadPivot(bottomPixel: number, cell: number, size: 
   return .08 + (bottomPixel / cell - .5) * size * cameraUpY;
 }
 
-/** One atlas-backed draw batch for the three sprite-sheet vehicle families. */
+/** One atlas-backed draw batch for the civilian and law-enforcement vehicle families. */
 export class VehicleSpriteLayer {
   readonly sprites: InstancePool;
   readonly shadows: InstancePool;
@@ -95,10 +104,10 @@ export class VehicleSpriteLayer {
       if (!validReport(report)) throw Error('Vehicle atlas metadata has an unexpected layout');
       texture = await new THREE.TextureLoader().loadAsync(ATLAS_IMAGE);
       if (this.disposed) { texture.dispose(); return; }
-      if (texture.image.width !== report.cell * DIRECTIONS.length || texture.image.height !== report.cell * 3)
+      if (texture.image.width !== report.cell * DIRECTIONS.length || texture.image.height !== report.cell * KINDS.length)
         throw Error('Vehicle atlas image and metadata dimensions differ');
       texture.colorSpace = THREE.SRGBColorSpace;
-      // These 192–224px painted frames shrink at street zoom. Linear sampling
+      // These painted frames shrink at street zoom. Linear sampling
       // avoids the bright single-pixel chrome/outline aliasing seen with nearest.
       texture.minFilter = THREE.LinearFilter;
       texture.magFilter = THREE.LinearFilter;
@@ -128,12 +137,12 @@ export class VehicleSpriteLayer {
     this.up.set(0, 1, 0).applyQuaternion(camera.quaternion);
   }
 
-  push(kind: VehicleId, x: number, z: number, yaw: number): void {
+  push(kind: VehicleId, x: number, z: number, yaw: number, appearance: VehicleSpriteKind = kind): void {
     if (!this.ready || !this.report) return;
     const direction = vehicleScreenDirection(yaw, this.right, this.up);
-    const row = ROW[kind];
+    const row = ROW[appearance];
     const cell = this.report.cell;
-    const bounds = this.report.vehicles[kind][DIRECTIONS[direction]].bbox;
+    const bounds = this.report.vehicles[appearance][DIRECTIONS[direction]].bbox;
     const size = WORLD_CELL[kind];
     // The lowest visible pixel of the camera-facing plane must sit at road
     // height in world space. Dividing by camera up.y only aligns its projection
@@ -143,7 +152,7 @@ export class VehicleSpriteLayer {
     this.spriteDummy.quaternion.copy(this.cameraRotation);
     this.spriteDummy.scale.set(size, size, 1);
     this.spriteDummy.updateMatrix();
-    this.uv.set(1 / 8, 1 / 3, direction / 8, (2 - row) / 3);
+    this.uv.set(1 / 8, 1 / KINDS.length, direction / 8, (KINDS.length - 1 - row) / KINDS.length);
     this.sprites.push(this.spriteDummy.matrix, undefined, this.uv);
 
     const profile = VEHICLE_PROFILE[kind];

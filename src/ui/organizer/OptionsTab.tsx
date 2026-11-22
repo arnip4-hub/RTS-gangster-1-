@@ -208,7 +208,7 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated 1930s uses drawn street figures and painted city artwork. Save and reopen the city to apply it; graphics quality is separate.
+          Illustrated 1930s uses drawn street figures, painted city artwork, and HD sprite sedans, pickups, coupes, delivery trucks, police cars and unmarked FBI cars. Save and reopen the city to apply it; graphics quality is separate.
         </div>
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>

@@ -3,6 +3,9 @@ name: Windows beta build and tests
 on:
   pull_request:
     branches: [rts-development]
+  push:
+    branches: [rts-development]
+    paths: ['docs/releases/rts-beta-20261122.1.md']
   workflow_dispatch:
     inputs:
       tag:
@@ -30,7 +33,7 @@ jobs:
 
 
       - name: Check targeting, pricing, skills, map and calendar regressions
-        run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts tests/calendar-modes.test.ts tests/continuous-week.test.ts tests/week-scheduling.test.ts tests/hood-selection.test.ts tests/building-dispatch.test.ts tests/street-guard-patrol.test.ts
+        run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts tests/calendar-modes.test.ts tests/continuous-week.test.ts tests/week-scheduling.test.ts tests/hood-selection.test.ts tests/building-dispatch.test.ts tests/street-guard-patrol.test.ts tests/vehicle-sprites.test.ts
 
       - name: Check RTS investigations, custody, hearings and save compatibility
         run: npx vitest run tests/rts-police-core.test.ts tests/rts-witness-statements.test.ts tests/rts-fbi-cases.test.ts tests/rts-courts.test.ts tests/rts-law-integration.test.ts tests/rts-law-save-validation.test.ts tests/police-case-ui.test.ts tests/law-politics-outcomes.test.ts tests/live-law.test.ts tests/body-recovery.test.ts tests/building-emergency.test.ts tests/original-witnesses.test.ts tests/original-fbi.test.ts tests/original-fbi-accountant.test.ts tests/fbi-lifecycle.test.ts
@@ -44,10 +47,10 @@ jobs:
           if-no-files-found: error
 
       - name: Publish Windows packages to prerelease
-        if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+        if: (github.event_name == 'workflow_dispatch' && inputs.tag != '') || (github.event_name == 'push' && github.ref == 'refs/heads/rts-development')
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ github.event_name == 'push' && 'rts-beta-20261122.1' || inputs.tag }}
         shell: pwsh
         run: |
           $notes = "docs/releases/$($env:TAG).md"
@@ -55,6 +58,9 @@ jobs:
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -ne 0) {
-            gh release create $env:TAG --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version" --notes-file $notes
+            gh release create $env:TAG release/RTS-gangster-beta-*.exe --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version" --notes-file $notes
+            if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
+          } else {
+            gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber
+            if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
           }
-          gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber
