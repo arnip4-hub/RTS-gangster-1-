@@ -182,6 +182,8 @@ interface GameState {
   clearTaggedWindows: () => void;
   /** Replace the street selection with these of your own people. */
   selectPeople: (ids: ID[]) => void;
+  /** Highlight people dispatched from the site panel without closing the building. */
+  selectPeopleForBuilding: (ids: ID[]) => void;
   /** Add one of your own people to the street selection, or drop them from it. */
   togglePersonSelected: (id: ID) => void;
   setHelpOpen: (open: boolean) => void;
@@ -586,6 +588,7 @@ export const useGame = create<GameState>((set, get) => ({
   closeTaggedPerson: (id) => set(s => ({taggedPersonIds: s.taggedPersonIds.filter(p => p !== id)})),
   clearTaggedWindows: () => set({taggedPersonIds: []}),
   selectPeople: (ids) => set({ selectedPersonIds: ids, selectedPersonId: ids[ids.length - 1] ?? null, selectedBuildingId: null }),
+  selectPeopleForBuilding: (ids) => set({ selectedPersonIds: ids, selectedPersonId: ids[ids.length - 1] ?? null }),
   togglePersonSelected: (id) => {
     const cur = get().selectedPersonIds;
     const ids = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
