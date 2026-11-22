@@ -4513,6 +4513,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 /* Case papers keep uncertain testimony separate from a named warrant. */
 .police-file { padding: 8px 0; border-bottom: 1px dotted var(--dots); }
+.police-file-open { cursor: var(--cur-point, pointer); }
+.police-file-open:hover { background: rgba(120, 85, 40, 0.06); }
+.case-picks { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.case-pick { display: flex; gap: 6px; align-items: baseline; padding: 3px 8px; border: 1px solid var(--dots, #c4b49a); background: transparent; color: inherit; font: inherit; cursor: var(--cur-point, pointer); }
+.case-pick.selected { border-color: #8a5a20; background: rgba(138, 90, 32, 0.16); }
+
 .police-file:last-child { border-bottom: 0; }
 .police-file-facts { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr); gap: 3px 8px; margin: 7px 0; }
 .police-file-facts dt { color: var(--ink-faint); }

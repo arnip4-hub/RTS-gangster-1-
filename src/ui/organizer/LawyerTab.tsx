@@ -380,7 +380,8 @@ export function LawyerTab() {
       {continuous ? <PoliceCaseFiles world={w} viewer={gang.id} crimes={investigations}
         canInquire={!!lawyer} canHit={gang.teamIds.length > 0} investigationStatus={lawyerInquiryStatus}
         onInquiry={crimeId => notify(act(s => queueCrimeInquiry(s.world, gang.id, crimeId)))}
-        onBribeOfficer={id => beginSpecialistOrder('bribeOfficials', id)} onPlanHit={id => planAgainst('kill', id)} /> :
+        onBribeOfficer={id => beginSpecialistOrder('bribeOfficials', id)} onPlanHit={id => planAgainst('kill', id)}
+        onBribeCitizen={id => planAgainst('bribe', id)} /> :
       <Panel title="Police Investigations">
         {investigations.length === 0 ? <Empty>No open police files against your gang.</Empty> :
           investigations.slice(-12).map(crime => {

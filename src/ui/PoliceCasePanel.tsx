@@ -1,5 +1,8 @@
-import type { CrimeRecord, ID, WorldState } from '../sim/types';
-import { Empty, Hint, Panel, Pill } from './common';
+import { useState } from 'react';
+import type { CrimeRecord, ID, Person, WorldState } from '../sim/types';
+import { bribePrice } from '../sim/api';
+import { money } from '../sim/world';
+import { Empty, Hint, Modal, Panel, Pill } from './common';
 import { activeWarrants, lawDeadline, OBSERVATION_LABELS, policeCaseView } from './policeCaseView';
 
 interface Props {
@@ -12,17 +15,22 @@ interface Props {
   onInquiry: (crimeId: ID) => void;
   onBribeOfficer: (personId: ID) => void;
   onPlanHit: (personId: ID) => void;
+  onBribeCitizen?: (personId: ID) => void;
 }
 
 /** The lawyer's view of a file, rather than the simulation's incident record. */
 export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
-  investigationStatus, onInquiry, onBribeOfficer, onPlanHit }: Props) {
+  investigationStatus, onInquiry, onBribeOfficer, onPlanHit, onBribeCitizen }: Props) {
+  const [openId, setOpenId] = useState<ID | null>(null);
+  const [picked, setPicked] = useState<ID | null>(null);
+  const open = openId == null ? undefined : crimes.find(c => c.id === openId);
   return <Panel title="Police and Bureau files">
     {!crimes.length ? <Empty>No reported police files against your gang.</Empty> : crimes.slice(-16).map(crime => {
       const view = policeCaseView(w, crime, viewer), file = crime.police;
       const officer = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
       const status = investigationStatus(crime.id), reviewing = status != null;
-      return <article key={crime.id} className="police-file" aria-label={`Case file ${crime.id}`}>
+      return <article key={crime.id} className="police-file police-file-open" aria-label={`Case file ${crime.id}`}
+        onClick={() => { setOpenId(crime.id); setPicked(null); }}>
         <div className="row between tiny">
           <b>#{crime.id} · {view.title}</b>
           <Pill kind={view.disclosed && file?.stage === 'closed' ? 'good' : 'warn'}>{view.disclosed || view.suspectName
@@ -35,12 +43,12 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
         {view.disclosed && officer ? <div className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
           <span style={{ flex: 1 }}>Lead officer: {officer.name}{officer.employedBy === viewer ? ' · on your payroll' : ''}</span>
           {officer.role === 'police' && <button className="btn sm" disabled={!canInquire}
-            onClick={() => onBribeOfficer(officer.id)}>Bribe</button>}
-          <button className="btn sm danger" disabled={!canHit} onClick={() => onPlanHit(officer.id)}>Plan hit</button>
+            onClick={e => { e.stopPropagation(); onBribeOfficer(officer.id); }}>Bribe</button>}
+          <button className="btn sm danger" disabled={!canHit} onClick={e => { e.stopPropagation(); onPlanHit(officer.id); }}>Plan hit</button>
         </div> : <div className="row wrap tiny" style={{ gap: 5, marginTop: 4 }}>
           <span style={{ flex: 1 }}>{view.disclosed ? 'An investigator has not been assigned.' : 'File contents not disclosed.'}</span>
           {!view.disclosed && <button className="btn sm" disabled={!canInquire || reviewing}
-            onClick={() => onInquiry(crime.id)}>{reviewing ? 'Investigation in progress' : 'Ask lawyer to investigate'}</button>}
+            onClick={e => { e.stopPropagation(); onInquiry(crime.id); }}>{reviewing ? 'Investigation in progress' : 'Ask lawyer to investigate'}</button>}
         </div>}
         {reviewing && <div className="muted tiny" style={{ marginTop: 4 }}>{status}</div>}
         {view.disclosed && <>
@@ -62,7 +70,7 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
               'no-comment': 'declined to answer', inconsistent: 'account changed', 'new-lead': 'gave a lead for follow-up',
             }[file.interrogation.outcome]} · {file.interrogation.reliability}% reliability</dd></>}
           </dl>
-          <details className="police-file-details">
+          <details className="police-file-details" onClick={e => e.stopPropagation()}>
             <summary className="tiny">Statements ({view.statements.length}) · Evidence ({view.evidence.length})</summary>
             {view.statements.length === 0 && <p className="tiny muted">No statements on file.</p>}
             {view.statements.map((statement, i) => <div className="police-statement tiny" key={`${statement.witnessId}-${i}`}>
@@ -79,6 +87,73 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
         </>}
       </article>;
     })}
-    <Hint>The lawyer can obtain file details. A plate identifies a registered vehicle, not its driver; a report or description alone does not prove who committed the crime.</Hint>
+    <Hint>Click a file to choose an officer, a prosecutor or a juror. The lawyer buys officials; a crew buys or silences jurors.</Hint>
+    {open && <CaseDesk world={w} viewer={viewer} crime={open} canInquire={canInquire} canHit={canHit}
+      picked={picked} onPick={setPicked} onClose={() => setOpenId(null)}
+      onInquiry={onInquiry} onBribeOfficer={onBribeOfficer} onPlanHit={onPlanHit} onBribeCitizen={onBribeCitizen} />}
   </Panel>;
+}
+
+function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick, onClose,
+  onInquiry, onBribeOfficer, onPlanHit, onBribeCitizen }: {
+  world: WorldState; viewer: ID; crime: CrimeRecord; canInquire: boolean; canHit: boolean;
+  picked: ID | null; onPick: (id: ID) => void; onClose: () => void;
+  onInquiry: (crimeId: ID) => void; onBribeOfficer: (personId: ID) => void;
+  onPlanHit: (personId: ID) => void; onBribeCitizen?: (personId: ID) => void;
+}) {
+  const view = policeCaseView(w, crime, viewer);
+  const court = view.court;
+  const officers = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
+  const prosecutors = w.daIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
+  const lead = crime.investigatorId == null || !view.disclosed ? undefined : w.people[crime.investigatorId];
+  const assignedDa = view.prosecutorId == null ? undefined : w.people[view.prosecutorId];
+  const jurors = court?.knowsJurors ? court.jurorIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active') : [];
+  const chosen = picked == null ? undefined : w.people[picked];
+  const official = chosen && ['police', 'da', 'judge', 'policeChief', 'mayor'].includes(chosen.role);
+  return <Modal title={`#${crime.id} · ${view.title}`} kicker="Case desk" onClose={onClose} width={640}
+    footer={<button className="btn" onClick={onClose}>Close</button>}>
+    <div className="tiny">{view.status}</div>
+    {view.reason && <div className="muted tiny">{view.reason}</div>}
+    <div className="muted tiny" style={{ marginBottom: 8 }}>{view.suspectName ? `Named suspect: ${view.suspectName}`
+      : view.disclosed ? 'No offender has been identified.' : 'Ask the lawyer to open this file.'}</div>
+    {!view.disclosed && <button className="btn sm" disabled={!canInquire} onClick={() => onInquiry(crime.id)}>Ask lawyer to investigate</button>}
+
+    <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Police</h4>
+    {lead ? <div className="muted tiny">Lead officer on this file: {lead.name}{lead.bribedBy === viewer ? ' · bought' : ''}</div>
+      : <div className="muted tiny">{view.disclosed ? 'No lead officer assigned.' : 'The lead officer is not disclosed.'}</div>}
+    <PickList people={officers} picked={picked} onPick={onPick} mark={p => p.id === lead?.id ? 'lead' : p.bribedBy === viewer ? 'bought' : p.employedBy === viewer ? 'on payroll' : ''} />
+
+    <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Prosecutor</h4>
+    {assignedDa ? <div className="muted tiny">Assigned to this file: {assignedDa.name}{assignedDa.bribedBy === viewer ? ' · bought' : ''}</div>
+      : <div className="muted tiny">No prosecutor assigned yet. Buying one now means he sits on it later.</div>}
+    <PickList people={prosecutors} picked={picked} onPick={onPick} mark={p => p.id === assignedDa?.id ? 'assigned' : p.bribedBy === viewer ? 'bought' : ''} />
+
+    <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Jury</h4>
+    {!court ? <div className="muted tiny">No jury until charges are filed.</div>
+      : !court.knowsJurors ? <div className="muted tiny">Bribe the prosecutor to learn who is sitting. A second bribe names the jurors.</div>
+      : <PickList people={jurors} picked={picked} onPick={onPick} mark={p => court.bribedJurorIds?.includes(p.id) ? 'bought' : ''} />}
+
+    {chosen && <div className="row wrap tiny" style={{ gap: 6, marginTop: 12 }}>
+      <b style={{ flex: 1 }}>{chosen.name}{official ? ` · ${money(bribePrice(w, chosen, viewer))}` : ''}</b>
+      {official ? <button className="btn sm" disabled={!canInquire} onClick={() => onBribeOfficer(chosen.id)}>Bribe</button>
+        : <button className="btn sm" disabled={!canHit || !onBribeCitizen} onClick={() => onBribeCitizen?.(chosen.id)}>Bribe</button>}
+      <button className="btn sm danger" disabled={!canHit} onClick={() => onPlanHit(chosen.id)}>Plan hit</button>
+    </div>}
+  </Modal>;
+}
+
+function PickList({ people, picked, onPick, mark }: {
+  people: Person[]; picked: ID | null; onPick: (id: ID) => void; mark: (p: Person) => string;
+}) {
+  if (!people.length) return <div className="muted tiny">None available.</div>;
+  return <div className="case-picks">
+    {people.map(p => {
+      const tag = mark(p);
+      return <button key={p.id} type="button" className={`case-pick${picked === p.id ? ' selected' : ''}`}
+        aria-pressed={picked === p.id} onClick={() => onPick(p.id)}>
+        <span>{p.name}</span>
+        {tag && <span className="muted">{tag}</span>}
+      </button>;
+    })}
+  </div>;
 }
