@@ -7,11 +7,11 @@ import { addMessage, recordCrime } from '../events';
 import { completeAmbush, killPerson } from '../execution';
 import { dismount, stepOut } from '../transport';
 import { onRoad, pavementBeside } from '../vehicleNavigation';
-import { stampedMinute } from '../calendar';
+import { campaignMinute, stampedMinute } from '../calendar';
 import { fireRate, originalFireRoll } from '../fireRoll';
 import { presentAttack } from '../presentationEvents';
 import type { Rng } from '../rng';
-import type { ID, Person, WorldState } from '../types';
+import type { CrimeRecord, ID, Person, WorldState } from '../types';
 import { dist2 } from '../world';
 import { blockClaimants } from '../territory';
 import { peopleList } from '../entityLists';
@@ -140,6 +140,51 @@ export function peaceFireOpportunity(
   return ((key ^ (key >>> 16)) >>> 0) / 0x100000000 < probability;
 }
 
+
+/** One gunfight is one file. Later shots within this window join it instead
+ * of opening another shootout. A death upgrades the file to a homicide. */
+const GUNFIGHT_MERGE_M = 40;
+const GUNFIGHT_MERGE_MINUTES = 15;
+export const SHOOTOUT_HOMICIDE = 'Shootout and homicide';
+
+function recentGunfight(w: WorldState, gangId: ID, pos: { x: number; y: number }): CrimeRecord | undefined {
+  if (!w.options.continuousTime) return undefined;
+  const now = campaignMinute(w);
+  for (let i = w.crimes.length - 1; i >= 0; i--) {
+    const c = w.crimes[i];
+    if (c.gangId !== gangId || c.charge) continue;
+    if (c.kind !== 'shootout' && c.kind !== SHOOTOUT_HOMICIDE) continue;
+    const opened = c.police?.openedAt ?? c.reportedAt;
+    if (opened == null || now - opened > GUNFIGHT_MERGE_MINUTES) continue;
+    const scene = c.police?.pos;
+    if (!scene) continue;
+    const dx = scene.x - pos.x, dy = scene.y - pos.y;
+    if (dx * dx + dy * dy > GUNFIGHT_MERGE_M * GUNFIGHT_MERGE_M) continue;
+    return c;
+  }
+  return undefined;
+}
+
+/** First shot opens the file. A later shot in the same fight joins it. A
+ * killing changes the charge to Shootout and homicide. */
+function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number; y: number },
+  homicide: boolean, victimId?: ID): void {
+  const existing = recentGunfight(w, shooter.gangId!, pos);
+  if (existing) {
+    if (homicide) {
+      existing.kind = SHOOTOUT_HOMICIDE;
+      if (existing.victimId == null && victimId != null) existing.victimId = victimId;
+    }
+    return;
+  }
+  const crime = recordCrime(w, rng, {
+    gangId: shooter.gangId!, perpetratorId: shooter.id, type: 'shootout',
+    pos, ...(homicide && victimId != null ? { victimId } : {}),
+    severity: homicide ? 9 : 4,
+  });
+  if (homicide) crime.kind = SHOOTOUT_HOMICIDE;
+}
+
 /** Both deliberate combat and accidental fire use the same allocated weapon. */
 function exchange(w: WorldState, rng: Rng, a: Person, b: Person, loadout: Loadout, shots = 1): void {
   const { weapon, spec, skill } = attackProfile(loadout, a);
@@ -159,8 +204,9 @@ function exchange(w: WorldState, rng: Rng, a: Person, b: Person, loadout: Loadou
     if (b.hp <= 0) {
       killPerson(w, b, `${weapon ? 'gunned down' : 'killed in close combat'} by ${w.gangs[a.gangId!]?.name ?? 'a rival'}`, a.gangId!);
       completeAmbush(w, a, b);
-      recordCrime(w, rng, {
-        gangId: a.gangId!, perpetratorId: a.id, type: weapon ? 'shootout' : 'kill',
+      if (weapon) fileGunfight(w, rng, a, b.pos, true, b.id);
+      else recordCrime(w, rng, {
+        gangId: a.gangId!, perpetratorId: a.id, type: 'kill',
         pos: b.pos, victimId: b.id, severity: 9,
       });
       if (w.gangs[a.gangId!]?.isPlayer || w.gangs[b.gangId!]?.isPlayer) {
@@ -170,8 +216,9 @@ function exchange(w: WorldState, rng: Rng, a: Person, b: Person, loadout: Loadou
       addMessage(w, 'combat', weapon ? `Shots exchanged — ${b.name} is hit.` : `${b.name} was struck in close combat.`, b.pos, b.id, weapon ? 'gunshot' : undefined);
     }
   } else {
-    recordCrime(w, rng, {
-      gangId: a.gangId!, perpetratorId: a.id, type: weapon ? 'shootout' : 'assault',
+    if (weapon) fileGunfight(w, rng, a, a.pos, false);
+    else recordCrime(w, rng, {
+      gangId: a.gangId!, perpetratorId: a.id, type: 'assault',
       pos: a.pos, severity: 4,
     });
   }

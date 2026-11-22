@@ -59,9 +59,10 @@ export function policeCaseView(w: WorldState, crime: CrimeRecord, viewer: ID) {
       appealing: 'Appeal pending', acquitted: 'Acquitted', convicted: 'Convicted', dismissed: 'Case dismissed' })[court.status] : detained ? 'In custody'
       : publicWarrant ? 'Arrest warrant' : 'Police file · details not disclosed',
     // Heard shots alone do not establish that anyone was killed.
-    title: file && !collectedEvidence.some(e => ['scene', 'direct', 'rescue'].includes(e.kind)) &&
+    title: crime.kind === 'Shootout and homicide' ? 'Shootout and homicide'
+      : file && !collectedEvidence.some(e => ['scene', 'direct', 'rescue'].includes(e.kind)) &&
       receivedStatements.length > 0 && receivedStatements.every(s => s.observation === 'sound')
-      ? 'Reported disturbance' : crime.kind,
+      ? 'Reported disturbance' : crime.kind === 'shootout' ? 'Shootout' : crime.kind,
     statements,
     evidence: disclosed ? collectedEvidence : [],
     prosecutorId: disclosed || court ? file?.prosecutorId ?? court?.daId : undefined,
