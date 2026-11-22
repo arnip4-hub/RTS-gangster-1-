@@ -269,6 +269,7 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       for (const c of Object.values(w.cases)) if (c.sourceCrimeId === crime.id && c.gangId === gang.id) {
         c.investigatorId = crime.investigatorId;
         c.investigatorKnown = true;
+        c.knowsWitnesses = true;
       }
       const officer = crime.investigatorId == null ? undefined : w.people[crime.investigatorId];
       finish(w, j, 'done', officer ? `Police file reviewed: ${officer.name} is handling the investigation.`

@@ -74,7 +74,7 @@ export function PoliceCaseFiles({ world: w, viewer, crimes, canInquire, canHit,
             <summary className="tiny">Statements ({view.statements.length}) · Evidence ({view.evidence.length})</summary>
             {view.statements.length === 0 && <p className="tiny muted">No statements on file.</p>}
             {view.statements.map((statement, i) => <div className="police-statement tiny" key={`${statement.witnessId}-${i}`}>
-              <b>{view.court?.knowsWitnesses ? w.people[statement.witnessId]?.name ?? `Witness ${i + 1}` : `Statement ${i + 1}`}</b>
+              <b>{view.disclosed || view.court?.knowsWitnesses ? w.people[statement.witnessId]?.name ?? `Witness ${i + 1}` : `Statement ${i + 1}`}</b>
               {' · '}{OBSERVATION_LABELS[statement.observation]} · {Math.round(statement.confidence)}% confidence
               {statement.withdrawn && <span> · withdrawn</span>}
               {statement.interviewedAt == null && <span> · interview pending</span>}
@@ -147,6 +147,15 @@ function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick,
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Judge</h4>
     <Slot person={court ? assignedJudge : undefined} empty="—  No judge until charges are filed."
       picked={picked} onPick={onPick} tag={court?.judgeBribed ? 'bought' : ''} />
+
+    <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Witnesses</h4>
+    {!view.disclosed && !court?.knowsWitnesses ? <Slot empty="—  Names come with the file." />
+      : view.statements.length === 0 ? <Slot empty="—  No witnesses on file." />
+      : <div className="case-slots">{view.statements.map((s, i) => {
+          const person = w.people[s.witnessId];
+          return <Slot key={`${s.witnessId}-${i}`} person={person} picked={picked} onPick={onPick}
+            tag={s.withdrawn ? 'withdrawn' : s.observation === 'face' || s.observation === 'direct' ? s.observation : ''} />;
+        })}</div>}
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Jury</h4>
     {!court ? <Slot empty="—  No jury until charges are filed." />
