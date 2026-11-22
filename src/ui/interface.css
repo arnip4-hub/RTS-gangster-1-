@@ -344,3 +344,77 @@
   .hood-bar-title small { display: none; }
   .hood-command-bar { max-height: 42vh; }
 }
+
+/* Building-first live dispatch: a separate companion card avoids hiding site intel. */
+.building-dispatch-launch {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 18px; border-bottom: 1px solid #bda779;
+}
+.building-dispatch-launch small { font: 10px var(--font-body); opacity: .75; }
+.building-dispatch {
+  position: absolute; left: 404px; bottom: 28px; z-index: 8;
+  width: min(420px, calc(100vw - 430px));
+  max-height: min(570px, calc(100vh - 320px));
+  display: flex; flex-direction: column; overflow: hidden;
+  border: 2px ridge #a89268; border-radius: 3px;
+  color: #f4e7c9; background: linear-gradient(130deg,#32291f,#58452d 62%,#2e251c);
+  box-shadow: 0 10px 26px #0009;
+  pointer-events: auto;
+}
+.building-dispatch-header {
+  display: flex; gap: 10px; align-items: start; justify-content: space-between;
+  padding: 12px 14px; border-bottom: 1px solid #95784a;
+}
+.building-dispatch-header small { color: #edc68a; font: bold 10px var(--font-heading); letter-spacing: .13em; }
+.building-dispatch-header h4 { margin: 3px 0 0; font: 700 17px/1.25 var(--font-heading); }
+.building-dispatch-close { padding: 0 7px; font-size: 21px; color: #f3deaf; border: 1px solid #9f865c; background: #493927; }
+.building-dispatch-main { overflow-y: auto; padding: 10px 14px 14px; scrollbar-width: thin; }
+.building-dispatch-label { margin: 4px 0 7px; color: #e7c289; font: 700 12px var(--font-heading); }
+.building-dispatch-modes, .building-dispatch-sources { display: flex; gap: 5px; flex-wrap: wrap; }
+.building-dispatch-modes button, .building-dispatch-sources button,
+.building-dispatch-list-actions button, .building-dispatch-footer button {
+  padding: 5px 9px; border: 1px solid #937b51; border-radius: 2px;
+  color: #342818; background: linear-gradient(#e8d9b9,#bca77d);
+  font: 600 12px var(--font-heading);
+}
+.building-dispatch-modes button[aria-pressed="true"],
+.building-dispatch-sources button[aria-pressed="true"] {
+  background: #775730; color: #fff0c6; border-color: #edbf76;
+}
+.building-dispatch-description { margin: 7px 0 13px; font: 11px/1.45 var(--font-body); color: #e4d5b8; }
+.building-dispatch-list-actions { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; }
+.building-dispatch-list-actions span { margin-right: auto; color: #f4d499; }
+.building-dispatch-list-actions button { font-size: 10px; padding: 3px 7px; }
+.building-dispatch-people {
+  display: grid; gap: 3px; margin: 7px 0 12px; padding: 5px;
+  max-height: 160px; overflow-y: auto; border: 1px solid #8f7957;
+  background: rgba(12, 10, 8, .25);
+}
+.building-dispatch-person {
+  display: flex; align-items: center; gap: 7px; padding: 4px 6px;
+  color: #f5ebd2; background: rgba(255, 242, 210, .06);
+  font: 12px var(--font-body); cursor: pointer;
+}
+.building-dispatch-person input { accent-color: #c9a16b; }
+.building-dispatch-person span { min-width: 0; flex: 1; }
+.building-dispatch-person small { opacity: .75; font-size: 10px; }
+.building-dispatch-person.unavailable { opacity: .5; cursor: not-allowed; }
+.building-dispatch-empty { margin: 4px; font: 11px/1.4 var(--font-body); opacity: .9; }
+.building-dispatch-review {
+  padding: 9px 11px; margin-top: 10px;
+  border: 1px solid #b69a66; background: #e5d5b7; color: #30251c;
+  font: 12px/1.35 var(--font-body);
+}
+.building-dispatch-review p { margin: 6px 0; overflow-wrap: anywhere; }
+.building-dispatch-review small { font-size: 11px; line-height: 1.4; }
+.building-dispatch-warning { color: #ffe0a3; border-left: 3px solid #f2c57d; padding-left: 7px; font: 11px/1.4 var(--font-body); }
+.building-dispatch-footer { display: flex; gap: 8px; justify-content: flex-end; padding-top: 10px; }
+.building-dispatch-footer button.primary { color: #fbe8bf; background: linear-gradient(#85623b,#4b311e); border-color: #d9b16b; }
+.building-dispatch button:disabled { opacity: .45; cursor: not-allowed; }
+@media (max-width: 850px) {
+  .building-dispatch { left: 50%; transform: translateX(-50%); bottom: 12px;
+    width: min(440px, calc(100vw - 22px)); max-height: min(62vh, 520px); }
+}
+@media (max-height: 620px) {
+  .building-dispatch { max-height: 56vh; }
+}

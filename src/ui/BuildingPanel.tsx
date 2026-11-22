@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ArtImage } from './ArtImage';
+import { BuildingDispatch } from './BuildingDispatch';
 import { act, useGame } from '../app/store';
 import { buyFreightTruck, quoteBuildingSale, recallManager, repairBuilding, sackManager, sellBuilding, setFreightPolicy, setPay, setTrading, shutdownBuilding } from '../sim/api';
 import { businessCarryingCost } from '../sim/businessState';
@@ -20,7 +21,8 @@ export function BuildingPanel() {
   const notify = useGame((s) => s.notify);
   useGame((s) => s.version);
   const [confirmation,setConfirmation] = useState<{kind:'shutdown'|'sell';id:number;name:string;price?:number}|null>(null);
-  useEffect(()=>setConfirmation(null),[sim,id]);
+  const [dispatchOpen,setDispatchOpen] = useState(false);
+  useEffect(()=>{setConfirmation(null);setDispatchOpen(false);},[sim,id]);
 
   if (id == null) return null;
   const w = sim.world;
@@ -81,6 +83,13 @@ export function BuildingPanel() {
             ×
           </button>
         </div>
+        {w.phase === 'week' && <div className="building-dispatch-launch">
+          <button type="button" className="btn sm" aria-expanded={dispatchOpen}
+            onClick={() => setDispatchOpen(!dispatchOpen)}>
+            {dispatchOpen ? 'Hide direct orders' : 'Send hoods / crew here'}
+          </button>
+          <small>Move, guard or patrol this building</small>
+        </div>}
         <div className="body">
           {mine && b.fbiClosedWeek!=null && <div className="note">The FBI seized the stock and closed this operation. Shut it down before opening a new business.</div>}
           {mine && b.fbiRaidWeek!=null && <div className="note">The FBI found this operation. A raid is expected from week {b.fbiRaidWeek}; ceasing trade does not erase the discovery.</div>}
@@ -269,6 +278,7 @@ export function BuildingPanel() {
         </div>
       </div>
     </div>
+    {dispatchOpen && w.phase==='week' && <BuildingDispatch key={id} buildingId={id} onClose={()=>setDispatchOpen(false)}/>}
     {confirmation && confirmation.id===id && <Modal title={confirmation.kind==='sell'?`Sell ${confirmation.name}`:`Shut down ${confirmation.name}?`}
       kicker={confirmation.kind==='sell'?'Offer for your property':'Business order'} onClose={()=>setConfirmation(null)} width={430}
       footer={<><button className="btn danger lg" onClick={accept}>{confirmation.kind==='sell'?'Accept offer':'Yes, shut down'}</button>
