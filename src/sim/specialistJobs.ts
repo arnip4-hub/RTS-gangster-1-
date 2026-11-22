@@ -71,7 +71,7 @@ export function queueSpecialistJob(w: WorldState, gangId: ID, type: SpecialistJo
   return { ok: true, message: `${SPECIALIST_JOB_NAMES[type]} scheduled for ${actor.name}${price ? '; payment is due at the visit' : ''}.` };
 }
 
-/** A lawyer makes one short courthouse visit to identify a report's lead officer. */
+/** A lawyer makes one short visit to the police station to open a report. */
 export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiResult {
   const gang = w.gangs[gangId], crime = w.crimes.find(c => c.id === crimeId);
   if (!gang || !crime || crime.gangId !== gangId || !crime.reported || crime.charge)
@@ -87,7 +87,7 @@ export function queueCrimeInquiry(w: WorldState, gangId: ID, crimeId: ID): ApiRe
     quotedPrice: 0, workLeft: 0, progressMinutes: 0, visitedPersonIds: [], completed: 0, patrolIndex: 0,
     targetPos: null, result: '' };
   (w.specialistJobs ??= {})[job.id] = job;
-  return { ok: true, message: `${actor.name} will inspect the police file at the courthouse.` };
+  return { ok: true, message: `${actor.name} will inspect the police file at the station.` };
 }
 
 function home(w: WorldState, gang: Gang, actor: Person): void {
@@ -249,9 +249,10 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
     }
     if (j.type === 'investigateCrime') {
       const crime = w.crimes.find(c => c.id === j.crimeId && c.gangId === gang.id);
-      const courthouse = allBuildings(w).find(b => b.typeId === 'courthouse');
-      if (!crime || !courthouse) { finish(w, j, 'failed', 'The case file is no longer available.'); continue; }
-      const desk = buildingDoor(w, courthouse);
+      const station = allBuildings(w).find(b => b.typeId === 'policeHQ' && b.state !== 'destroyed')
+        ?? allBuildings(w).find(b => b.typeId === 'courthouse');
+      if (!crime || !station) { finish(w, j, 'failed', 'The case file is no longer available.'); continue; }
+      const desk = buildingDoor(w, station);
       if (j.state === 'travelling') {
         if (approach(w, actor, j, desk, minutes)) { j.state = 'working'; j.workLeft = 0; }
         continue;
@@ -259,7 +260,7 @@ export function tickSpecialistJobs(w: WorldState, minutes: number): void {
       j.progressMinutes = Math.min(CRIME_INQUIRY_REQUIRED_MINUTES,
         (j.progressMinutes ?? 0) + minutes * CRIME_INQUIRY_PROGRESS_PER_GAME_MINUTE);
       if (j.progressMinutes < CRIME_INQUIRY_REQUIRED_MINUTES) {
-        j.result = `At the courthouse: ${Math.floor(j.progressMinutes)}/${CRIME_INQUIRY_REQUIRED_MINUTES} minutes.`;
+        j.result = `At the police station: ${Math.floor(j.progressMinutes)}/${CRIME_INQUIRY_REQUIRED_MINUTES} minutes.`;
         continue;
       }
       if (crime.investigatorId != null && w.people[crime.investigatorId]?.status !== 'active')
