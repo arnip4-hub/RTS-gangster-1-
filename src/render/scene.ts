@@ -24,7 +24,7 @@ import { BUILDING_BY_ID } from '../sim/data/buildings';
 import { buildingMapIntel, knownBlockOwners } from '../sim/mapIntel';
 import { recentEventCounts } from '../sim/events';
 import { drawTerritoryOutline } from './territoryOutline';
-import type { Block, Building, ID, Person, Vec2, VehicleId, WorldState } from '../sim/types';
+import type { Block, Building, ID, Person, PersonRole, Vec2, VehicleId, WorldState } from '../sim/types';
 import { MAX_CARS, carsAt } from '../sim/traffic';
 import { CORONER_VEHICLE_PAINT, trafficPaint, vehiclePaintFor } from './vehicleLivery';
 import { streetSound } from '../audio/streetSound';
@@ -79,7 +79,7 @@ import { specialistParticipants } from '../sim/specialistJobs';
 import { vehicleDriver, atOffice, officeDoors } from '../sim/transport';
 import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
-import { VehicleSpriteLayer } from './vehicleSpriteLayer';
+import { VehicleSpriteLayer, vehicleSpriteKind } from './vehicleSpriteLayer';
 import { IllustratedPeople } from './illustratedPeople';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
@@ -351,7 +351,7 @@ export class CityRenderer {
 
   // --- movers
   /** People at the wheel this frame, drawn as cars once the traffic is in. */
-  private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; moving?: boolean; coroner?: boolean }[] = [];
+  private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; role?: PersonRole; delivery?: boolean; moving?: boolean; coroner?: boolean }[] = [];
   private actors!: ActorLayer;
   private illustratedPeople: IllustratedPeople | null = null;
   private actorMotion = new ActorMotion();
@@ -1022,6 +1022,7 @@ export class CityRenderer {
     this.headlamps = new InstancePool(vehicleLightGeometry(), this.headlampMat, capacity, { dynamic: true });
     for (const p of [this.sedans, this.trucks, this.hearses, this.speedsters, this.headlamps]) this.scene.add(p.mesh);
     // Delivered models are the default. Explicit switches retain the audit/fallback views.
+    this.reviewSpeedsterSprite = this.visualStyle === 'illustrated';
     this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
       new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
     if (this.preferVehicleSprites) this.ensureVehicleSprites();
@@ -2245,7 +2246,7 @@ export class CityRenderer {
           if(nozzle)this.emergencyHoses?.push(nozzle,response.lookAt,surface,action.time);}
         if (visibleIds.has(p.id)) this.characterDetailStats[detailed ? 'detailed' : 'simplified']++;
       }
-      else if (vehicle === 'speedster' && !this.sculptModelsActive) {
+      else if (vehicle === 'speedster' && !this.sculptModelsActive && !(this.vehicleSpritesActive && this.reviewSpeedsterSprite)) {
         this.dummy.position.set(pos.x - Math.sin(facing) * .72, surface - .10, pos.y - Math.cos(facing) * .72);
         this.dummy.scale.setScalar(1);
         this.dummy.updateMatrix();
@@ -2272,13 +2273,13 @@ export class CityRenderer {
       }
       const carPaint = (driving || shuttle) && this.visualStyle === 'illustrated3d'
         ? vehiclePaintFor(p.vehicleKey ?? `p${p.id}`, p.vehicleKey ? undefined : p.role) : hex;
-      if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) this.drivers.push({ x: pos.x, z: pos.y, facing, hex: carPaint, kind: vehicle, moving: !(this.pulledIn.get(p.vehicleKey ?? `p${p.id}`) ?? 0) });
+      if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) this.drivers.push({ x: pos.x, z: pos.y, facing, hex: carPaint, kind: vehicle, role: p.role, moving: !(this.pulledIn.get(p.vehicleKey ?? `p${p.id}`) ?? 0) });
       // The driver is out loading: his truck stays parked where it is.
       else if (shuttle && p.vehicleKey && w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id) {
         const car = w.vehicleFleet[p.vehicleKey];
         const at = previewVehicle(car, car.pos, this.subMinute, { x: 0, y: 0 });
         this.pullIn(p.vehicleKey, at, true);
-        this.drivers.push({ x: at.x, z: at.y, facing: roadHeading(w, car.pos), hex: carPaint, kind: car.kind });
+        this.drivers.push({ x: at.x, z: at.y, facing: roadHeading(w, car.pos), hex: carPaint, kind: car.kind, role: p.role });
       }
       i++;
     }
@@ -2308,7 +2309,7 @@ export class CityRenderer {
       const ahead=previewGoodsDelivery(delivery,this.subMinute+.0001),dx=ahead.x-pos.x,dy=ahead.y-pos.y;
       // Unloading, or waiting for somewhere to go: in to the kerb.
       this.pullIn(`delivery:${delivery.sourceId}`,pos,!delivery.path.length);
-      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(`delivery:${delivery.sourceId}`) : 0x4e5647,kind:'truck'});
+      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(`delivery:${delivery.sourceId}`) : 0x4e5647,kind:'truck',delivery:true});
     }
     const bodyTime = campaignMinute(w, w.minute + this.subMinute);
     for (const p of Object.values(w.people)) {
@@ -2444,7 +2445,7 @@ export class CityRenderer {
       this.colorScratch.setHex(d.hex);
       if (d.coroner) this.hearses.push(this.dummy.matrix, this.colorScratch);
       else if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
-        this.vehicleSprites!.push(d.kind, d.x, d.z, d.facing - Math.PI / 2);
+        this.vehicleSprites!.push(d.kind, d.x, d.z, d.facing - Math.PI / 2, d.delivery ? 'delivery' : vehicleSpriteKind(d.kind, d.role));
       else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix, d.hex)) { /* Detailed vehicle */ }
       else (d.kind === 'truck' ? this.trucks : d.kind === 'speedster' ? this.speedsters : this.sedans).push(this.dummy.matrix, this.colorScratch);
       if (dusk > .02) {

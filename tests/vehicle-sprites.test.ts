@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import { vehicleScreenDirection, vehicleSpriteRoadPivot } from '../src/render/vehicleSpriteLayer';
+import { vehicleScreenDirection, vehicleSpriteRoadPivot, vehicleSpriteKind } from '../src/render/vehicleSpriteLayer';
 
 function cameraBasis(flipped: boolean): [THREE.Vector3, THREE.Vector3] {
   const side = flipped ? -1 : 1;
@@ -14,6 +14,16 @@ function cameraBasis(flipped: boolean): [THREE.Vector3, THREE.Vector3] {
 }
 
 describe('Vehicle sprite facings', () => {
+  it('assigns law enforcement artwork from the driver role while preserving vehicle kinds', () => {
+    expect(vehicleSpriteKind('coupe', 'police')).toBe('police');
+    expect(vehicleSpriteKind('coupe', 'policeChief')).toBe('police');
+    expect(vehicleSpriteKind('coupe', 'fbi')).toBe('fbi');
+    expect(vehicleSpriteKind('coupe', 'fbiHead')).toBe('fbi');
+    expect(vehicleSpriteKind('coupe', 'hood')).toBe('coupe');
+    expect(vehicleSpriteKind('coupe')).toBe('coupe');
+    expect(vehicleSpriteKind('truck', 'police')).toBe('truck');
+    expect(vehicleSpriteKind('speedster', 'fbi')).toBe('speedster');
+  });
   it('follows road directions when the city camera flips', () => {
     const [right, up] = cameraBasis(false);
     expect([0, -Math.PI / 2, Math.PI, Math.PI / 2].map(yaw =>
