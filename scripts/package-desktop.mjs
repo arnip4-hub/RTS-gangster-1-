@@ -15,6 +15,12 @@ const out = process.env.OG_RELEASE_DIR
   ?? (synced && process.env.LOCALAPPDATA ? path.join(process.env.LOCALAPPDATA, 'OriginalGangster-release') : 'release');
 console.log(`Packaging to ${path.resolve(out)}`);
 const started = Date.now();
+// Build Windows icon and NSIS bitmaps from the existing key art before electron-builder.
+// This also supports cross-platform Windows packaging when --win is passed.
+if (process.platform === 'win32' || process.argv.includes('--win')) {
+  const generate = spawnSync(process.execPath, [path.join('scripts', 'build-windows-branding.mjs')], { stdio: 'inherit' });
+  if (generate.status !== 0) process.exit(generate.status ?? 1);
+}
 const args = ['electron-builder', ...process.argv.slice(2), `-c.directories.output=${out}`];
 const run = spawnSync('npx', args, { stdio: 'inherit', shell: process.platform === 'win32' });
 if (run.status !== 0) process.exit(run.status ?? 1);
