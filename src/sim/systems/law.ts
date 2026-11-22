@@ -382,6 +382,8 @@ export function describeCrime(kind: string): string {
       return 'extortion';
     case 'shootout':
       return 'discharging a firearm';
+    case 'Shootout and homicide':
+      return 'murder during a shootout';
     case 'taxEvasion':
       return 'tax evasion';
     case 'illegalBusiness':
