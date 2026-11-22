@@ -102,20 +102,31 @@ function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick,
   onPlanHit: (personId: ID) => void; onBribeCitizen?: (personId: ID) => void;
 }) {
   const view = policeCaseView(w, crime, viewer);
+  const file = crime.police;
   const court = view.court;
   const officers = w.policeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
   const prosecutors = w.daIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
+  const judges = w.judgeIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active');
   const lead = crime.investigatorId == null || !view.disclosed ? undefined : w.people[crime.investigatorId];
   const assignedDa = view.prosecutorId == null ? undefined : w.people[view.prosecutorId];
+  const assignedJudge = court ? w.people[court.judgeId] : undefined;
   const jurors = court?.knowsJurors ? court.jurorIds.map(id => w.people[id]).filter((p): p is Person => !!p && p.status === 'active') : [];
   const chosen = picked == null ? undefined : w.people[picked];
   const official = chosen && ['police', 'da', 'judge', 'policeChief', 'mayor'].includes(chosen.role);
+  const charging = file?.prosecutorDecision ? ({ pending: 'Decision pending', investigate: 'Further investigation requested',
+    charge: 'Proceed with charges', decline: 'Charges declined' })[file.prosecutorDecision] : undefined;
   return <Modal title={`#${crime.id} · ${view.title}`} kicker="Case desk" onClose={onClose} width={640}
     footer={<button className="btn" onClick={onClose}>Close</button>}>
-    <div className="tiny">{view.status}</div>
-    {view.reason && <div className="muted tiny">{view.reason}</div>}
-    <div className="muted tiny" style={{ marginBottom: 8 }}>{view.suspectName ? `Named suspect: ${view.suspectName}`
-      : view.disclosed ? 'No offender has been identified.' : 'Ask the lawyer to open this file.'}</div>
+    <dl className="police-file-facts tiny">
+      <dt>Where it stands</dt><dd>{view.status}</dd>
+      {view.suspectName && <><dt>Named suspect</dt><dd>{view.suspectName}</dd></>}
+      {charging && <><dt>Charging</dt><dd>{charging}</dd></>}
+      {court && <><dt>Court</dt><dd>{{ awaiting: 'Awaiting hearing', onTrial: 'Hearing in progress', appealing: 'Appeal pending',
+        acquitted: 'Acquitted', convicted: 'Convicted', dismissed: 'Dismissed' }[court.status]}{court.trialAt != null && ['awaiting', 'onTrial'].includes(court.status) ? ` · hearing ${lawDeadline(w, court.trialAt)}` : ''}</dd></>}
+      {file?.reviewDueAt != null && file.prosecutorDecision === 'pending' && <><dt>Decision due</dt><dd>{lawDeadline(w, file.reviewDueAt)}</dd></>}
+      {file?.warrantAt != null && <><dt>Warrant</dt><dd>{file.suspectId != null && activeWarrants(w, file.suspectId).some(c => c.id === crime.id) ? 'Outstanding' : 'None active'}</dd></>}
+    </dl>
+    {view.reason && <div className="muted tiny" style={{ marginBottom: 8 }}>{view.reason}</div>}
     {!view.disclosed && <button className="btn sm" disabled={!canInquire} onClick={() => onInquiry(crime.id)}>Ask lawyer to investigate</button>}
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Police</h4>
@@ -127,6 +138,11 @@ function CaseDesk({ world: w, viewer, crime, canInquire, canHit, picked, onPick,
     {assignedDa ? <div className="muted tiny">Assigned to this file: {assignedDa.name}{assignedDa.bribedBy === viewer ? ' · bought' : ''}</div>
       : <div className="muted tiny">No prosecutor assigned yet. Buying one now means he sits on it later.</div>}
     <PickList people={prosecutors} picked={picked} onPick={onPick} mark={p => p.id === assignedDa?.id ? 'assigned' : p.bribedBy === viewer ? 'bought' : ''} />
+
+    <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Judge</h4>
+    {!court ? <div className="muted tiny">No judge until charges are filed.</div>
+      : <div className="muted tiny">Hearing judge: {assignedJudge?.name ?? 'Unassigned'}{court.judgeBribed ? ' · bought' : ''}</div>}
+    <PickList people={judges} picked={picked} onPick={onPick} mark={p => p.id === assignedJudge?.id ? 'hearing' : p.bribedBy === viewer ? 'bought' : ''} />
 
     <h4 className="tiny" style={{ margin: '12px 0 4px' }}>Jury</h4>
     {!court ? <div className="muted tiny">No jury until charges are filed.</div>
