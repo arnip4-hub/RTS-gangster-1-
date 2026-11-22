@@ -3906,6 +3906,12 @@
               },
               {
                 "literal": "goTo"
+              },
+              {
+                "literal": "guard"
+              },
+              {
+                "literal": "patrol"
               }
             ]
           }
@@ -3937,6 +3943,29 @@
           }
         },
         "bureauResponseApplied": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": false
+              },
+              {
+                "literal": true
+              }
+            ]
+          }
+        },
+        "patrolOrigin": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T10"
+              }
+            ]
+          }
+        },
+        "patrolReturning": {
           "optional": true,
           "shape": {
             "union": [
