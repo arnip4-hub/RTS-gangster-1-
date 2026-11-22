@@ -30,7 +30,8 @@
     "package:linux": "npm run build:release && node scripts/package-desktop.mjs --linux tar.gz",
     "package:mac": "npm run build:release && node scripts/package-desktop.mjs --mac --x64 --arm64",
     "desktop:smoke": "npm run build:release && node scripts/desktop-smoke.mjs",
-    "build:release": "npm run build && node scripts/optimize-art.mjs dist/art"
+    "build:release": "npm run build && node scripts/optimize-art.mjs dist/art",
+    "branding:win": "node scripts/build-windows-branding.mjs"
   },
   "dependencies": {
     "@wolffo/three-fire": "1.4.0",
@@ -77,12 +78,18 @@
       "target": [
         "nsis",
         "portable"
-      ]
+      ],
+      "icon": "build/windows/rts-gangster.ico"
     },
     "nsis": {
       "artifactName": "RTS-gangster-beta-Setup-${version}.${ext}",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/windows/rts-gangster.ico",
+      "uninstallerIcon": "build/windows/rts-gangster.ico",
+      "installerHeader": "build/windows/installerHeader.bmp",
+      "installerSidebar": "build/windows/installerSidebar.bmp",
+      "uninstallerSidebar": "build/windows/uninstallerSidebar.bmp"
     },
     "portable": {
       "artifactName": "RTS-gangster-beta-Portable-${version}.${ext}"
