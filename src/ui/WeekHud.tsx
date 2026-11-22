@@ -56,7 +56,7 @@ const OVERLAYS:{id:OverlayKind;label:string;caption:string}[]=[
 function currentOrder(p:Person,w:WorldState) {
   const staff = Object.values(w.specialistJobs ?? {}).find(j => j.actorId === p.id && j.week === w.week && ['travelling', 'working'].includes(j.state));
   if (staff) return staff.paused ? 'Waiting' : staff.type === 'audit' ? 'Audit' : staff.type === 'bribeOfficials' ? 'Bribe Officials' : staff.type === 'investigateCrime' ? 'Investigate case' : 'Employ Police';
-  if(p.streetOrder)return ({goTo:'Go to',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
+  if(p.streetOrder)return ({goTo:'Go to',guard:'Guard',patrol:'Patrol',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
   const order=p.orderId==null?null:w.orders[p.orderId];
   return order?.state==='waiting'?'Waiting':cargoActivity(w,p)??(order?ORDERS[order.type].name:restingStatus(w,p));
 }
