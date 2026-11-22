@@ -1354,7 +1354,7 @@ export function snitchPrice(w: WorldState, gangId: ID, targetGangIds: ID[]): num
 
 // ---------------------------------------------------------------- street orders
 
-export type StreetOrderType = 'kill' | 'assault' | 'tail' | 'goTo';
+export type StreetOrderType = 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol';
 
 export function issueStreetOrder(
   w: WorldState,
@@ -1367,8 +1367,8 @@ export function issueStreetOrder(
   if (!w.gangs[gangId] || personIds.some((id) => !w.people[id] || w.people[id].gangId !== gangId || w.people[id].status !== 'active')) {
     return fail('Choose available people from your gang.');
   }
-  if (!['goTo', 'tail', 'assault', 'kill'].includes(type)) return fail('No such street order.');
-  if (type === 'goTo') {
+  if (!['goTo', 'guard', 'patrol', 'tail', 'assault', 'kill'].includes(type)) return fail('No such street order.');
+  if (type === 'goTo' || type === 'guard' || type === 'patrol') {
     if (!validPoint(w, pos)) return fail('Choose a place inside the city.');
   } else {
     const target = targetPersonId != null ? w.people[targetPersonId] : null;
@@ -1378,7 +1378,7 @@ export function issueStreetOrder(
   if (!actors.length) return fail('Nobody selected.');
   // The accountant and the lawyer are not fighting men: they go where they
   // are sent and nothing more.
-  if (type !== 'goTo' && actors.some((a) => a.role === 'accountant' || a.role === 'lawyer')) {
+  if (['tail', 'assault', 'kill'].includes(type) && actors.some((a) => a.role === 'accountant' || a.role === 'lawyer')) {
     return fail('The accountant and the lawyer will only go where you send them.');
   }
 
@@ -1403,18 +1403,23 @@ export function issueStreetOrder(
       }
       a.orderId = null;
     }
-    a.streetOrder = { type, targetPersonId, pos: pos ? { ...pos } : null };
+    a.streetOrder = {
+      type, targetPersonId, pos: pos ? { ...pos } : null,
+      ...(type === 'patrol' ? { patrolOrigin: { ...a.pos }, patrolReturning: false } : {}),
+    };
     clearDestination(a);
-    if (type === 'goTo' && pos) setDestination(w, a, pos);
+    if (['goTo', 'guard', 'patrol'].includes(type) && pos) setDestination(w, a, pos);
   }
   // Start the route now, so the renderer can show movement between minute
   // ticks. Allocate after every actor has their new task, as the tick does.
-  if (type !== 'goTo') {
+  if (type === 'tail' || type === 'assault' || type === 'kill') {
     const loadout = allocateWeapons(w), target = w.people[targetPersonId!];
     for (const a of actors) prepareStreetPursuit(w,a,target,streetOrderRange(a,loadout));
   }
   const subject = actors.length === 1 ? actors[0].name : `${actors.length} of your people`;
   const message = type === 'goTo' ? `${subject}: moving to the selected location.` :
+    type === 'guard' ? `${subject}: guarding the selected position.` :
+    type === 'patrol' ? `${subject}: patrolling between the starting point and the selected position.` :
     `${subject}: ${type === 'kill' ? 'Kill' : type === 'assault' ? 'Assault' : 'Tail'} ${w.people[targetPersonId!].name}.`;
   addMessage(
     w,
