@@ -126,15 +126,15 @@ describe('RTS hearings and interference', () => {
     expect(court.status).toBe('onTrial');
   });
 
-  it('a judge bribe ends the source warrant and detention as well as the court case', () => {
+  it('a judge bribe influences the RTS hearing without automatically dismissing the case', () => {
     const s = fixture(); s.review();
     const court = s.court(); s.file.warrantAt = 0;
     expect(completeOfficialBribe(s.w, s.gang.id, s.w.people[court.judgeId], 100).ok).toBe(true);
-    expect(court.status).toBe('dismissed');
-    expect(s.file.stage).toBe('closed');
-    expect(s.file.warrantAt).toBeUndefined();
-    expect(s.defendant.custody).toBeUndefined();
-    expect(s.defendant.status).toBe('active');
+    expect(court.judgeBribed).toBe(true);
+    expect(court.status).toBe('awaiting');
+    expect(s.file.stage).toBe('charged');
+    expect(s.defendant.status).toBe('onTrial');
+    expect(s.defendant.custody).toBeDefined();
   });
 
   it('keeps established legacy hearings on an explicit future date', () => {
