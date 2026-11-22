@@ -4,7 +4,7 @@ import { Sim } from '../src/sim/sim';
 import { clearStreetOrder, issueStreetOrder } from '../src/sim/api';
 import { clearDestination } from '../src/sim/movement';
 import { tickStreetOrders } from '../src/sim/systems/street';
-import { act, useGame } from '../src/app/store';
+import { useGame } from '../src/app/store';
 import { handleMapHit } from '../src/ui/mapClick';
 import type { WorldState } from '../src/sim/types';
 

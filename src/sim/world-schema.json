@@ -5192,6 +5192,9 @@
                 "literal": "goTo"
               },
               {
+                "literal": "patrol"
+              },
+              {
                 "literal": "buyPremises"
               },
               {
@@ -5214,9 +5217,6 @@
               },
               {
                 "literal": "guardBusiness"
-              },
-              {
-                "literal": "patrol"
               },
               {
                 "literal": "explore"

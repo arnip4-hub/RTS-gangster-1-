@@ -28,11 +28,6 @@ jobs:
 
       - run: npm ci
 
-      - name: Diagnose generated save schema drift
-        shell: pwsh
-        run: |
-          node scripts/build-save-schema.mjs
-          git diff -- src/sim/world-schema.json
 
       - name: Check targeting, pricing, skills, map and calendar regressions
         run: npx vitest run tests/target-owner-privacy.test.ts tests/upstream-pricing.test.ts tests/order-skills.test.ts tests/person-names.test.ts tests/map-intel.test.ts tests/planning-selection.test.ts tests/building-outline.test.ts tests/combat-weapons.test.ts tests/order-staffing.test.ts tests/calendar-modes.test.ts tests/continuous-week.test.ts tests/week-scheduling.test.ts tests/hood-selection.test.ts tests/street-guard-patrol.test.ts
