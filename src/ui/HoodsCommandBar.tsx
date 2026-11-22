@@ -90,10 +90,10 @@ export function HoodsCommandBar() {
     }
     game().setPickMode({ kind: 'streetOrder', orderType: kind, personIds: actors.map(p => p.id) });
     game().notify(targeted
-      ? \`Click a person to \${kind} with \${actors.length} selected.\`
+      ? `Click a person to ${kind} with ${actors.length} selected.`
       : kind === 'patrol' ? 'Click the other end of the patrol route.'
       : kind === 'guard' ? 'Click the position to guard.'
-      : \`Click the destination for \${actors.length} selected.\`);
+      : `Click the destination for ${actors.length} selected.`);
   };
 
   const flee = () => {
@@ -103,8 +103,8 @@ export function HoodsCommandBar() {
     const failures = result.filter(r => !r.ok);
     game().setPickMode(null);
     game().notify(failures.length
-      ? \`\${result.length - failures.length} recalled; \${failures.length} could not retreat.\`
-      : \`\${result.length} member\${result.length === 1 ? '' : 's'} retreating to base.\`);
+      ? `${result.length - failures.length} recalled; ${failures.length} could not retreat.`
+      : `${result.length} member${result.length === 1 ? '' : 's'} retreating to base.`);
   };
 
   const stop = () => {
@@ -112,7 +112,7 @@ export function HoodsCommandBar() {
     const result = act(s => clearStreetOrder(s.world, streetOrders.map(p => p.id)));
     if (result) {
       game().setPickMode(null);
-      game().notify(\`Stopped \${streetOrders.length} street order\${streetOrders.length === 1 ? '' : 's'}.\`);
+      game().notify(`Stopped ${streetOrders.length} street order${streetOrders.length === 1 ? '' : 's'}.`);
     }
   };
 
@@ -130,7 +130,7 @@ export function HoodsCommandBar() {
   };
 
   return (
-    <section className={\`hood-command-bar\${collapsed ? ' is-collapsed' : ''}\`} aria-label="Hoods command bar">
+    <section className={`hood-command-bar${collapsed ? ' is-collapsed' : ''}`} aria-label="Hoods command bar">
       <div className="hood-bar-header">
         <strong className="hood-bar-title">HOODS <small>LIVE COMMAND</small></strong>
         <div className="hood-crew-tabs" role="group" aria-label="Select a crew or the pool">
@@ -138,7 +138,7 @@ export function HoodsCommandBar() {
             const t = w.teams[id];
             if (!t) return null;
             return <button key={id} aria-pressed={!poolMode && team?.id === id}
-              onClick={() => showGroup(String(id))} title={\`Select all members of \${t.name}\`}>{t.name}</button>;
+              onClick={() => showGroup(String(id))} title={`Select all members of ${t.name}`}>{t.name}</button>;
           })}
           <button aria-pressed={poolMode} onClick={() => showGroup('pool')}>Pool ({gang.poolIds.length})</button>
         </div>
@@ -154,13 +154,13 @@ export function HoodsCommandBar() {
         <div className="hood-bar-roster" role="group" aria-label="Eight Hoods slots">
           {slots.map((p, index) => p ? <button key={p.id}
             className="hood-bar-slot" aria-pressed={selectedIds.includes(p.id)}
-            aria-label={\`Slot \${index + 1}: \${p.name}, \${personDuty(p)}\`}
-            title={\`\${p.name} · \${p.role} · \${personDuty(p)} · Ctrl-click to multi-select; Shift-click for a range\`}
+            aria-label={`Slot ${index + 1}: ${p.name}, ${personDuty(p)}`}
+            title={`${p.name} · ${p.role} · ${personDuty(p)} · Ctrl-click to multi-select; Shift-click for a range`}
             onClick={e => choose(p, e)}>
             <span className="hood-slot-number">{index + 1 + activePage * HOOD_SLOTS}</span>
             <Portrait person={p} gang={gang} size={34}/>
             <span className="hood-slot-text"><b>{p.name}</b><small>{personDuty(p)}</small></span>
-          </button> : <div className="hood-bar-empty" key={\`empty-\${index}\`} aria-label={\`Empty slot \${index + 1}\`}>
+          </button> : <div className="hood-bar-empty" key={`empty-${index}`} aria-label={`Empty slot ${index + 1}`}>
             <span className="hood-slot-number">{index + 1 + activePage * HOOD_SLOTS}</span><span>Empty</span>
           </div>)}
         </div>
@@ -181,7 +181,7 @@ export function HoodsCommandBar() {
                 onClick={() => startCommand(kind)} title={kind === 'guard' ? 'Hold the position selected on the map' :
                   kind === 'patrol' ? 'Keep travelling between current and selected positions' :
                   kind === 'tail' ? 'Follow a person selected on the street' :
-                  kind === 'goTo' ? 'Move selected people to a location' : \`\${label} a selected target\`}>{label}</button>)}
+                  kind === 'goTo' ? 'Move selected people to a location' : `${label} a selected target`}>{label}</button>)}
             <button className="hood-action hood-action-retreat" disabled={!movable.length} onClick={flee}
               title="Break off assignments and retreat to the nearest gang office">Flee / HQ</button>
             <button className="hood-action" disabled={!streetOrders.length} onClick={stop}

@@ -28,7 +28,7 @@ import { Icon } from './common';
 import { InterfaceButton, WindowHeading } from './InterfaceControls';
 import { MapAccess } from './MapAccess';
 import { RightSheet } from './organizer/RightSheet';
-import { Portrait } from './Portrait';
+import { HoodsCommandBar } from './HoodsCommandBar';
 import { Minimap } from './Minimap';
 import { TaggedWindow } from './TaggedWindow';
 import { TutorialPanel } from './TutorialPanel';
@@ -64,10 +64,7 @@ export function WeekHud() {
   const sim=useGame(s=>s.sim)!;
   const paused=useGame(s=>s.paused), finishing=useGame(s=>s.finishingWeek);
   const organizerOpen=useGame(s=>s.organizerOpen);
-  const selectedTeamId=useGame(s=>s.selectedTeamId);
-  const selectedHoodId=useGame(s=>s.selectedPersonId);
   const sheet=useGame(s=>s.sheet);
-  const [barChoice,setBarChoice]=useState<{kind:'team'|'person';id:number}|null>(null);
   const weekPlanOpen=useGame(s=>s.weekPlanOpen);
   const filter=useGame(s=>s.messageFilter), override=useGame(s=>s.messageOverride);
   const messageBox=useGame(s=>s.messageBox), taggedIds=useGame(s=>s.taggedPersonIds);
@@ -122,35 +119,6 @@ export function WeekHud() {
     state().notify(`Click where ${name} should go.`);
   };
   const eventView=(m:typeof message|undefined)=>{if(!m)return;if(m.pos)state().requestCamera(m.pos);if(m.personId!=null)state().selectPerson(m.personId);};
-  // The standalone live command bar is ported from Codex commit 3d0cc1a.
-  // Selection of a single hood takes precedence over the highlighted crew,
-  // so a map order cannot accidentally send a whole team.
-  const chosenTeamId=barChoice?.kind==='team'?barChoice.id:selectedTeamId;
-  const selectedTeam=chosenTeamId!=null&&gang.teamIds.includes(chosenTeamId)?w.teams[chosenTeamId]:undefined;
-  const teamPeople=selectedTeam
-    ? [w.people[selectedTeam.lieutenantId],...selectedTeam.memberIds.map(id=>w.people[id])]
-      .filter((p):p is Person=>!!p&&p.status!=='dead'&&p.gangId===gang.id)
-    : [];
-  const activePersonId=barChoice?.kind==='person'?barChoice.id:selectedHoodId;
-  const candidate=activePersonId!=null?w.people[activePersonId]:undefined;
-  const selectedHood=candidate?.gangId===gang.id&&candidate.status!=='dead'?candidate:null;
-  const individualChosen=barChoice?.kind==='person'||(!barChoice&&!selectedTeam&&!!selectedHood);
-  const chooseHood=(p:Person)=>{
-    if(p.gangId!==gang.id)return;
-    setBarChoice({kind:'person',id:p.id});
-    state().focusPerson(p.id);
-    state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));
-  };
-  const chooseTeam=(id:number)=>{
-    setBarChoice({kind:'team',id});
-    state().selectTeam(id);
-  };
-  const orderCommandSelection=()=>{
-    if(individualChosen&&selectedHood)moveCrew([selectedHood],selectedHood.name);
-    else if(selectedTeam)moveCrew(teamPeople,selectedTeam.name);
-    else if(selectedHood)moveCrew([selectedHood],selectedHood.name);
-  };
-
   return <div className="classic-hud">
     <header className="week-bars">
       <div className="week-titlebar">
@@ -201,48 +169,7 @@ export function WeekHud() {
         <MapAccess className="interface-map-search" label="Find…"/>
       </nav>
     </header>
-    <section className="hood-command-bar" aria-label="Hoods and crews">
-      <div className="hood-command-roster">
-        <span className="hood-command-label">Crews</span>
-        {gang.teamIds.map(id=>{
-          const team=w.teams[id],leader=team&&w.people[team.lieutenantId];
-          if(!team||!leader)return null;
-          return <button key={id} className="hood-command-chip" aria-pressed={!!selectedTeam&&selectedTeam.id===id&&!individualChosen}
-            title={`${leader.name} · ${currentOrder(leader,w)}`} onClick={()=>chooseTeam(id)}>
-            <Portrait person={leader} gang={gang} size={30}/>
-            <span><b>{team.name}</b><small>{leader.name} · {currentOrder(leader,w)}</small></span>
-          </button>;
-        })}
-        {gang.poolIds.map(id=>{
-          const person=w.people[id];
-          if(!person||person.status==='dead'||person.gangId!==gang.id)return null;
-          return <button key={`pool-${id}`} className="hood-command-chip" aria-pressed={individualChosen&&selectedHood?.id===id}
-            title={`${person.name} · ${currentOrder(person,w)}`} onClick={()=>chooseHood(person)}>
-            <Portrait person={person} gang={gang} size={30}/>
-            <span><b>{person.name}</b><small>Pool · {currentOrder(person,w)}</small></span>
-          </button>;
-        })}
-      </div>
-      <div className="hood-command-actions">
-        {(selectedTeam||selectedHood)&&<button className="hood-action" onClick={orderCommandSelection}
-          disabled={individualChosen?!selectedHood||selectedHood.status!=='active':selectedTeam?!teamPeople.some(p=>p.status==='active'):selectedHood?.status!=='active'}
-          title={individualChosen?'Choose a map destination for this hood':'Choose a map destination for this crew'}>Go to map</button>}
-        {selectedHood&&individualChosen&&<button className="hood-action" onClick={()=>state().selectPerson(selectedHood.id)}>Hood details</button>}
-        {selectedTeam&&<button className="hood-action" onClick={()=>teamPeople[0]&&state().selectPerson(teamPeople[0].id)} disabled={!teamPeople.length}>Crew details</button>}
-        <button className="hood-action" onClick={()=>state().setSheet({kind:'hoods'})}>Pool · {gang.poolIds.length}</button>
-        <button className="hood-action" onClick={()=>state().setSheet({kind:'recruits'})}>Recruit · {gang.recruitIds.length}</button>
-        <button className="hood-action" onClick={()=>state().setSheet({kind:'weapons'})}>Weapons</button>
-        <button className="hood-action" onClick={()=>state().setSheet({kind:'vehicles'})}>Cars</button>
-      </div>
-      {selectedTeam&&<div className="hood-team-status" aria-live="polite">
-        <b>{selectedTeam.name}</b>
-        {teamPeople.map(p=><button key={p.id} aria-pressed={individualChosen&&selectedHood?.id===p.id}
-          onClick={()=>chooseHood(p)} title={`Select and follow ${p.name}`}>
-          <Portrait person={p} gang={gang} size={20}/>
-          <span>{p.name} · {currentOrder(p,w)}</span>
-        </button>)}
-      </div>}
-    </section>
+    <HoodsCommandBar/>
     <div className="week-windows">
       {taggedIds.map(id=><TaggedWindow key={id} id={id}/>)}
       {listsOpen && <section id="person-lists-window" className="interface-window street-list" aria-label="Person lists">
