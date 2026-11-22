@@ -1004,6 +1004,8 @@ export interface CrimeRecord {
   charge?: true;
   /** Shots absorbed into this gunfight file. Absent means a single incident. */
   shots?: number;
+  /** Last shot absorbed into this gunfight, for the moving merge window. */
+  lastShotAt?: number;
 }
 
 export interface CourtCase {

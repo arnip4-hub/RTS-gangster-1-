@@ -158,8 +158,8 @@ function recentGunfight(w: WorldState, shooterId: ID, pos: { x: number; y: numbe
     if (c.kind !== 'shootout' && c.kind !== SHOOTOUT_HOMICIDE) continue;
     // A file that already names a different victim cannot absorb another killing.
     if (victimId != null && c.victimId != null && c.victimId !== victimId) continue;
-    const opened = c.police?.openedAt ?? c.reportedAt;
-    if (opened == null || now - opened > GUNFIGHT_MERGE_MINUTES) continue;
+    const last = c.lastShotAt ?? c.police?.openedAt ?? c.reportedAt;
+    if (last == null || now - last > GUNFIGHT_MERGE_MINUTES) continue;
     const scene = c.police?.pos;
     if (!scene) continue;
     const dx = scene.x - pos.x, dy = scene.y - pos.y;
@@ -177,6 +177,8 @@ function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number
   const existing = recentGunfight(w, shooter.id, pos, homicide ? victimId : undefined);
   if (existing) {
     existing.shots = (existing.shots ?? 1) + 1;
+    existing.lastShotAt = campaignMinute(w);
+    if (existing.police) existing.police.pos = pos;
     if (homicide) {
       existing.kind = SHOOTOUT_HOMICIDE;
       if (existing.victimId == null && victimId != null) existing.victimId = victimId;
@@ -193,6 +195,7 @@ function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number
     severity: homicide ? 9 : 4,
   });
   crime.shots = 1;
+  crime.lastShotAt = campaignMinute(w);
   if (homicide) crime.kind = SHOOTOUT_HOMICIDE;
 }
 
@@ -223,8 +226,10 @@ function exchange(w: WorldState, rng: Rng, a: Person, b: Person, loadout: Loadou
       if (w.gangs[a.gangId!]?.isPlayer || w.gangs[b.gangId!]?.isPlayer) {
         addMessage(w, 'combat', `${b.name} was ${weapon ? 'shot dead' : 'killed in close combat'} in the street.`, b.pos, b.id, weapon ? 'gunshot' : undefined);
       }
-    } else if (w.gangs[a.gangId!]?.isPlayer || w.gangs[b.gangId!]?.isPlayer) {
-      addMessage(w, 'combat', weapon ? `Shots exchanged — ${b.name} is hit.` : `${b.name} was struck in close combat.`, b.pos, b.id, weapon ? 'gunshot' : undefined);
+    } else {
+      if (weapon) fileGunfight(w, rng, a, b.pos, false);
+      if (w.gangs[a.gangId!]?.isPlayer || w.gangs[b.gangId!]?.isPlayer)
+        addMessage(w, 'combat', weapon ? `Shots exchanged — ${b.name} is hit.` : `${b.name} was struck in close combat.`, b.pos, b.id, weapon ? 'gunshot' : undefined);
     }
   } else {
     if (weapon) fileGunfight(w, rng, a, a.pos, false);

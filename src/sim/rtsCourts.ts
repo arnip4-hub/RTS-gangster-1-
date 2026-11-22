@@ -337,7 +337,8 @@ function progressRtsCases(w: WorldState, rng: Rng): void {
     const judgeIntegrity = judge ? ensurePublicService(judge)?.integrity ?? 60 : 60;
     if (court.judgeBribed) prosecution *= 1 - (.1 + (100 - judgeIntegrity) * .002);
     else if ((judge?.opinion[gang.id] ?? 0) > 55) prosecution *= .9;
-    const defence = (lawyer?.skills.intelligence ?? .5) * 10 + friendlyJurors * 7 + 10;
+    const jurorWeight = 7 * (1 - Math.min(100, court.strength) / 140);
+    const defence = (lawyer?.skills.intelligence ?? .5) * 10 + friendlyJurors * jurorWeight + 10;
     const variance = .08 + (100 - (judge ? serviceQuality(judge) : 50)) * .0008;
     const convicted = prosecution * rng.range(1 - variance, 1 + variance) > defence * rng.range(1 - variance, 1 + variance);
     recordServiceCase(da);
