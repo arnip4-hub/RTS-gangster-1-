@@ -56,8 +56,8 @@ describe('building-to-hood dispatch', () => {
     const destination=buildingDoor(s.w,s.building);
     const result=issueStreetOrder(s.w,s.gang.id,[actor.id],'goTo',null,destination);
     expect(result.ok).toBe(true);
-    expect(actor.streetOrder?.type).toBe('goTo');
-    expect(actor.streetOrder?.pos).toEqual(destination);
+    expect(s.w.people[actor.id].streetOrder?.type).toBe('goTo');
+    expect(s.w.people[actor.id].streetOrder?.pos).toEqual(destination);
     expect(others.every(p => p.streetOrder === null)).toBe(true);
   });
 
