@@ -58,6 +58,9 @@ const PUBLIC_ROLES=new Set(['citizen','police','firefighter','policeChief','fbi'
 export function streetPersonVisible(person:Person,selected:number|null):boolean {
   // Awaiting trial is custody, as much as a cell.
   if(OFF_STREET.has(person.status)) return false;
+  // The detainee stays visible only while the officer is securing or escorting them.
+  // In a police car or a cell, only the transporting officer is drawn on the street.
+  if(person.status==='arrested') return person.custody?.transport==='scene' || person.custody?.transport==='escorted';
   // Inside a street tram: taken off the map while he rides (0x712810).
   if(person.tram?.phase==='riding' || person.tramTrip?.phase==='riding') return false;
   // The boss is an office resident, not a street actor exposed by lowering a roof.
