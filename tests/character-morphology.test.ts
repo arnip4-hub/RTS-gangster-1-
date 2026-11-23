@@ -80,7 +80,8 @@ describe('shared 3D character morphology', () => {
     expect(feetHeavy.distanceTo(feetAverage)).toBeLessThan(.0001);
     const handAverage = bodyBounds(average.model, /^lefthand$/i).getCenter(new THREE.Vector3());
     const handHeavy = bodyBounds(heavy.model, /^lefthand$/i).getCenter(new THREE.Vector3());
-    expect(handHeavy.x - handAverage.x).toBeGreaterThan(.065);
+    // Hand joints are untouched; weapon grips are not translated by build.
+    expect(Math.abs(handHeavy.x - handAverage.x)).toBeLessThan(.02);
     // Animation channels and inverse bindings retain their authored values.
     expect(arm.position.equals(shoulder)).toBe(true);
     expect(bones.skeleton.boneInverses.map(matrix => matrix.toArray())).toEqual(inverseMatrices);
@@ -127,6 +128,23 @@ describe('shared 3D character morphology', () => {
     expect(disposed).toHaveBeenCalledOnce();
     expect(cache.size).toBe(2); expect(cache.referenceCount).toBe(2);
     cache.dispose(); expect(cache.size).toBe(0); expect(cache.referenceCount).toBe(0);
+  });
+
+  it('deforms the same bind geometry regardless of sampled walking phase', async () => {
+    const asset = await geometryAsset('fedora'), still = rig(asset), walking = rig(asset);
+    const cache = new CharacterMorphologyCache();
+    walking.mixer.setTime(walking.clip.duration * .42);
+    walking.model.updateMatrixWorld(true);
+    const appearance = { build: 'heavy' as const, heightScale: 1.06, faceIndex: 6 };
+    expect(cache.apply(still.model, appearance)).toBe(true);
+    expect(cache.apply(walking.model, appearance)).toBe(true);
+    const a = still.model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+    const b = walking.model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+    // Cache keys, bind-pose geometry and inverse bindings are pose-independent.
+    expect(a.geometry).toBe(b.geometry);
+    expect(Array.from(a.geometry.getAttribute('position').array))
+      .toEqual(Array.from(b.geometry.getAttribute('position').array));
+    cache.dispose();
   });
 
   it('keeps short and tall equipment masks separate on otherwise identical bodies', async () => {
