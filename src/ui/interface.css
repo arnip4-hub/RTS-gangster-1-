@@ -3,12 +3,18 @@
 .classic-hud { position: absolute; inset: 0; z-index: 6; pointer-events: none; color: #332b20; --control-face: linear-gradient(#d8cbae, #b6a585); --control-edge: #73654e; }
 .classic-hud button:focus-visible, .planning-interface button:focus-visible { outline: 2px solid #fff5ce; outline-offset: 2px; box-shadow: 0 0 0 4px #55442d; }
 .week-bars { position: absolute; top: 0; left: 0; right: 0; pointer-events: auto; background: #655b49; box-shadow: 0 2px 6px #0008; }
-.week-titlebar { height: 26px; display: flex; align-items: center; gap: 18px; padding: 0 12px 0 4px; color: #eee4c9; background: linear-gradient(#60513d,#3b3227); font-size: 12px; border-bottom: 1px solid #bca77b; }
+.week-titlebar { height: 28px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 4px; color: #eee4c9; background: linear-gradient(#60513d,#3b3227); font-size: 12px; border-bottom: 1px solid #bca77b; }
 .week-exit { border: 1px solid #978569; font: 600 12px var(--font-heading); padding: 1px 14px; color: #f4e9d0; box-shadow: inset 1px 1px #b9aa8c55; }
 .week-exit:hover { background: #8b7553; }
+.week-title-actions { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.week-quick-links { display: flex; align-items: center; gap: 5px; min-width: 0; flex: 0 1 auto; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; border-left: 1px solid rgba(240, 212, 137, .38); padding-left: 9px; }
+.week-quick-links::-webkit-scrollbar { display: none; }
+.week-quick-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: max-content; height: 21px; flex: 0 0 auto; padding: 1px 8px; font: 600 11px var(--font-heading); white-space: nowrap; border: 1px solid #978569; color: #f4e9d0; box-shadow: inset 1px 1px #b9aa8c55; }
+.week-quick-button .icon { flex: 0 0 auto; }
+.week-title-time { display: flex; align-items: center; gap: 8px; white-space: nowrap; flex: 0 0 auto; font-size: 11px; color: #e8c778; }
 .week-status { color: #d4c3a1; }
-.week-place { flex: 1 1 auto; min-width: 0; text-align: center; font-style: italic; color: #f4e9d0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.week-cash { margin-left: auto; }
+.week-place { flex: 1 1 100px; min-width: 0; text-align: center; font-style: italic; color: #f4e9d0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.week-cash { margin-left: auto; flex: 0 0 auto; white-space: nowrap; }
 .week-cash b { font-variant-numeric: tabular-nums; margin-left: 8px; font-size: 15px; }
 .week-iconbar { display: flex; align-items: stretch; gap: 7px; padding: 4px 6px; overflow-x: auto; background: linear-gradient(#a49478,#807059); scrollbar-width: thin; scrollbar-color: #d8c5a1 #73654e; }
 .interface-control-group { display: flex; gap: 2px; flex-shrink: 0; padding-right: 7px; border-right: 1px solid #514733; }
@@ -119,6 +125,25 @@
 .planning-interface .journal-tools { align-items: center; }
 .journal-help { color: #f1ddb2; border: 1px solid #9d8252; padding: 1px 8px; font: 600 15px var(--font-heading); }
 
+/* At tighter widths, retain the street clock, location and cash.
+   Shortcuts scroll within their own strip rather than pushing them offscreen. */
+@media (max-width: 1400px) {
+  .week-titlebar { gap: 6px; }
+  .week-quick-links { gap: 3px; padding-left: 6px; }
+  .week-quick-button { padding-inline: 6px; }
+  .week-title-time { gap: 5px; }
+}
+@media (max-width: 1050px) {
+  .week-title-time .week-status { display: none; }
+  .week-quick-links { flex: 1 1 180px; }
+}
+@media (max-width: 700px) {
+  .week-titlebar { flex-wrap: wrap; height: auto; min-height: 28px; row-gap: 3px; padding-block: 2px; }
+  .week-quick-links { order: 3; flex: 1 0 100%; padding: 2px 0 0; border-left: 0; border-top: 1px solid #ab804d88; }
+  .week-title-time { margin-left: auto; }
+  .week-place { display: none; }
+  .week-cash { margin-left: 0; }
+}
 @media (max-width: 1000px) {
   .week-windows { gap: 8px; }
   .classic-hud .tagged-window { width: 270px; }
@@ -174,7 +199,7 @@
   color: #f0dfb4;
   text-shadow: 0 1px 2px #000;
 }
-.week-titlebar > span:first-of-type, .week-status { color: #e8c778; }
+.week-title-time, .week-status { color: #e8c778; }
 .week-place { color: #f7efd9; font-family: 'Cinzel', serif; font-style: normal; letter-spacing: 0.06em; }
 .week-cash { color: #e8c778; }
 .week-cash b { color: #fff3d0; }
@@ -185,6 +210,18 @@
   text-shadow: 0 1px 0 rgba(255, 248, 225, 0.6);
 }
 .week-exit:hover { background: var(--control-face); filter: brightness(1.08); }
+.week-exit[aria-pressed="true"], .week-quick-button[aria-pressed="true"] {
+  background: var(--brass-button); border-color: var(--brass-edge);
+  color: #25170a; box-shadow: inset 0 1px 4px #2b18055e;
+}
+.week-quick-button {
+  background: var(--control-face);
+  border: 1px solid #7a5716;
+  color: #33210f;
+  text-shadow: 0 1px 0 rgba(255, 248, 225, .6);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 230, .6), 0 1px 3px #0007;
+}
+.week-quick-button:hover { filter: brightness(1.08); }
 .week-iconbar {
   background: transparent;
   scrollbar-color: #b8862a #2a1a0e;
