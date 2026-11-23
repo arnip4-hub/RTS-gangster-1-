@@ -74,7 +74,6 @@ export class CharacterMorphologyCache {
     this.release(model);
     model.updateWorldMatrix(true, true);
     const scale = model.scale.clone(), position = model.position.clone();
-    const frame = model.parent ? model.parent.matrixWorld.clone().invert() : new THREE.Matrix4();
     const indexed = characterFaceMorph(appearance.faceIndex);
     // Catalog presets also carry descriptive id/sex fields. Only numeric
     // shape parameters belong in deformation and its cache signature.
