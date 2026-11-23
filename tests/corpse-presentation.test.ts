@@ -48,17 +48,15 @@ describe('illustrated 3D street corpse presentation', () => {
     expect(heldCorpseAction(burned, cue)).toBe(cue);
   });
 
-  it('uses police sheets for uncovered bodies in pure 3D', () => {
-    const context = new Proxy({}, { get: (_object, key) => key === 'canvas' ? {} : () => {} });
-    vi.stubGlobal('document', { createElement: () => ({ width: 256, height: 256, getContext: () => context }) });
+  it('draws no sheet under an uncovered body, then a 3D sheet once covered', () => {
     const w = world(), now = campaignMinute(w), p = victim();
     w.people[p.id] = p;
     const marks = new DeathMarks(8);
     const counts = (m: DeathMarks) => m.group.children.map(child => (child as THREE.InstancedMesh).count);
     try {
       marks.update(w);
-      // Uncovered body stage now draws as a sheet (no 2D body atlas).
-      expect(counts(marks)).toEqual([1, 0]);
+      // Uncovered body stays as the 3D character; no sheet underneath.
+      expect(counts(marks)).toEqual([0, 0]);
       p.bodyRecovery = { coveredAt: now, collectedAt: now + 5 };
       marks.update(w);
       expect(counts(marks)).toEqual([1, 0]);

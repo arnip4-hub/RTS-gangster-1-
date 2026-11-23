@@ -40,4 +40,17 @@ describe('1930s enamel and traffic variants', () => {
     built.parts.forEach(part => { part.geometry.dispose(); part.dispose(); });
     built.ownedMaterials.forEach(material => material.dispose());
   });
+
+  it('keeps truck canvas above the bed and police cream on the doors only', () => {
+    const source = new THREE.MeshStandardMaterial();
+    const truck = paintedVehicleMaterial(source, 'truck', { length: 5.54, width: 1.98, height: 2.43 }) as THREE.MeshStandardMaterial;
+    const coupe = paintedVehicleMaterial(source, 'coupe', { length: 4.64, width: 1.86, height: 1.92 }) as THREE.MeshStandardMaterial;
+    const shader = { vertexShader: '\n#include <common>\n#include <color_vertex>\n', fragmentShader: '\n#include <common>\n#include <map_fragment>\n' };
+    truck.onBeforeCompile(shader as Parameters<THREE.Material['onBeforeCompile']>[0], {} as THREE.WebGLRenderer);
+    expect(shader.fragmentShader).toContain('step(1.142100, vVehiclePoint.y)');
+    expect(shader.fragmentShader).toContain('canvasTint');
+    coupe.onBeforeCompile(shader as Parameters<THREE.Material['onBeforeCompile']>[0], {} as THREE.WebGLRenderer);
+    expect(shader.fragmentShader).toContain('step(-0.835200, vVehiclePoint.x)');
+    expect(shader.fragmentShader).toContain('step(0.632400, abs(vVehiclePoint.z))');
+  });
 });

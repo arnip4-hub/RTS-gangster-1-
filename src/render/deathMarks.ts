@@ -7,40 +7,69 @@ import { KERB_H } from './util';
 const LENGTH = 2.3, WIDTH = 1.35;
 type MarkKind = 'sheet' | 'charred';
 
-function markTexture(kind: MarkKind): THREE.CanvasTexture {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 256;
-  const ctx = canvas.getContext('2d')!;
-  ctx.lineJoin = 'round';
-  if (kind === 'sheet') {
-    // Shoes remain visible below the cloth; folds separate it from a white tile.
-    ctx.fillStyle = '#292723'; ctx.fillRect(92, 220, 25, 17); ctx.fillRect(140, 220, 25, 17);
-    ctx.beginPath(); ctx.moveTo(94, 35); ctx.quadraticCurveTo(128, 14, 163, 35);
-    ctx.lineTo(184, 92); ctx.lineTo(172, 205); ctx.quadraticCurveTo(128, 221, 83, 205);
-    ctx.lineTo(72, 92); ctx.closePath();
-    ctx.fillStyle = '#f0ece2'; ctx.fill(); ctx.strokeStyle = '#b5afa2'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.strokeStyle = 'rgba(115,112,105,.48)'; ctx.lineWidth = 3;
-    for (const [x, y] of [[93, 89], [158, 111], [100, 155], [151, 182]]) {
-      ctx.beginPath(); ctx.moveTo(x - 13, y - 8); ctx.quadraticCurveTo(x + 4, y, x + 13, y + 14); ctx.stroke();
+/** Low draped cloth over a concealed figure, with slight shoe tips at the foot. */
+function drapedSheetGeometry(): THREE.BufferGeometry {
+  const geo = new THREE.BufferGeometry();
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const uvs: number[] = [];
+  const indices: number[] = [];
+  const rows = 8, cols = 5;
+  const halfL = LENGTH / 2, halfW = WIDTH / 2;
+  for (let r = 0; r <= rows; r++) {
+    const t = r / rows;
+    const x = -halfL + t * LENGTH;
+    // Raised along the torso, lower at head and feet; slight shoe tips at foot end.
+    const ridge = Math.sin(t * Math.PI) * 0.18 + (t > 0.82 ? (t - 0.82) * 0.12 : 0);
+    for (let c = 0; c <= cols; c++) {
+      const s = c / cols;
+      const z = -halfW + s * WIDTH;
+      const edge = 1 - Math.abs(s - 0.5) * 2;
+      const y = 0.04 + ridge * edge * edge;
+      positions.push(x, y, z);
+      // Approximate upward normal with a slight outward lean at edges.
+      const nx = Math.cos(t * Math.PI) * 0.15;
+      const nz = (s - 0.5) * 0.4;
+      const ny = 1;
+      const len = Math.hypot(nx, ny, nz);
+      normals.push(nx / len, ny / len, nz / len);
+      uvs.push(t, s);
     }
-  } else {
-    ctx.beginPath(); ctx.arc(128, 36, 19, 0, Math.PI * 2);
-    ctx.moveTo(99, 57); ctx.lineTo(55, 90); ctx.lineTo(60, 107); ctx.lineTo(90, 93);
-    ctx.lineTo(91, 161); ctx.lineTo(69, 230); ctx.lineTo(99, 238); ctx.lineTo(127, 175);
-    ctx.lineTo(156, 238); ctx.lineTo(186, 229); ctx.lineTo(163, 160); ctx.lineTo(165, 94);
-    ctx.lineTo(196, 110); ctx.lineTo(206, 93); ctx.lineTo(159, 57); ctx.closePath();
-    ctx.fillStyle = '#201c18'; ctx.fill(); ctx.strokeStyle = '#40332a'; ctx.lineWidth = 6; ctx.stroke();
   }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const a = r * (cols + 1) + c;
+      const b = a + 1;
+      const d = a + (cols + 1);
+      const e = d + 1;
+      indices.push(a, d, b, b, d, e);
+    }
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setIndex(indices);
+  return geo;
 }
 
-/** The victim's actual painted street figure lies on the pavement. Once an
- *  officer arrives it is covered, and disappears when the hearse loads it. */
+function markMaterial(kind: MarkKind): THREE.MeshStandardMaterial {
+  if (kind === 'sheet') {
+    return new THREE.MeshStandardMaterial({
+      color: 0xe8e4dc, roughness: 0.92, metalness: 0.0,
+      side: THREE.DoubleSide,
+    });
+  }
+  return new THREE.MeshStandardMaterial({
+    color: 0x2a2420, roughness: 0.98, metalness: 0.0,
+    side: THREE.DoubleSide,
+  });
+}
+
+/** Covered street bodies: a 3D draped sheet (or charred silhouette). Uncovered
+ *  bodies stay as the 3D character; no sheet is drawn until police cover them. */
 export class DeathMarks {
   readonly group = new THREE.Group();
-  private readonly geometry = new THREE.PlaneGeometry(WIDTH, LENGTH).rotateX(-Math.PI / 2);
+  private readonly geometry = drapedSheetGeometry();
   private readonly marks: Record<MarkKind, THREE.InstancedMesh>;
   private signature = '';
   private readonly matrix = new THREE.Matrix4();
@@ -50,10 +79,10 @@ export class DeathMarks {
   constructor(private readonly capacity = 256) {
     this.group.name = 'death-scenes';
     const make = (kind: MarkKind) => {
-      const material = new THREE.MeshBasicMaterial({ map: markTexture(kind), transparent: true, depthWrite: false,
-        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      const material = markMaterial(kind);
       const mesh = new THREE.InstancedMesh(this.geometry, material, capacity);
-      mesh.count = 0; mesh.frustumCulled = false; mesh.renderOrder = 2;
+      mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = kind === 'sheet';
+      mesh.receiveShadow = true;
       this.group.add(mesh); return mesh;
     };
     this.marks = { sheet: make('sheet'), charred: make('charred') };
@@ -63,7 +92,7 @@ export class DeathMarks {
     at: (p: Person) => { x: number; y: number } = p => p.pos): void {
     const dead = peopleList(w).filter(p => {
       const stage = streetCorpseStage(p, w);
-      return stage != null && stage !== 'gone';
+      return stage === 'sheet' || (stage != null && p.burningEscape?.fatal);
     })
       .sort((a, b) => (b.diedAt ?? 0) - (a.diedAt ?? 0) || b.id - a.id).slice(0, this.capacity);
     const signature = dead.map(p => `${p.id}:${streetCorpseStage(p, w)}`).join(',');
@@ -71,15 +100,14 @@ export class DeathMarks {
     this.signature = signature;
     const counts: Record<MarkKind, number> = { sheet: 0, charred: 0 };
     for (const p of dead) {
-      const kind = streetCorpseStage(p, w) === 'sheet' ? 'sheet'
-        : p.burningEscape?.fatal ? 'charred' : 'body';
+      const stage = streetCorpseStage(p, w);
+      const kind: MarkKind = stage === 'sheet' ? 'sheet' : 'charred';
       const angle = ((p.id * 2654435761) >>> 0) / 0x100000000 * Math.PI * 2;
       this.rotation.setFromAxisAngle(this.up, angle);
       const pos = at(p);
-      this.matrix.compose(new THREE.Vector3(pos.x, groundY(pos.x, pos.y) + .05, pos.y),
+      this.matrix.compose(new THREE.Vector3(pos.x, groundY(pos.x, pos.y) + .02, pos.y),
         this.rotation, new THREE.Vector3(1, 1, 1));
-      const drawn = kind === 'body' ? 'sheet' : kind;
-      const mesh = this.marks[drawn]; mesh.setMatrixAt(counts[drawn]++, this.matrix);
+      const mesh = this.marks[kind]; mesh.setMatrixAt(counts[kind]++, this.matrix);
     }
     for (const kind of ['sheet', 'charred'] as const) {
       const mesh = this.marks[kind]; mesh.count = counts[kind]; mesh.instanceMatrix.needsUpdate = true;
@@ -89,7 +117,6 @@ export class DeathMarks {
   dispose(): void {
     this.group.removeFromParent();
     for (const mesh of Object.values(this.marks)) {
-      (mesh.material as THREE.MeshBasicMaterial).map?.dispose();
       (mesh.material as THREE.Material).dispose(); mesh.dispose();
     }
     this.geometry.dispose();
