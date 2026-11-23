@@ -26,7 +26,7 @@ import { recentEventCounts } from '../sim/events';
 import { drawTerritoryOutline } from './territoryOutline';
 import type { Block, Building, ID, Person, PersonRole, Vec2, VehicleId, WorldState } from '../sim/types';
 import { MAX_CARS, carsAt } from '../sim/traffic';
-import { CORONER_VEHICLE_PAINT, trafficPaint, vehiclePaintFor } from './vehicleLivery';
+import { CORONER_VEHICLE_PAINT, isTrafficTaxi, TAXI_VEHICLE_PAINT, trafficPaint, truckCanvasPaint, vehiclePaintFor } from './vehicleLivery';
 import { streetSound } from '../audio/streetSound';
 import { previewGoodsDelivery } from '../sim/goodsDelivery';
 import { CENTRE_LOT, LOT_SIZE, dayPhase } from '../sim/world';
@@ -379,6 +379,11 @@ export class CityRenderer {
   private hearses!: InstancePool;
   private speedsters!: InstancePool;
   private headlamps!: InstancePool;
+  private taillights!: InstancePool;
+  private taxiSigns!: InstancePool;
+  private policeBeacons!: InstancePool;
+  private truckCanvas!: InstancePool;
+  private lastVehicleYaw = new Map<string, number>();
   private vehicleSprites: VehicleSpriteLayer | null = null;
   private preferVehicleSprites = false;
   private vehicleSpritesActive = false;
@@ -408,6 +413,10 @@ export class CityRenderer {
   private shopMat!: THREE.MeshStandardMaterial;
   private glowMat!: THREE.MeshBasicMaterial;
   private headlampMat!: THREE.MeshBasicMaterial;
+  private taillightMat!: THREE.MeshBasicMaterial;
+  private taxiSignMat!: THREE.MeshBasicMaterial;
+  private beaconMat!: THREE.MeshBasicMaterial;
+  private canvasMat!: THREE.MeshStandardMaterial;
   private groundMat!: RoadSurfaceMaterial;
 
   private target = new THREE.Vector3();
@@ -723,6 +732,11 @@ export class CityRenderer {
 
     this.glowMat = new THREE.MeshBasicMaterial({ color: 0xffdc9a, transparent: true, opacity: 0 });
     this.headlampMat = new THREE.MeshBasicMaterial({ color: 0xfff0c4, transparent: true, opacity: 0 });
+    this.taillightMat = new THREE.MeshBasicMaterial({ color: 0xc43a2f, transparent: true, opacity: 0 });
+    this.taxiSignMat = new THREE.MeshBasicMaterial({ color: 0xf0c14a, transparent: true, opacity: .85 });
+    this.beaconMat = new THREE.MeshBasicMaterial({ color: 0xff5a3c, transparent: true, opacity: .9 });
+    this.canvasMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .82, metalness: 0 });
+
   }
 
   private buildBuildings(): void {
@@ -1020,7 +1034,11 @@ export class CityRenderer {
     this.hearses.mesh.name = 'vehicle-police-coroner';
     this.speedsters.mesh.name = 'vehicle-speedster';
     this.headlamps = new InstancePool(vehicleLightGeometry(), this.headlampMat, capacity, { dynamic: true });
-    for (const p of [this.sedans, this.trucks, this.hearses, this.speedsters, this.headlamps]) this.scene.add(p.mesh);
+    this.taillights = new InstancePool(vehicleLightGeometry(), this.taillightMat, capacity, { dynamic: true });
+    this.taxiSigns = new InstancePool(new THREE.BoxGeometry(.42, .16, .28), this.taxiSignMat, capacity, { dynamic: true });
+    this.policeBeacons = new InstancePool(new THREE.SphereGeometry(.09, 8, 6), this.beaconMat, capacity, { dynamic: true });
+    this.truckCanvas = new InstancePool(new THREE.BoxGeometry(1.6, .55, 1.3), this.canvasMat, capacity, { dynamic: true, color: true });
+    for (const p of [this.sedans, this.trucks, this.hearses, this.speedsters, this.headlamps, this.taillights, this.taxiSigns, this.policeBeacons, this.truckCanvas]) this.scene.add(p.mesh);
     // Delivered models are the default. Explicit switches retain the audit/fallback views.
     this.reviewSpeedsterSprite = this.visualStyle === 'illustrated';
     this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
@@ -1034,7 +1052,7 @@ export class CityRenderer {
   private ensureSculptModels(): void {
     if (this.sculptModels) return;
     const layer = new SculptReviewLayer(this.scene, MAX_CARS + MAX_AGENTS,
-      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d' });
+      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d', coachworkPaint: this.visualStyle !== 'illustrated' });
     this.sculptModels = layer;
     this.sculptLoad = layer.load().then(() => {
       this.sculptLoad = null;
@@ -2271,7 +2289,7 @@ export class CityRenderer {
         this.dummy.updateMatrix();
         (p.status === 'arrested' ? this.arrestMarks : this.waitMarks).push(this.dummy.matrix);
       }
-      const carPaint = (driving || shuttle) && this.visualStyle === 'illustrated3d'
+      const carPaint = (driving || shuttle) && this.visualStyle !== 'illustrated'
         ? vehiclePaintFor(p.vehicleKey ?? `p${p.id}`, p.vehicleKey ? undefined : p.role) : hex;
       if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) this.drivers.push({ x: pos.x, z: pos.y, facing, hex: carPaint, kind: vehicle, role: p.role, moving: !(this.pulledIn.get(p.vehicleKey ?? `p${p.id}`) ?? 0) });
       // The driver is out loading: his truck stays parked where it is.
@@ -2287,7 +2305,7 @@ export class CityRenderer {
     for(const [key,car] of Object.entries(w.vehicleFleet??{}))if(!car.occupantIds.length||car.boarding){
       const at=previewVehicle(car,car.pos,this.subMinute,{x:0,y:0});
       this.pullIn(key,at,true);
-      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(key) : 0x252525,kind:car.kind});
+      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:this.visualStyle !== 'illustrated' ? vehiclePaintFor(key) : 0x252525,kind:car.kind});
     }
     for (const driver of deliveryDrivers) {
       const motion = this.actorMotion.sample(driver.id, driver.pos.x, driver.pos.y, driver.walking, driver.facing);
@@ -2309,7 +2327,7 @@ export class CityRenderer {
       const ahead=previewGoodsDelivery(delivery,this.subMinute+.0001),dx=ahead.x-pos.x,dy=ahead.y-pos.y;
       // Unloading, or waiting for somewhere to go: in to the kerb.
       this.pullIn(`delivery:${delivery.sourceId}`,pos,!delivery.path.length);
-      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle === 'illustrated3d' ? vehiclePaintFor(`delivery:${delivery.sourceId}`) : 0x4e5647,kind:'truck',delivery:true});
+      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle !== 'illustrated' ? vehiclePaintFor(`delivery:${delivery.sourceId}`) : 0x4e5647,kind:'truck',delivery:true});
     }
     const bodyTime = campaignMinute(w, w.minute + this.subMinute);
     for (const p of Object.values(w.people)) {
@@ -2386,6 +2404,57 @@ export class CityRenderer {
     return shuttle ? shuttle.pos : p.status === 'dead' ? this.shuttleSeen.get(id) : undefined;
   }
 
+
+  private vehicleRoll(key: string, yaw: number, moving: boolean): number {
+    const last = this.lastVehicleYaw.get(key);
+    this.lastVehicleYaw.set(key, yaw);
+    if (last == null || !moving) return 0;
+    let delta = yaw - last;
+    while (delta > Math.PI) delta -= Math.PI * 2;
+    while (delta < -Math.PI) delta += Math.PI * 2;
+    return Math.max(-.045, Math.min(.045, delta * 2.2));
+  }
+
+  private placeVehicleLights(x: number, z: number, yaw: number, kind: VehicleId, dusk: number, pullingIn: boolean): void {
+    if (dusk <= 0.02) return;
+    const { nose, lampY } = this.vehicleProfile(kind);
+    const glow = pullingIn ? 1.25 : 1;
+    this.dummy.position.set(x + Math.cos(yaw) * nose, lampY + VEHICLE_GROUND_CLEARANCE, z - Math.sin(yaw) * nose);
+    this.dummy.scale.setScalar(glow);
+    this.dummy.updateMatrix();
+    this.headlamps.push(this.dummy.matrix);
+    this.dummy.position.set(x - Math.cos(yaw) * nose * .92, lampY * .72 + VEHICLE_GROUND_CLEARANCE, z + Math.sin(yaw) * nose * .92);
+    this.dummy.scale.setScalar(pullingIn ? 1.15 : 1);
+    this.dummy.updateMatrix();
+    this.taillights.push(this.dummy.matrix);
+    this.dummy.scale.setScalar(1);
+  }
+
+  private placeTaxiSign(x: number, z: number, yaw: number): void {
+    const roof = this.vehicleProfile('coupe').height + .12;
+    this.dummy.position.set(x, VEHICLE_GROUND_CLEARANCE + roof, z);
+    this.dummy.rotation.set(0, yaw, 0);
+    this.dummy.updateMatrix();
+    this.taxiSigns.push(this.dummy.matrix);
+  }
+
+  private placePoliceBeacon(x: number, z: number, yaw: number, active: boolean): void {
+    const blink = active ? .55 + .45 * Math.abs(Math.sin(this.simClock * 6)) : .35;
+    this.beaconMat.opacity = blink;
+    const roof = this.vehicleProfile('coupe').height * .55;
+    this.dummy.position.set(x + Math.cos(yaw) * .35, VEHICLE_GROUND_CLEARANCE + roof, z - Math.sin(yaw) * .35);
+    this.dummy.updateMatrix();
+    this.policeBeacons.push(this.dummy.matrix);
+  }
+
+  private placeTruckCanvas(x: number, z: number, yaw: number, key: string): void {
+    this.colorScratch.setHex(truckCanvasPaint(key));
+    this.dummy.position.set(x - Math.cos(yaw) * .7, VEHICLE_GROUND_CLEARANCE + 1.35, z + Math.sin(yaw) * .7);
+    this.dummy.rotation.set(0, yaw, 0);
+    this.dummy.updateMatrix();
+    this.truckCanvas.push(this.dummy.matrix, this.colorScratch);
+  }
+
   private refreshTraffic(dusk: number, camera = this.camera): void {
     const w = this.world;
 
@@ -2395,6 +2464,10 @@ export class CityRenderer {
     this.speedsters.reset();
     this.sculptModels?.resetVehicles();
     this.headlamps.reset();
+    this.taillights.reset();
+    this.taxiSigns.reset();
+    this.policeBeacons.reset();
+    this.truckCanvas.reset();
     this.vehicleSprites?.reset(camera);
     const spriteMode = this.vehicleSpritesActive;
 
@@ -2411,22 +2484,20 @@ export class CityRenderer {
       // The car's nose is its local +x; a yaw of 0 drives east.
       const yaw = c.axisX ? (c.dir > 0 ? 0 : Math.PI) : c.dir > 0 ? -Math.PI / 2 : Math.PI / 2;
 
+      const roll = this.vehicleRoll(`t:${c.line}:${c.dir}:${c.color}`, yaw, !c.halted);
       this.dummy.position.set(x, VEHICLE_GROUND_CLEARANCE, z);
-      this.dummy.rotation.set(0, yaw, 0);
+      this.dummy.rotation.set(0, yaw, roll);
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
-      const paint = this.visualStyle === 'illustrated3d' ? trafficPaint(c.color) : CAR_COLORS[c.color % CAR_COLORS.length];
+      const taxi = !truck && isTrafficTaxi(c.color);
+      const paint = this.visualStyle !== 'illustrated' ? (taxi ? TAXI_VEHICLE_PAINT : trafficPaint(c.color)) : CAR_COLORS[c.color % CAR_COLORS.length];
       this.colorScratch.setHex(paint);
       if (spriteMode) this.vehicleSprites!.push(truck ? 'truck' : 'coupe', x, z, yaw);
       else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(truck ? 'truck' : 'coupe', this.dummy.matrix, paint)) { /* Detailed vehicle */ }
       else (truck ? this.trucks : this.sedans).push(this.dummy.matrix, this.colorScratch);
-
-      if (dusk > 0.02) {
-        const { nose, lampY } = this.vehicleProfile(truck ? 'truck' : 'coupe');
-        this.dummy.position.set(x + Math.cos(yaw) * nose, lampY + VEHICLE_GROUND_CLEARANCE, z - Math.sin(yaw) * nose);
-        this.dummy.updateMatrix();
-        this.headlamps.push(this.dummy.matrix);
-      }
+      if (taxi) this.placeTaxiSign(x, z, yaw);
+      if (truck) this.placeTruckCanvas(x, z, yaw, `t:${c.line}:${c.dir}:${c.color}`);
+      this.placeVehicleLights(x, z, yaw, truck ? 'truck' : 'coupe', dusk, false);
     }
 
     // Simulation vehicles keep their own paint when the driver changes.
@@ -2437,24 +2508,23 @@ export class CityRenderer {
         const out = this.edgeOut({ axisX, line: Math.round((axisX ? d.z : d.x) / CELL), x: d.x, y: d.z });
         if (axisX) d.z -= out; else d.x -= out;
       }
+      const yaw = d.facing - Math.PI / 2;
+      const roll = this.vehicleRoll(`d:${d.x.toFixed(1)}:${d.z.toFixed(1)}`, yaw, !!d.moving);
       this.dummy.position.set(d.x, VEHICLE_GROUND_CLEARANCE, d.z);
       // The figure faces its local +z, the car its local +x.
-      this.dummy.rotation.set(0, d.facing - Math.PI / 2, 0);
+      this.dummy.rotation.set(0, yaw, roll);
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
       this.colorScratch.setHex(d.hex);
       if (d.coroner) this.hearses.push(this.dummy.matrix, this.colorScratch);
       else if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
-        this.vehicleSprites!.push(d.kind, d.x, d.z, d.facing - Math.PI / 2, d.delivery ? 'delivery' : vehicleSpriteKind(d.kind, d.role));
+        this.vehicleSprites!.push(d.kind, d.x, d.z, yaw, d.delivery ? 'delivery' : vehicleSpriteKind(d.kind, d.role));
       else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix, d.hex)) { /* Detailed vehicle */ }
       else (d.kind === 'truck' ? this.trucks : d.kind === 'speedster' ? this.speedsters : this.sedans).push(this.dummy.matrix, this.colorScratch);
-      if (dusk > .02) {
-        const { nose, lampY } = this.vehicleProfile(d.kind);
-        const yaw = d.facing - Math.PI / 2;
-        this.dummy.position.set(d.x + Math.cos(yaw) * nose, lampY + VEHICLE_GROUND_CLEARANCE, d.z - Math.sin(yaw) * nose);
-        this.dummy.updateMatrix();
-        this.headlamps.push(this.dummy.matrix);
-      }
+      if (d.kind === 'truck') this.placeTruckCanvas(d.x, d.z, yaw, `d:${d.hex}`);
+      const police = d.role === 'police' || d.role === 'policeChief';
+      if (police && d.kind === 'coupe') this.placePoliceBeacon(d.x, d.z, yaw, !!d.moving);
+      this.placeVehicleLights(d.x, d.z, yaw, d.kind, dusk, !!d.moving);
     }
 
     this.sedans.commit();
@@ -2464,6 +2534,15 @@ export class CityRenderer {
     this.sculptModels?.commitVehicles();
     this.vehicleSprites?.commit();
     this.headlamps.commit();
+    this.taillights.commit();
+    this.taxiSigns.commit();
+    this.policeBeacons.commit();
+    this.truckCanvas.commit();
+    this.headlamps.mesh.visible = dusk > 0.02;
+    this.taillights.mesh.visible = dusk > 0.02;
+    this.taxiSigns.mesh.visible = true;
+    this.policeBeacons.mesh.visible = true;
+    this.truckCanvas.mesh.visible = true;
     this.headlamps.mesh.visible = dusk > 0.02;
   }
 
@@ -2899,6 +2978,7 @@ export class CityRenderer {
     this.shopMat.emissiveIntensity = lightUp * 0.9;
     this.glowMat.opacity = dusk * 0.95;
     this.headlampMat.opacity = dusk * 0.9;
+    this.taillightMat.opacity = dusk * 0.75;
     this.lampGlow.mesh.visible = dusk > 0.02;
 
     // A faint sheen on the roadway once the light goes flat.
@@ -3366,6 +3446,10 @@ export class CityRenderer {
       this.hearses,
       this.speedsters,
       this.headlamps,
+      this.taillights,
+      this.taxiSigns,
+      this.policeBeacons,
+      this.truckCanvas,
     ]) {
       p?.dispose();
     }
@@ -3386,6 +3470,10 @@ export class CityRenderer {
     if (!this.shopBase) this.shopMat?.dispose();
     if (!this.lampGlow) this.glowMat?.dispose();
     if (!this.headlamps) this.headlampMat?.dispose();
+    this.taillightMat?.dispose();
+    this.taxiSignMat?.dispose();
+    this.beaconMat?.dispose();
+    this.canvasMat?.dispose();
     this.clearBuildingViews();
     this.tagged.set([], false);
     this.shadowMaterials.dispose();
