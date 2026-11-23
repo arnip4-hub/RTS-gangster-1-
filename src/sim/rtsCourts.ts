@@ -4,6 +4,7 @@ import { availableOfficial, ensureCourtOfficials } from './courtOfficials';
 import { addMessage, addNews } from './events';
 import { clearDestination } from './movement';
 import { placeInPrison } from './prison';
+import { leavePoliceCustody } from './policeCases';
 import type { Rng } from './rng';
 import { availableSpecialist } from './specialists';
 import { specialistJobActive } from './specialistJobs';
@@ -57,7 +58,7 @@ function releaseCustody(w: WorldState, person: Person, crime: CrimeRecord | unde
   const now = campaignMinute(w), file = crime?.police;
   delete person.custody;
   if (person.status === 'arrested' || person.status === 'onTrial') person.status = 'active';
-  clearDestination(person);
+  leavePoliceCustody(w, person);
   if (file && file.stage !== 'closed') {
     delete file.warrantAt;
     delete file.warrantExpiresAt;
@@ -224,6 +225,7 @@ function closeCase(w: WorldState, court: CourtCase, status: CourtCase['status'])
     delete defendant.custody;
     if (status !== 'convicted' && ['arrested', 'onTrial', 'jailed'].includes(defendant.status)) {
       defendant.status = 'active';
+      leavePoliceCustody(w, defendant);
       defendant.jailWeeks = 0;
       delete defendant.prisonId; delete defendant.prisonSince; delete defendant.prisonOperation;
       delete defendant.prisonProtectedUntil;
