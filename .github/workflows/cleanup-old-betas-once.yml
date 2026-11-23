@@ -13,7 +13,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: \${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Validate exact targets, then remove only old merged branches and releases
         shell: bash
@@ -50,7 +50,7 @@ jobs:
           done
 
           echo "Preflight: verify every branch has unchanged SHA and a merged pull request."
-          for entry in "\${branch_rows[@]}"; do
+          for entry in "${branch_rows[@]}"; do
             IFS='|' read -r branch expected pr <<< "$entry"
             current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq .object.sha)"
             read -r merged source prsha < <(gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" --jq '[.merged_at, .head.ref, .head.sha] | @tsv')
@@ -61,21 +61,21 @@ jobs:
           done
 
           echo "Preflight: verify release IDs still match their original tag."
-          for entry in "\${release_rows[@]}"; do
+          for entry in "${release_rows[@]}"; do
             IFS='|' read -r tag id <<< "$entry"
             current="$(gh api "repos/$GITHUB_REPOSITORY/releases/$id" --jq .tag_name)"
             [[ "$current" == "$tag" ]] || { echo "Release $id changed; stopping before deletion."; exit 1; }
           done
 
           echo "All preflight checks passed. Deleting only ten merged feature branches."
-          for entry in "\${branch_rows[@]}"; do
+          for entry in "${branch_rows[@]}"; do
             IFS='|' read -r branch expected pr <<< "$entry"
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch" >/dev/null
             echo "Deleted branch: $branch"
           done
 
           echo "Deleting releases beta.1 through beta.7 while retaining their Git tags."
-          for entry in "\${release_rows[@]}"; do
+          for entry in "${release_rows[@]}"; do
             IFS='|' read -r tag id <<< "$entry"
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/$id" >/dev/null
             echo "Deleted release: $tag (Git tag retained)"
