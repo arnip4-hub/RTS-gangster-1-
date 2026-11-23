@@ -45,7 +45,7 @@ interface SourceVertex {
  * exact inverse bind matrices; it never allocates a second Skeleton. */
 export function skinGarmentToBody(
   geometry: THREE.BufferGeometry, material: THREE.Material,
-  actor: THREE.Object3D, body: THREE.SkinnedMesh,
+  _actor: THREE.Object3D, body: THREE.SkinnedMesh,
 ): THREE.SkinnedMesh {
   // The body's vertex attributes are already in its authored geometry
   // coordinates. Its bindMatrix maps them to skeleton bind coordinates.
