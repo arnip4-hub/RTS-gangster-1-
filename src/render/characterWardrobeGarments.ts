@@ -247,12 +247,27 @@ export function createWardrobeGarments(
       // Keep a generous overlap: a triangle straddling the crop boundary must
       // not leave an open waistband when hips and spine bend differently.
       bodyTop = 1.00 * unit * heightScale;
-      const rings = [
+      const authoredRings = [
         { y: hem, w: isRobe ? .29 : isDress ? .25 : .247, d: isRobe ? .24 : isDress ? .20 : .18 },
         { y: .83, w: isDress ? .221 : .215, d: .172 },
         { y: 1.03, w: isDress ? .17 : .197, d: .137 },
         { y: 1.10, w: isDress ? .17 : .185, d: .137 },
       ].filter((r, i) => i === 0 || r.y > hem + .015);
+      // Keep face edges short even on ankle-length garments. A single
+      // thigh-to-ankle quad can otherwise cross the 35 cm stretch limit
+      // before an animation has even begun.
+      const rings: typeof authoredRings = [];
+      authoredRings.forEach((ring, index) => {
+        if (!index) { rings.push(ring); return; }
+        const prev = authoredRings[index - 1];
+        const steps = Math.ceil((ring.y - prev.y) / .10);
+        for (let step = 1; step <= steps; step++) {
+          const t = step / steps;
+          rings.push({ y: THREE.MathUtils.lerp(prev.y, ring.y, t),
+            w: THREE.MathUtils.lerp(prev.w, ring.w, t),
+            d: THREE.MathUtils.lerp(prev.d, ring.d, t) });
+        }
+      });
       const sides = 24, pos: number[] = [], indices: number[] = [];
       const colors: number[] = [], color = new THREE.Color();
       const belly = wardrobe.body.belly;
