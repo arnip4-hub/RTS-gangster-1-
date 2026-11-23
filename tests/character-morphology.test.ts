@@ -191,13 +191,25 @@ describe('shared 3D character morphology', () => {
             expect([point.x, point.y, point.z].every(Number.isFinite)).toBe(true);
             skinned.push(point.clone());
           }
-          let longest = 0;
+          let longest = 0, worst = -1;
           const count = index?.count ?? pos.count;
           for (let i = 0; i + 2 < count; i += 3) {
             const a = skinned[index ? index.getX(i) : i];
             const b = skinned[index ? index.getX(i + 1) : i + 1];
             const c = skinned[index ? index.getX(i + 2) : i + 2];
-            longest = Math.max(longest, a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
+            const longestHere = Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
+            if (longestHere > longest) { longest = longestHere; worst = i; }
+          }
+          if (mesh === garment && phase === 0) {
+            const vertex = (slot: number) => index ? index.getX(worst + slot) : worst + slot;
+            const debug = {
+              style, bodyMatrix: body.matrixWorld.elements, bindMatrix: body.bindMatrix.elements,
+              garmentMatrix: garment.matrixWorld.elements, modelScale: model.scale.toArray(),
+              modelPosition: model.position.toArray(), longest, worst,
+              original: [0, 1, 2].map(slot => new THREE.Vector3().fromBufferAttribute(pos, vertex(slot)).toArray()),
+              deformed: [0, 1, 2].map(slot => skinned[vertex(slot)].toArray()),
+            };
+            console.log('ACTOR_SPACE_DEBUG', JSON.stringify(debug));
           }
           expect(longest, `${style}/${mesh.name || 'body'}/phase ${phase}`).toBeLessThan(.35);
         }
