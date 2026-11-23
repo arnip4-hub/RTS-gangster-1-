@@ -30,6 +30,11 @@ jobs:
 
       - run: npm ci
 
+      - name: Diagnose generated schema difference
+        run: |
+          node scripts/build-save-schema.mjs
+          git diff -- src/sim/world-schema.json
+
       # Pages serves the site from /<repository name>/.
       - run: npm run build:release
         env:
