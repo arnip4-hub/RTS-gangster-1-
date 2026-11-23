@@ -80,6 +80,7 @@ export function normalizeRtsPolice(w: WorldState): void {
     if (p.policeTask && !fileCrime(w, p.policeTask.crimeId)) { delete p.policeTask; clearDestination(p); p.inVehicle = false; }
   }
   for (const p of Object.values(w.people)) {
+    if (p.status === 'arrested' && p.custody && !p.custody.transport) p.custody.transport = 'station';
     if (p.status !== 'arrested' || p.custody) continue;
     const court = Object.values(w.cases).find(c => c.defendantId === p.id && ['awaiting', 'onTrial'].includes(c.status));
     if (court) { p.status = 'onTrial'; continue; }
@@ -123,9 +124,15 @@ export function tryCaseArrest(w: WorldState, rng: Rng, officer: Person, suspect:
     return false;
   }
   alight(w, suspect); clearDestination(suspect);
+  alight(w, officer); clearDestination(officer);
   suspect.status = 'arrested'; suspect.buildingId = null; suspect.orderId = null; suspect.streetOrder = null;
   const now = campaignMinute(w);
-  suspect.custody = { crimeId: crime.id, officerId: officer.id, arrestedAt: now, reviewAt: now + 360, releaseAt: now + FULL_DAY_MINUTES };
+  suspect.custody = { crimeId: crime.id, officerId: officer.id, arrestedAt: now, reviewAt: now + 360,
+    releaseAt: now + FULL_DAY_MINUTES, transport: 'scene' };
+  // Keep the arresting officer physically present for a brief handcuffing beat.
+  // The police task is saved so the following journey survives a reload.
+  officer.policeTask = { crimeId: crime.id, kind: 'arrest', phase: 'securing', target: { ...officer.pos },
+    until: now + 720, workLeft: 2, suspectId: suspect.id };
   f.suspectId = suspect.id; f.identityConfidence = Math.max(f.identityConfidence, 85);
   delete f.warrantAt; delete f.warrantExpiresAt;
   f.prosecutorDecision = 'pending'; f.reviewDueAt = suspect.custody.reviewAt;
@@ -199,6 +206,43 @@ function station(w: WorldState, p: Person) {
   return Object.values(w.buildings).find(b => b.typeId === (p.role === 'fbi' ? 'fbiHQ' : 'policeHQ') && b.state !== 'destroyed');
 }
 
+/** Release at the police door instead of leaving an acquitted person indoors. */
+export function leavePoliceCustody(w: WorldState, person: Person): void {
+  const building = person.buildingId == null ? undefined : w.buildings[person.buildingId];
+  if (building && ['policeHQ', 'fbiHQ'].includes(building.typeId)) {
+    person.pos = buildingDoor(w, building);
+    person.buildingId = null;
+  }
+  person.inVehicle = false;
+  clearDestination(person);
+}
+
+/** An officer may be interrupted, but a lawful detention must never remain
+ * stranded as an arrested actor on the pavement. */
+function bookDetainee(w: WorldState, suspect: Person, officer?: Person): void {
+  if (suspect.status !== 'arrested' || !suspect.custody) return;
+  const home = officer ? station(w, officer) : undefined;
+  suspect.custody.transport = 'station';
+  suspect.inVehicle = false;
+  clearDestination(suspect);
+  if (home) {
+    suspect.buildingId = home.id;
+    suspect.pos = { ...w.lots[home.lotId].center };
+  }
+}
+
+function finishCustodyDelivery(w: WorldState, officer: Person, suspect: Person): void {
+  const home = station(w, officer);
+  bookDetainee(w, suspect, officer);
+  officer.inVehicle = false;
+  if (home) {
+    officer.buildingId = home.id;
+    officer.pos = { ...w.lots[home.lotId].center };
+  }
+  delete officer.policeTask;
+  clearDestination(officer);
+}
+
 function returnOfficer(w: WorldState, p: Person): void {
   const t = p.policeTask, home = station(w, p);
   if (!t || !home) { delete p.policeTask; p.inVehicle = false; clearDestination(p); return; }
@@ -225,6 +269,34 @@ function stepTasks(w: WorldState, rng: Rng, minutes: number): void {
     const t = p.policeTask;
     if (!t) continue;
     const c = fileCrime(w, t.crimeId);
+    if (t.phase === 'securing' || t.phase === 'delivering') {
+      const suspect = t.suspectId == null ? undefined : w.people[t.suspectId];
+      if (p.status !== 'active' || !suspect || suspect.status !== 'arrested' ||
+          suspect.custody?.crimeId !== t.crimeId || suspect.custody.officerId !== p.id || !c?.police) {
+        if (p.status === 'active') returnOfficer(w, p);
+        else { delete p.policeTask; p.inVehicle = false; clearDestination(p); }
+        continue;
+      }
+      if (t.phase === 'securing') {
+        t.workLeft = Math.max(0, t.workLeft - minutes);
+        if (t.workLeft > 0) continue;
+        const home = station(w, p);
+        if (!home) { finishCustodyDelivery(w, p, suspect); continue; }
+        t.phase = 'delivering';
+        t.target = buildingDoor(w, home);
+        t.until = now + 720;
+        routeTask(w, p, t);
+        suspect.custody.transport = p.inVehicle ? 'vehicle' : 'escorted';
+        suspect.pos = { ...p.pos };
+        continue;
+      }
+      // The detainee stays with the officer, rather than remaining at the
+      // arrest coordinates as an independent vehicle or stationary sprite.
+      const arrived = !p.dest || stepPerson(p, minutes, traffic);
+      suspect.pos = { ...p.pos };
+      if (arrived || now >= t.until) finishCustodyDelivery(w, p, suspect);
+      continue;
+    }
     if (p.status !== 'active' || p.orderId != null || p.streetOrder || !c?.police || c.police.stage === 'closed' && t.phase !== 'returning') {
       if (p.status === 'active') returnOfficer(w, p); else { delete p.policeTask; p.inVehicle = false; clearDestination(p); }
       continue;
@@ -248,7 +320,7 @@ function stepTasks(w: WorldState, rng: Rng, minutes: number): void {
         f.lastKnownPos = { ...suspect.pos }; f.lastSeenAt = now; t.target = { ...suspect.pos };
         t.workLeft = 15;
         if (dist(p.pos, suspect.pos) <= ARREST_DISTANCE) {
-          if (tryCaseArrest(w, rng, p, suspect, c.id)) returnOfficer(w, p);
+          if (tryCaseArrest(w, rng, p, suspect, c.id)) continue;
           continue;
         }
         if (p.inVehicle && dist(p.pos, suspect.pos) < 15) { alight(w, p); clearDestination(p); }
@@ -318,6 +390,16 @@ export function tickPoliceCases(w: WorldState, rng: Rng, minutes = 1): void {
   if (!w.options.continuousTime || w.phase !== 'week' || minutes <= 0) return;
   const now = campaignMinute(w);
   stepTasks(w, rng, minutes);
+  // Saved games, interrupted officers and cancelled assignments must not
+  // leave someone arrested on the street indefinitely.
+  for (const suspect of Object.values(w.people)) {
+    if (suspect.status !== 'arrested' || !suspect.custody ||
+        !['scene', 'escorted', 'vehicle'].includes(suspect.custody.transport ?? '')) continue;
+    const officer = w.people[suspect.custody.officerId], task = officer?.policeTask;
+    if (officer?.status === 'active' && task?.kind === 'arrest' &&
+        task.suspectId === suspect.id && ['securing', 'delivering'].includes(task.phase)) continue;
+    bookDetainee(w, suspect, officer);
+  }
   const active = officers(w);
   // An officer who personally sees an attack need not wait for a desk review.
   for (const c of w.crimes) if (c.reported && c.police && !c.charge && !['closed', 'charged', 'arrested'].includes(c.police.stage)) {
