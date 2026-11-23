@@ -452,13 +452,13 @@ export class CharacterEquipment {
 
   private fitJudgeBody():void {
     this.originals.forEach((_material,mesh)=> {
-      const original=mesh.geometry, mask=original.getAttribute('aHeadwear'), covered=original.getAttribute('aRobeCovered');
-      if(!mask || !covered) return;
+      const original=mesh.geometry, mask=original.getAttribute('aHeadwear');
+      if(!mask) return;
       const indices=original.index, kept:number[]=[], count=indices?.count??mask.count;
       for(let i=0;i<count;i+=3) {
         const a=indices?indices.getX(i):i, b=indices?indices.getX(i+1):i+1, c=indices?indices.getX(i+2):i+2;
         const cap=this.bareJudgeHead && mask.getX(a)+mask.getX(b)+mask.getX(c)>0;
-        if(!cap && !underRobe)kept.push(a,b,c);
+        if(!cap)kept.push(a,b,c);
       }
       const geometry=original.clone();geometry.setIndex(kept);
       this.geometryOverrides.set(mesh,original);mesh.geometry=geometry;this.ownedGeometry.push(geometry);
