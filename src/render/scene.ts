@@ -298,6 +298,8 @@ export class CityRenderer {
   private fireDamageDecor!:FireDamageDecor;
   private rubbleLoad:Promise<void>|null=null;
   private shopBase!: InstancePool;
+  private shopPools: Partial<Record<string, InstancePool>> = {};
+  private shopMats: Partial<Record<string, THREE.MeshStandardMaterial>> = {};
   /** Boards and notice over a shopfront the FBI has closed. */
   private closedFronts!: InstancePool;
   /** Delivered shop photographs already contain stone, joinery and glass colour. */
@@ -804,6 +806,14 @@ export class CityRenderer {
       castShadow: true,
       receiveShadow: true,
     });
+    this.shopPools.classicDisplay = this.shopBase;
+    this.shopMats.classicDisplay = this.shopMat;
+    for (const style of ['provisionMarket', 'artDecoGlazed', 'cafeBistro', 'nightlifeLobby', 'financialStone', 'serviceBay', 'pawnSecured', 'apothecarySoda', 'luxuryBoutique', 'poolParlor', 'fireEngineBay', 'hotelCanopy']) {
+      const mat = this.shopMat.clone();
+      this.shopMats[style] = mat;
+      this.shopPools[style] = new InstancePool(front, mat, nB, { color: true, uv: true, receiveShadow: true });
+    }
+
 
     const plinthMat = new THREE.MeshStandardMaterial({
       map: this.ownedTextures.clone(this.tex.plinth, 1, 1),
@@ -898,7 +908,7 @@ export class CityRenderer {
       this.interiorRooms, this.interiorWorks, this.interiorMachines, this.interiorStorage,
       this.entryDoors, this.cutawayDoors, this.gableRoofs, this.hipRoofs, this.mansardRoofs,
       this.cornice,
-      this.shopBase,
+      this.shopBase, ...Object.values(this.shopPools).filter((p): p is InstancePool => !!p && p !== this.shopBase),
       this.closedFronts,
       this.plinthBase,
       this.signs,
@@ -1577,7 +1587,10 @@ export class CityRenderer {
           if (b.state === 'damaged') this.tintScratch.multiplyScalar(0.5);
           else if (b.state === 'ceased') this.tintScratch.multiplyScalar(0.7);
           if(fireStage)this.tintScratch.setRGB(.15,.14,.13);
-          this.shopBase.push(this.dummy.matrix, this.tintScratch, this.uvScratch);
+          const style = storefrontStyle(b.typeId, b.id);
+          const pool = this.shopPools[style] ?? this.shopBase;
+          if (style !== 'classicDisplay' && this.deliveredStorefront) this.tintScratch.setRGB(0.94 + r01(b.id, 53) * 0.12, 0.94 + r01(b.id, 54) * 0.12, 0.94 + r01(b.id, 55) * 0.12);
+          pool.push(this.dummy.matrix, this.tintScratch, this.uvScratch);
           if (b.fbiClosedWeek != null && b.state !== 'destroyed') this.closedFronts.push(this.dummy.matrix);
         } else if (prof.base === 'plinth') {
           this.uvScratch.set((m0.w + 0.5) / 5.0, bh / 3.2, uOff, 0);

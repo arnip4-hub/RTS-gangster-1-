@@ -152,6 +152,26 @@ export const FACADE_PALETTES: FacadePalette[] = [
     sill: '#d0c4b0',
     reveal: '#4a4030',
   },
+  {
+    name: 'glazedBrick',
+    kind: 'brick',
+    wall: '#e8e4dc',
+    wallDark: '#d0ccc4',
+    joint: '#c0bcb4',
+    trim: '#f0ece4',
+    sill: '#e0dcd4',
+    reveal: '#4a4840',
+  },
+  {
+    name: 'castIronLoft',
+    kind: 'stone',
+    wall: '#4a4844',
+    wallDark: '#32302c',
+    joint: '#5a5854',
+    trim: '#6a6864',
+    sill: '#5a5854',
+    reveal: '#2a2826',
+  },
 ];
 
 const FACADE_TILE = 512;
@@ -820,6 +840,7 @@ export interface CityArt {
   facades: ({ map: THREE.Texture; lights: THREE.Texture } | null)[];
   roof: THREE.Texture | null;
   storefront: { map: THREE.Texture; lights: THREE.Texture } | null;
+  storefronts?: Partial<Record<string, { map: THREE.Texture; lights: THREE.Texture }>>;
   plinth: THREE.Texture | null;
   pavement: THREE.Texture | null;
   kerb: THREE.Texture | null;
@@ -864,20 +885,14 @@ let artLoading: Promise<CityArt> | null = null;
 export function loadIllustratedCityArt(): Promise<CityArt> {
   if (artLoading) return artLoading;
   artLoading = (async () => {
-    const [red, brown, buff, limestone, stucco, redLights, brownLights, buffLights, limestoneLights, stuccoLights,
-      storefront, storefrontLights, pavement, road, awning, sawtooth, ...boards] = await Promise.all([
-      loadTexture('illustrated-facade-red-brick.jpg'),
-      loadTexture('illustrated-facade-brown-brick.jpg'),
-      loadTexture('illustrated-facade-buff-brick.jpg'),
-      loadTexture('illustrated-facade-limestone.jpg'),
-      loadTexture('illustrated-facade-stucco.jpg'),
-      loadTexture('facade-red-brick-lit.png'),
-      loadTexture('facade-brown-brick-lit.png'),
-      loadTexture('facade-buff-brick-lit.png'),
-      loadTexture('facade-limestone-lit.png'),
-      loadTexture('facade-stucco-lit.png'),
-      loadTexture('illustrated-storefront.jpg'),
-      loadTexture('storefront-lit.png'),
+    const facadeStems = ['red-brick', 'brown-brick', 'buff-brick', 'limestone', 'stucco', null, 'dark-granite', 'terracotta-deco', 'sooted-brick', 'painted-clapboard', 'glazed-brick', 'cast-iron'];
+    const storefrontStems = ['', '-market', '-deco', '-cafe', '-nightlife', '-financial', '-service', '-pawnshop', '-apothecary', '-boutique', '-poolhall', '-firehouse', '-hotel'];
+    const styleNames = ['classicDisplay', 'provisionMarket', 'artDecoGlazed', 'cafeBistro', 'nightlifeLobby', 'financialStone', 'serviceBay', 'pawnSecured', 'apothecarySoda', 'luxuryBoutique', 'poolParlor', 'fireEngineBay', 'hotelCanopy'];
+    const facadeLoads = facadeStems.flatMap(stem => stem ? [loadTexture(`illustrated-facade-${stem}.jpg`), loadTexture(`facade-${stem}-lit.png`)] : [Promise.resolve(null), Promise.resolve(null)]);
+    const storefrontLoads = storefrontStems.flatMap(s => [loadTexture(`illustrated-storefront${s}.jpg`), loadTexture(`storefront${s}-lit.png`)]);
+    const [facadeResults, storefrontResults, pavement, road, awning, sawtooth, ...boards] = await Promise.all([
+      Promise.all(facadeLoads),
+      Promise.all(storefrontLoads),
       loadTexture('illustrated-pavement.jpg'),
       loadImageFile('illustrated-road-asphalt.jpg'),
       loadTexture('awning.png'),
@@ -886,22 +901,27 @@ export function loadIllustratedCityArt(): Promise<CityArt> {
       loadImageFile('sign-civic.jpg'),
       loadImageFile('sign-industrial.jpg'),
     ]);
-    const maps = [red, brown, buff, limestone, stucco];
-    const lights = [redLights, brownLights, buffLights, limestoneLights, stuccoLights];
-    const facades: CityArt['facades'] = FACADE_PALETTES.map((_, index) =>
-      maps[index] && lights[index] ? { map: maps[index]!, lights: lights[index]! } : null);
+    const facades: CityArt['facades'] = FACADE_PALETTES.map((_, index) => {
+      const map = facadeResults[index * 2] as THREE.Texture | null;
+      const lights = facadeResults[index * 2 + 1] as THREE.Texture | null;
+      return map && lights ? { map, lights } : null;
+    });
+    const storefronts: Partial<Record<string, { map: THREE.Texture; lights: THREE.Texture }>> = {};
+    styleNames.forEach((style, i) => {
+      const map = storefrontResults[i * 2] as THREE.Texture | null;
+      const lights = storefrontResults[i * 2 + 1] as THREE.Texture | null;
+      if (map && lights) storefronts[style] = { map, lights };
+    });
     const styles = boards.slice(0, SIGN_FILES.length) as (HTMLImageElement | null)[];
     const civic = boards[SIGN_FILES.length] as HTMLImageElement | null;
     const industrial = boards[SIGN_FILES.length + 1] as HTMLImageElement | null;
-    const signs =
-      civic && industrial && styles.every(Boolean) ? makeSignAtlas({ styles: styles as HTMLImageElement[], civic, industrial }) : null;
-    return { facades, storefront: storefront && storefrontLights ? { map: storefront, lights: storefrontLights } : null,
-      pavement, road, roof: null, plinth: null, kerb: null, awning, sawtooth, signs };
+    const signs = civic && industrial && styles.every(Boolean) ? makeSignAtlas({ styles: styles as HTMLImageElement[], civic, industrial }) : null;
+    const classic = storefronts.classicDisplay ?? null;
+    return { facades, storefront: classic, storefronts, pavement, road, roof: null, plinth: null, kerb: null, awning, sawtooth, signs };
   })();
   return artLoading;
 }
 
-/** Alias kept for review pages and scripts that still import the old name. */
 export const loadCityArt = loadIllustratedCityArt;
 
 /** Built once per page, shared by every renderer instance. */

@@ -52,8 +52,8 @@ const FULL = LOT_SIZE * 0.95;
 
 /** Which wall materials suit each class; the id picks one. */
 const FACADE_BY_CLASS: Record<string, number[]> = {
-  commercial: [0, 1, 2, 3, 6, 7, 8],
-  industrial: [1, 1, 0, 4, 6, 8],
+  commercial: [0, 1, 2, 3, 6, 7, 8, 10],
+  industrial: [1, 1, 0, 4, 6, 8, 11],
   tenement: [0, 1, 2, 4, 3, 8, 9],
   municipal: [3, 3, 2],
   charity: [3, 2],
@@ -64,7 +64,7 @@ const FACADE_BY_CLASS: Record<string, number[]> = {
 const LOW_INDUSTRIAL = new Set(['warehouse', 'garageDepot', 'docks', 'railroad']);
 const SAWTOOTH = new Set(['warehouse', 'foundry', 'mill', 'cannery', 'garageDepot']);
 // A tall tenement, hospital or civic institution is not automatically a tower.
-const SETBACK_TYPES = new Set(['hotelLarge', 'bankLarge', 'departmentStore', 'newspaper', 'office', 'hospital', 'policeHQ', 'fbiHQ', 'hotelSmall']);
+const SETBACK_TYPES = new Set(['hotelLarge', 'bankLarge', 'departmentStore', 'newspaper', 'hospital', 'policeHQ', 'fbiHQ', 'hotelSmall', 'financeCompany', 'accountancy', 'lawFirm', 'radioStation']);
 const CIVIC_PORTICO: Record<string, number> = { museum: 6, library: 4, usPost: 4, fbiHQ: 4 };
 const PITCHED_SHOPS = new Set(['bakers', 'butchers', 'grocers', 'convenienceStore', 'shoeStore', 'tailors',
   'bookStore', 'pawnbroker', 'drugStore', 'plumbers', 'cafe', 'milkBar', 'breakfastBar', 'barbers', 'laundry', 'hardwareStore']);
@@ -215,29 +215,27 @@ export function profileFor(b: Building, t: BuildingType | undefined): Profile {
     masses.push({ dx: 0, dz: 0, y: 0, w, d, h: height, cap: !illegal });
   }
 
-  // Courtyards and rear wings on taller tenements and hotels (masses[0] stays street-front).
+  // Courtyards: street-front bar + rear wings that extend outside masses[0].
   if (!illegal && !destroyed && storeys >= 3 && (cls === 'tenement' || b.typeId === 'hotelSmall' || b.typeId === 'hotelLarge')) {
     const wing = r01(id, 41);
-    if (wing < 0.45) {
-      // L-shape rear wing
-      masses.push({ dx: w * 0.18, dz: d * 0.22, y: STOREY_H, w: w * 0.55, d: d * 0.48, h: height - STOREY_H, cap: true });
-    } else if (wing < 0.7) {
-      // U-shape lightwell (two side wings)
-      masses.push({ dx: -w * 0.28, dz: d * 0.15, y: STOREY_H, w: w * 0.28, d: d * 0.55, h: height - STOREY_H, cap: true });
-      masses.push({ dx: w * 0.28, dz: d * 0.15, y: STOREY_H, w: w * 0.28, d: d * 0.55, h: height - STOREY_H, cap: true });
-    }
-  }
-
-  // Corner pavilion on eligible 3+ storey commercial/office/hotel (lot index checked later in profileForLot).
-  if (!illegal && !destroyed && storeys >= 3 && (cls === 'commercial' || b.typeId === 'office' || b.typeId === 'hotelSmall')) {
-    if (r01(id, 42) < 0.4) {
-      masses.push({ dx: w * 0.32, dz: -d * 0.32, y: height * 0.7, w: w * 0.28, d: d * 0.28, h: height * 0.35, cap: true });
+    if (wing < 0.7) {
+      // Reshape masses[0] into a street-front bar flush with +Z
+      masses[0] = { dx: 0, dz: d * 0.22, y: 0, w, d: d * 0.56, h: height, cap: true };
+      if (wing < 0.45) {
+        // L-wing extending into -Z
+        masses.push({ dx: w * 0.18, dz: -d * 0.28, y: 0, w: w * 0.55, d: d * 0.44, h: height - 0.18, cap: true });
+      } else {
+        // U-wings
+        masses.push({ dx: -w * 0.28, dz: -d * 0.28, y: 0, w: w * 0.28, d: d * 0.44, h: height - 0.18, cap: true });
+        masses.push({ dx: w * 0.28, dz: -d * 0.28, y: 0, w: w * 0.28, d: d * 0.44, h: height - 0.18, cap: true });
+      }
     }
   }
 
   // Rear annex behind 2-3 storey shops.
   if (!illegal && !destroyed && cls === 'commercial' && storeys >= 2 && storeys <= 3 && r01(id, 43) < 0.35) {
-    masses.push({ dx: 0, dz: d * 0.38, y: 0, w: w * 0.6, d: d * 0.22, h: STOREY_H * 0.9, cap: false });
+    masses[0] = { dx: 0, dz: d * 0.14, y: 0, w, d: d * 0.72, h: height, cap: true };
+    masses.push({ dx: 0, dz: -d * 0.36, y: 0, w: w * 0.6, d: d * 0.28, h: STOREY_H, cap: false });
   }
 
   // The square bell tower rises behind the entrance gable of a low nave.
@@ -296,22 +294,28 @@ export function profileFor(b: Building, t: BuildingType | undefined): Profile {
 }
 
 
-export type StorefrontStyle = 'classicDisplay' | 'artDecoGlazed' | 'cafeBistro' | 'nightlifeLobby' | 'financialStone' | 'serviceBay';
+export type StorefrontStyle = 'classicDisplay' | 'provisionMarket' | 'artDecoGlazed' | 'cafeBistro' | 'nightlifeLobby' | 'financialStone' | 'serviceBay' | 'pawnSecured' | 'apothecarySoda' | 'luxuryBoutique' | 'poolParlor' | 'fireEngineBay' | 'hotelCanopy';
 
 const STOREFRONT_BY_TYPE: Record<string, StorefrontStyle> = {
-  grocers: 'classicDisplay', bakers: 'classicDisplay', butchers: 'classicDisplay',
-  convenienceStore: 'classicDisplay', tailors: 'classicDisplay', shoeStore: 'classicDisplay',
-  bookStore: 'classicDisplay', drugStore: 'classicDisplay',
-  departmentStore: 'artDecoGlazed', pawnbroker: 'artDecoGlazed', barbers: 'artDecoGlazed', laundry: 'artDecoGlazed',
-  cafe: 'cafeBistro', restaurant: 'cafeBistro', milkBar: 'cafeBistro', breakfastBar: 'cafeBistro', speakeasy: 'cafeBistro',
-  movieTheater: 'nightlifeLobby', theater: 'nightlifeLobby', jazzClub: 'nightlifeLobby',
-  casino: 'nightlifeLobby', poolHall: 'nightlifeLobby', hotelLarge: 'nightlifeLobby', hotelSmall: 'nightlifeLobby',
-  bankLarge: 'financialStone', bankSmall: 'financialStone', office: 'financialStone', newspaper: 'financialStone',
-  autoShop: 'serviceBay', garageDepot: 'serviceBay', haulageCompany: 'serviceBay',
-  warehouse: 'serviceBay', hardwareStore: 'serviceBay', plumbers: 'serviceBay', iceHouse: 'serviceBay',
+  bookStore: 'classicDisplay',
+  grocers: 'provisionMarket', butchers: 'provisionMarket', bakers: 'provisionMarket', convenienceStore: 'provisionMarket',
+  departmentStore: 'artDecoGlazed', radioStation: 'artDecoGlazed',
+  cafe: 'cafeBistro', milkBar: 'cafeBistro', breakfastBar: 'cafeBistro',
+  movieTheater: 'nightlifeLobby', theater: 'nightlifeLobby', jazzClub: 'nightlifeLobby', casino: 'nightlifeLobby',
+  bankLarge: 'financialStone', bankSmall: 'financialStone', financeCompany: 'financialStone',
+  accountancy: 'financialStone', lawFirm: 'financialStone', newspaper: 'financialStone',
+  autoShop: 'serviceBay', garageDepot: 'serviceBay', haulageCompany: 'serviceBay', warehouse: 'serviceBay',
+  plumbers: 'serviceBay', iceHouse: 'serviceBay', slaughterhouse: 'serviceBay', cannery: 'serviceBay',
+  pawnbroker: 'pawnSecured', hardwareStore: 'pawnSecured', printers: 'pawnSecured',
+  drugStore: 'apothecarySoda', barbers: 'apothecarySoda', laundry: 'apothecarySoda', healthCenter: 'apothecarySoda',
+  tailors: 'luxuryBoutique', furrier: 'luxuryBoutique', jewellers: 'luxuryBoutique', shoeStore: 'luxuryBoutique', danceStudio: 'luxuryBoutique',
+  poolHall: 'poolParlor', gym: 'poolParlor', massageParlor: 'poolParlor', soupKitchen: 'poolParlor', tradeUnion: 'poolParlor',
+  firehouse: 'fireEngineBay',
+  hotelSmall: 'hotelCanopy', hotelLarge: 'hotelCanopy', restaurant: 'hotelCanopy',
 };
+const ALL_STYLES: StorefrontStyle[] = ['classicDisplay', 'provisionMarket', 'artDecoGlazed', 'cafeBistro', 'nightlifeLobby', 'financialStone', 'serviceBay', 'pawnSecured', 'apothecarySoda', 'luxuryBoutique', 'poolParlor', 'fireEngineBay', 'hotelCanopy'];
 
 /** Deterministic storefront style for a commercial building. */
 export function storefrontStyle(typeId: string, id: number): StorefrontStyle {
-  return STOREFRONT_BY_TYPE[typeId] ?? (['classicDisplay', 'artDecoGlazed', 'cafeBistro', 'nightlifeLobby', 'financialStone', 'serviceBay'] as const)[id % 6];
+  return STOREFRONT_BY_TYPE[typeId] ?? ALL_STYLES[id % ALL_STYLES.length];
 }
