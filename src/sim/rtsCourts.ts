@@ -2,7 +2,6 @@ import { campaignMinute, FULL_DAY_MINUTES } from './calendar';
 import { caseEvidenceStrength, ensurePoliceFile, addCaseEvidence, refreshCaseIdentity, refreshPoliceWanted } from './caseEvidence';
 import { availableOfficial, ensureCourtOfficials } from './courtOfficials';
 import { addMessage, addNews } from './events';
-import { clearDestination } from './movement';
 import { placeInPrison } from './prison';
 import { leavePoliceCustody } from './policeCases';
 import type { Rng } from './rng';
