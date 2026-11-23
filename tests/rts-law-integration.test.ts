@@ -159,8 +159,13 @@ describe('continuous RTS law pipeline integration', () => {
     expect(crime.police!.prosecutorDecision).toBe('investigate');
     expect(s.suspect.status).toBe('arrested');
     s.w.minute += 30; tickPoliceCases(s.w, s.sim.rng);
-    const worker = Object.values(s.w.people).find(p => p.policeTask?.crimeId === crime.id)!;
-    expect(worker).toBeDefined(); expect(worker.policeTask!.kind).toBe('surveillance');
+    // Escorting the detainee and following up the prosecutor's evidence
+    // request are separate assignments: the arresting officer stays with him.
+    expect(s.officer.policeTask?.kind).toBe('arrest');
+    const worker = Object.values(s.w.people).find(p => p.policeTask?.crimeId === crime.id &&
+      p.policeTask.kind === 'surveillance')!;
+    expect(worker).toBeDefined();
+    expect(worker.id).not.toBe(s.officer.id);
     worker.pos = { x: 3, y: 3 }; worker.buildingId = null; worker.dest = null; worker.path = [];
     worker.policeTask!.phase = 'working'; worker.policeTask!.workLeft = 0;
     tickPoliceCases(s.w, s.sim.rng);
