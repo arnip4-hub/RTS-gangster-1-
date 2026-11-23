@@ -8,6 +8,7 @@ import {handlingAction,longGun,weaponVisible,drawDuration} from './weaponHandlin
 import type { CharacterWardrobe } from './characterWardrobe';
 import { prepareWardrobeMask, WardrobeMaterialState } from './characterWardrobeMaterial';
 import { createWardrobeGarments } from './characterWardrobeGarments';
+import { skinGarmentToBody, wardrobeBodyMesh } from './characterBindSpace';
 
 export interface CharacterAppearance { role:PersonRole; coat:number; weapon?:WeaponId; carriedProp?:'explosives'|'crate'; throwable?:'molotov'|'bomb'; charred?:number; firefighting?:boolean; wardrobe?:CharacterWardrobe; }
 const palmOffsetCache=new WeakMap<THREE.BufferGeometry,Map<string,THREE.Vector3>>();
@@ -161,7 +162,7 @@ export class CharacterEquipment {
     const {role,weapon,carriedProp}=appearance;
     if (appearance.wardrobe) {
       this.wardrobeGarments = createWardrobeGarments(this.model, appearance.wardrobe, this.rest, this.restPositions);
-      this.fitWardrobeBody(this.wardrobeGarments.hidesSourceHat, !!this.wardrobeGarments.hidesSourceBody,
+      this.fitWardrobeBody(this.wardrobeGarments.hidesSourceHat, false,
         this.wardrobeGarments.bodyHem, this.wardrobeGarments.bodyTop);
       this.paintedWardrobe.outerHem.value = Number.isFinite(this.wardrobeGarments.bodyHem) ? this.wardrobeGarments.bodyHem : 0;
       this.updateWardrobeCharring(appearance.charred ?? 0);
@@ -440,12 +441,12 @@ export class CharacterEquipment {
     geometry.setAttribute('skinWeight',new THREE.Float32BufferAttribute(weights,4));geometry.computeVertexNormals();
     const material=new THREE.MeshStandardMaterial({color:0x28272a,roughness:1,side:THREE.DoubleSide});
     material.name='role-robe-material';
-    const mesh=new THREE.SkinnedMesh(geometry,material);
-    const bones=[hips,left,right,spine];
-    const skeleton=new THREE.Skeleton(bones,bones.map(b=>this.rest.get(b.name)!.clone().invert()));
-    mesh.bind(skeleton,new THREE.Matrix4()); mesh.name='role-judge-robe';
+    const body = wardrobeBodyMesh(this.model);
+    if (!body) { geometry.dispose(); material.dispose(); return; }
+    const mesh = skinGarmentToBody(geometry, material, this.group, body);
+    mesh.name='role-judge-robe';
     mesh.castShadow=true;mesh.receiveShadow=false;mesh.frustumCulled=false;mesh.raycast=()=>{};
-    this.group.add(mesh);this.attachments.push(mesh);this.ownedGeometry.push(geometry);this.ownedSkeletons.push(skeleton);
+    this.attachments.push(mesh);this.ownedGeometry.push(geometry);
     this.materials.push(material);
   }
 
@@ -457,7 +458,6 @@ export class CharacterEquipment {
       for(let i=0;i<count;i+=3) {
         const a=indices?indices.getX(i):i, b=indices?indices.getX(i+1):i+1, c=indices?indices.getX(i+2):i+2;
         const cap=this.bareJudgeHead && mask.getX(a)+mask.getX(b)+mask.getX(c)>0;
-        const underRobe=covered.getX(a)+covered.getX(b)+covered.getX(c)>1.5;
         if(!cap && !underRobe)kept.push(a,b,c);
       }
       const geometry=original.clone();geometry.setIndex(kept);
@@ -469,21 +469,18 @@ export class CharacterEquipment {
 
   /** A replacement hat/outer garment has real depth; remove the hidden source
    * triangles so a fedora does not poke through a cap or a skirt through a coat. */
-  private fitWardrobeBody(hideHat:boolean,hideBody:boolean,bodyHem:number,bodyTop:number):void {
-    if (!hideHat && !hideBody) return;
-    const hem = bodyHem;
-    const top = bodyTop;
+  /** Remove only the original, rigid source hat. Never crop an animated body:
+   * broad triangle cuts and fragment discards leave holes under moving hems. */
+  private fitWardrobeBody(hideHat:boolean,_hideBody:boolean,_bodyHem:number,_bodyTop:number):void {
+    if (!hideHat) return;
     this.originals.forEach((_material, mesh) => {
       const original = mesh.geometry, mask = original.getAttribute('aWardrobe');
-      const point = original.getAttribute('aWardrobePoint'), body = original.getAttribute('aWardrobeBody');
-      if (!mask || !point || !body) return;
+      if (!mask) return;
       const sourceIndex = original.index, kept:number[] = [];
       const count = sourceIndex?.count ?? mask.count;
-      const covered = (i:number) => hideBody && body.getX(i) > .7 && point.getY(i) > hem && point.getY(i) < top;
       for (let i=0;i<count;i+=3) {
         const a=sourceIndex?sourceIndex.getX(i):i,b=sourceIndex?sourceIndex.getX(i+1):i+1,c=sourceIndex?sourceIndex.getX(i+2):i+2;
-        if (hideHat && mask.getW(a)+mask.getW(b)+mask.getW(c) > .5) continue;
-        if (Number(covered(a)) + Number(covered(b)) + Number(covered(c)) >= 2) continue;
+        if (mask.getW(a)+mask.getW(b)+mask.getW(c) > .5) continue;
         kept.push(a,b,c);
       }
       const geometry=original.clone();geometry.setIndex(kept);
