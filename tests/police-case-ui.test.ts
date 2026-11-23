@@ -49,6 +49,7 @@ describe('RTS police file presentation', () => {
     expect(render(w, crime)).not.toContain('Recovered cartridge');
     expect(render(w, crime)).not.toContain('Assigned officer');
     expect(render(w, crime)).not.toContain('District attorney');
+    expect(render(w, crime)).not.toContain('Hidden witness');
     file.disclosureKnown = true;
     const html = render(w, crime);
     expect(html).toContain('Named suspect');
@@ -56,7 +57,8 @@ describe('RTS police file presentation', () => {
     expect(html).toContain('Assigned officer');
     expect(html).toContain('Recovered cartridge');
     expect(html).toContain('Further investigation requested');
-    expect(html).not.toContain('Hidden witness');
+    // A lawyer who opened the police file learns the source of a reported statement.
+    expect(html).toContain('Hidden witness');
   });
 
   it('does not reveal future reports or observations before police receive them', () => {

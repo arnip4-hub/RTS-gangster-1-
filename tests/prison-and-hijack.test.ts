@@ -36,7 +36,8 @@ describe('prison contacts and freight hijacking', () => {
     vi.spyOn(sim.rng, 'int').mockReturnValue(115);
     w.minute = 3240; tickPrison(w, sim.rng);
     expect(rival.status).toBe('dead');
-    expect(inmate.jailWeeks).toBe(6);
+    // A fatal prison assault now extends the sentence by eight weeks (4 -> 12).
+    expect(inmate.jailWeeks).toBe(12);
     expect(gang.evidence).toBeGreaterThan(0);
     expect(Sim.fromSave(structuredClone(w)).world.people[rival.id].status).toBe('dead');
   });
