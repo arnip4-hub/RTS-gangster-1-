@@ -7,9 +7,7 @@ export function readVisualStyle(): VisualStyle {
   try {
     const saved = localStorage.getItem(KEY);
     if (saved === 'illustrated') return 'illustrated';
-    // The animated illustrated 3D wardrobe caused severe mesh stretching. Old
-    // saves are moved back to the stable modelled city automatically.
-    if (saved === 'illustrated3d') localStorage.setItem(KEY, 'detailed');
+    if (saved === 'illustrated3d') return 'illustrated3d';
     return 'detailed';
   }
   catch { return 'detailed'; }
@@ -20,6 +18,5 @@ export function usesPaintedCity(style: VisualStyle): boolean {
 }
 
 export function writeVisualStyle(style: VisualStyle): void {
-  const supported = style === 'illustrated3d' ? 'detailed' : style;
-  try { localStorage.setItem(KEY, supported); } catch { /* session only */ }
+  try { localStorage.setItem(KEY, style); } catch { /* session only */ }
 }
