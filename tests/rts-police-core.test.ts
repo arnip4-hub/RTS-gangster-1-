@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { defaultGameOptions } from '../src/app/newGame';
+import { streetPersonVisible } from '../src/render/characterPresentation';
 import { campaignMinute, FULL_DAY_MINUTES } from '../src/sim/calendar';
 import { activeCaseStatements, addCaseEvidence, caseEvidenceStrength, caseHasWarrant, ensurePoliceFile,
   refreshCaseIdentity, refreshPoliceWanted } from '../src/sim/caseEvidence';
 import { normalizeRtsPolice, recordPoliceObservation, tickPoliceCases, tryCaseArrest } from '../src/sim/policeCases';
 import { Rng } from '../src/sim/rng';
 import { Sim } from '../src/sim/sim';
+import { buildingDoor } from '../src/sim/world';
 import type { CourtCase, CrimeRecord } from '../src/sim/types';
 
 function scene() {
@@ -106,6 +108,58 @@ describe('physical RTS investigations and arrest', () => {
     expect(s.suspect.custody).toMatchObject({ crimeId: s.crime.id, officerId: s.officer.id, arrestedAt: s.now,
       reviewAt: s.now + 360, releaseAt: s.now + FULL_DAY_MINUTES });
     expect(s.w.crimes).toHaveLength(1);
+  });
+
+  it('secures a detainee on scene, transports them with the arresting officer and books them at the station after reload', () => {
+    const s = scene(); s.identify(); s.file.stage = 'wanted'; s.file.warrantAt = s.now;
+    s.file.warrantExpiresAt = s.now + FULL_DAY_MINUTES;
+    const rng = new Rng(1); rng.chance = () => false;
+    expect(tryCaseArrest(s.w, rng, s.officer, s.suspect, s.crime.id)).toBe(true);
+    expect(s.officer.policeTask).toMatchObject({ kind: 'arrest', phase: 'securing', suspectId: s.suspect.id });
+    expect(s.suspect.custody?.transport).toBe('scene');
+    expect(streetPersonVisible(s.suspect, null)).toBe(true);
+    s.w.minute++; tickPoliceCases(s.w, rng);
+    expect(s.officer.policeTask?.phase).toBe('securing');
+    s.w.minute++; tickPoliceCases(s.w, rng);
+    expect(s.officer.policeTask?.phase).toBe('delivering');
+    expect(s.suspect.custody?.transport).toBe(s.officer.inVehicle ? 'vehicle' : 'escorted');
+    expect(s.suspect.status).toBe('arrested');
+    const restored = Sim.fromSave(structuredClone(s.w)).world;
+    const officer = restored.people[s.officer.id], detainee = restored.people[s.suspect.id];
+    expect(officer.policeTask?.phase).toBe('delivering');
+    const station = Object.values(restored.buildings).find(b => b.typeId === 'policeHQ' && b.state !== 'destroyed')!;
+    expect(station).toBeDefined();
+    const door = buildingDoor(restored, station);
+    officer.pos = { ...door }; officer.dest = null; officer.path = [];
+    restored.minute++; tickPoliceCases(restored, new Rng(2));
+    expect(detainee.custody?.transport).toBe('station');
+    expect(detainee.buildingId).toBe(station.id);
+    expect(detainee.inVehicle).toBe(false);
+    expect(streetPersonVisible(detainee, detainee.id)).toBe(false);
+    expect(officer.policeTask).toBeUndefined();
+    expect(officer.buildingId).toBe(station.id);
+  });
+
+  it('finishes custody even if the arresting officer loses their transport task', () => {
+    const s = scene(); s.identify(); s.file.stage = 'wanted'; s.file.warrantAt = s.now;
+    const rng = new Rng(1); rng.chance = () => false;
+    expect(tryCaseArrest(s.w, rng, s.officer, s.suspect, s.crime.id)).toBe(true);
+    delete s.officer.policeTask;
+    s.w.minute++; tickPoliceCases(s.w, rng);
+    expect(s.suspect.status).toBe('arrested');
+    expect(s.suspect.custody?.transport).toBe('station');
+    expect(streetPersonVisible(s.suspect, s.suspect.id)).toBe(false);
+  });
+
+  it('does not strand a detainee if no usable police station exists', () => {
+    const s = scene(); s.identify(); s.file.stage = 'wanted'; s.file.warrantAt = s.now;
+    for (const building of Object.values(s.w.buildings)) if (building.typeId === 'policeHQ') building.state = 'destroyed';
+    const rng = new Rng(1); rng.chance = () => false;
+    expect(tryCaseArrest(s.w, rng, s.officer, s.suspect, s.crime.id)).toBe(true);
+    s.w.minute += 2; tickPoliceCases(s.w, rng, 2);
+    expect(s.suspect.custody?.transport).toBe('station');
+    expect(streetPersonVisible(s.suspect, null)).toBe(false);
+    expect(s.officer.policeTask).toBeUndefined();
   });
 
   it('allows an officer’s own caught-in-the-act observation to support a nearby immediate arrest', () => {
