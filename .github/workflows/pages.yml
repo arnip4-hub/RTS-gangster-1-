@@ -30,10 +30,8 @@ jobs:
 
       - run: npm ci
 
-      - name: Diagnose generated schema difference
-        run: |
-          node scripts/build-save-schema.mjs
-          git diff -- src/sim/world-schema.json
+      - name: Check arrest, police transport and court regressions
+        run: npx vitest run tests/rts-police-core.test.ts tests/live-law.test.ts tests/rts-courts.test.ts
 
       # Pages serves the site from /<repository name>/.
       - run: npm run build:release
