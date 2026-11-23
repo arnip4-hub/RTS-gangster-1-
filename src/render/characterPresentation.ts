@@ -65,7 +65,7 @@ export function streetPersonVisible(person:Person,selected:number|null):boolean 
   if(person.tram?.phase==='riding' || person.tramTrip?.phase==='riding') return false;
   // The boss is an office resident, not a street actor exposed by lowering a roof.
   if (bossInsideOffice(person)) return false;
-  if(person.id===selected || person.dest || person.streetOrder || person.inVehicle || person.status==='arrested') return true;
+  if(person.id===selected || person.dest || person.streetOrder || person.inVehicle) return true;
   if(person.gangId!=null) return person.orderId!=null;
   // The editor at his desk is inside the newspaper, not standing in it.
   if(person.role==='reporter'&&person.buildingId!=null) return false;
