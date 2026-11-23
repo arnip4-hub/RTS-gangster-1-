@@ -71,13 +71,13 @@ describe('painted 3D wardrobe materials', () => {
       const wardrobe = resolveCharacterWardrobe({ id: 55, portrait: 9, female: false, role: 'citizen' });
       const sourceDispose = vi.spyOn(r.geometry, 'dispose');
       r.equipment.set({ role: 'citizen', coat: 0x555555, weapon: 'pistol', wardrobe });
-      const hat = r.model.getObjectByName('wardrobe-headwear') as THREE.Mesh;
-      expect(hat).toBeDefined(); expect(hat.parent?.name).toBe('Head');
+      const hat = r.group.getObjectByName('wardrobe-headwear') as THREE.Mesh;
+      expect(hat).toBeDefined(); expect(hat.parent).toBe(r.group);
       expect(r.group.getObjectByName('equipment-pistol')?.parent?.name).toBe('RightHand');
       const hatGeometry = vi.spyOn(hat.geometry, 'dispose');
       const hatMaterial = vi.spyOn(hat.material as THREE.Material, 'dispose');
       r.equipment.set({ role: 'citizen', coat: 0x444444 });
-      expect(r.model.getObjectByName('wardrobe-headwear')).toBeUndefined();
+      expect(r.group.getObjectByName('wardrobe-headwear')).toBeUndefined();
       expect(r.mesh.geometry).toBe(r.geometry);
       expect(hatGeometry).toHaveBeenCalledOnce(); expect(hatMaterial).toHaveBeenCalledOnce();
       expect(sourceDispose).not.toHaveBeenCalled();
