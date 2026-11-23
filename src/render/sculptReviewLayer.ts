@@ -69,7 +69,7 @@ export class SculptReviewLayer {
 
   constructor(private scene: THREE.Scene, private carCapacity: number,
     private onReady: () => void, private characterCapacity = MAX_DETAILED_CHARACTERS,
-    private options: { painted?: boolean } = {}) {}
+    private options: { painted?: boolean; coachworkPaint?: boolean } = {}) {}
 
   async load(): Promise<void> {
     try {
@@ -164,7 +164,7 @@ export class SculptReviewLayer {
         }
       });
       SCULPT_VEHICLE_KINDS.forEach((kind, index) => {
-        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity, { painted: this.options.painted });
+        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity, { painted: this.options.painted, coachworkPaint: this.options.coachworkPaint ?? !!this.options.painted, finish: this.options.painted ? 'illustrated' : 'enamel' });
         this.vehicles.set(kind, { parts: vehicle.parts, count: 0 });
         this.vehicleMaterials.push(...vehicle.ownedMaterials);
         for (const part of vehicle.parts) { part.visible = this.visible; this.scene.add(part); }
@@ -414,7 +414,7 @@ export class SculptReviewLayer {
     this.vehiclePaint.setHex(paint);
     for (const part of vehicle.parts) {
       part.setMatrixAt(vehicle.count, matrix);
-      if (this.options.painted) part.setColorAt(vehicle.count, this.vehiclePaint);
+      if (this.options.coachworkPaint ?? this.options.painted) part.setColorAt(vehicle.count, this.vehiclePaint);
     }
     vehicle.count++;
     return true;

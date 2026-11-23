@@ -93,9 +93,18 @@ export function prepareVehicleBodyPaint(geometry: THREE.BufferGeometry, kind: Ve
   geometry.setAttribute('aBodyPaint', new THREE.Float32BufferAttribute(mask, 1));
 }
 
+export type VehiclePaintFinish = 'enamel' | 'illustrated';
+export interface VehiclePaintOptions {
+  finish?: VehiclePaintFinish;
+  /** Cream doors against a dark body, for period police coupes. */
+  twoTone?: boolean;
+}
+
 /** Clone ownership stays with the vehicle layer. Instance colours are carried
  * separately from vertex colours so they cannot tint glass, tyres or chrome. */
-export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId, size?: VehicleSize): THREE.Material {
+export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId, size?: VehicleSize,
+  options: VehiclePaintOptions = {}): THREE.Material {
+  const finish = options.finish ?? 'illustrated';
   // The preparation-only reference is a live Texture. Material.copy normally
   // JSON-serializes userData, which would encode the entire source image.
   // Shadow that one field without mutating the source material.
@@ -104,8 +113,10 @@ export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId,
   delete sanitized.userData.vehiclePaintReferenceMap;
   const material = sanitized.clone();
   if (!(material instanceof THREE.MeshStandardMaterial)) return material;
-  material.roughness = Math.max(.72, material.roughness);
-  material.metalness = Math.min(.12, material.metalness);
+  if (finish === 'illustrated') {
+    material.roughness = Math.max(.72, material.roughness);
+    material.metalness = Math.min(.12, material.metalness);
+  }
   material.emissiveMap = null; material.emissive.setRGB(0, 0, 0);
   const previousCompile = source.onBeforeCompile;
   const previousKey = source.customProgramCacheKey();
@@ -150,9 +161,18 @@ export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId,
         // Preserve the authored paint's broad shading while lifting black
         // source albedo enough that cream/green coachwork is actually visible.
         vec3 coachPaint = vVehiclePaint * clamp(.47 + 1.75 * sqrt(max(coachLight, 0.0)), .48, 1.45);
-        diffuseColor.rgb = mix(diffuseColor.rgb, coachPaint, coachMask);`);
+        ${options.twoTone ? `
+          float doorBand = step(.35, vVehiclePoint.y) * (1.0 - step(.95, vVehiclePoint.y))
+            * step(.15, abs(vVehiclePoint.z));
+          coachPaint = mix(coachPaint, vec3(.85, .82, .74), doorBand * coachMask);
+        ` : ''}
+        diffuseColor.rgb = mix(diffuseColor.rgb, coachPaint, coachMask);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+        ${finish === 'enamel' ? 'roughnessFactor = mix(roughnessFactor, 0.37, coachMask);' : ''}`)
+      .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        ${finish === 'enamel' ? 'metalnessFactor = mix(metalnessFactor, 0.14, coachMask);' : ''}`);
   };
-  material.customProgramCacheKey = () => `${previousKey}:selective-vehicle-paint-${kind ?? 'default'}-v4`;
+  material.customProgramCacheKey = () => `${previousKey}:selective-vehicle-paint-${kind ?? 'default'}-${finish}${options.twoTone ? '-two' : ''}-v5`;
   material.needsUpdate = true;
   return material;
 }

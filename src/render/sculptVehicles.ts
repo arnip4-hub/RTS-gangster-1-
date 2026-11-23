@@ -14,7 +14,7 @@ export const SCULPT_VEHICLE_PROFILE: typeof VEHICLE_PROFILE = {
 
 /** Preserve every GLB primitive and its material, normalized together to +X and ground zero. */
 export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capacity: number,
-  options: { painted?: boolean } = {}): {
+  options: { painted?: boolean; coachworkPaint?: boolean; finish?: 'enamel' | 'illustrated' } = {}): {
   parts: THREE.InstancedMesh[]; ownedMaterials: THREE.Material[];
 } {
   root.updateMatrixWorld(true);
@@ -37,7 +37,9 @@ export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capac
     part.scale(profile.length / size.x, profile.height / size.y, profile.width / size.z);
     part.computeBoundingBox(); part.computeBoundingSphere();
     let material = sources[index].material;
-    if (options.painted) {
+    const coachwork = options.coachworkPaint ?? !!options.painted;
+    const finish = options.finish ?? (options.painted ? 'illustrated' : 'enamel');
+    if (coachwork) {
       const source = Array.isArray(material) ? material[0] : material;
       const texture = source instanceof THREE.MeshStandardMaterial
         ? (source.userData.vehiclePaintReferenceMap as THREE.Texture | undefined) ?? source.map : null;
@@ -48,9 +50,9 @@ export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capac
       ownedMaterials.push(roof);
       material = [Array.isArray(material) ? material[0] : material, roof];
     }
-    if (options.painted) {
+    if (coachwork) {
       const clone = (source: THREE.Material) => {
-        const painted = paintedVehicleMaterial(source, kind, profile); ownedMaterials.push(painted); return painted;
+        const painted = paintedVehicleMaterial(source, kind, profile, { finish }); ownedMaterials.push(painted); return painted;
       };
       material = Array.isArray(material) ? material.map(clone) : clone(material);
     }
@@ -59,7 +61,7 @@ export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capac
     mesh.count = 0;
     mesh.castShadow = true; mesh.receiveShadow = true; mesh.frustumCulled = false;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    if (options.painted) {
+    if (coachwork) {
       mesh.setColorAt(0, new THREE.Color(1, 1, 1));
       mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
     }
