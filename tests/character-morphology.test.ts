@@ -206,6 +206,16 @@ describe('shared 3D character morphology', () => {
               style, bodyMatrix: body.matrixWorld.elements, bindMatrix: body.bindMatrix.elements,
               garmentMatrix: garment.matrixWorld.elements, modelScale: model.scale.toArray(),
               modelPosition: model.position.toArray(), longest, worst,
+              bones: body.skeleton.bones.slice(0, 16).map((bone, i) => ({
+                name: bone.name, scale: new THREE.Vector3().setFromMatrixScale(bone.matrixWorld).toArray(),
+                bindScale: new THREE.Vector3().setFromMatrixScale(body.skeleton.boneInverses[i].clone().invert()).toArray(),
+                parent: bone.parent?.name,
+              })),
+              bodySamples: [0, 100, 500].filter(i => i < body.geometry.getAttribute('position').count).map(i => ({
+                raw: new THREE.Vector3().fromBufferAttribute(body.geometry.getAttribute('position'), i).toArray(),
+                skinned: body.getVertexPosition(i, new THREE.Vector3()).applyMatrix4(body.matrixWorld).toArray(),
+                unskinned: new THREE.Vector3().fromBufferAttribute(body.geometry.getAttribute('position'), i).applyMatrix4(body.matrixWorld).toArray(),
+              })),
               original: [0, 1, 2].map(slot => new THREE.Vector3().fromBufferAttribute(pos, vertex(slot)).toArray()),
               deformed: [0, 1, 2].map(slot => skinned[vertex(slot)].toArray()),
             };
