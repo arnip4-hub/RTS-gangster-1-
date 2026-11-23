@@ -108,7 +108,7 @@ interface GameState {
   textureQuality: TextureQuality;
   /** City drawing quality; applies immediately and is kept between sessions. */
   graphicsQuality: GraphicsQuality;
-  /** Illustrated or detailed city artwork; applies when the city next opens. */
+  /** Unified painted 3D city artwork. */
   visualStyle: VisualStyle;
   /** Interface scale chosen in Options (desktop app; see uiScale.ts). */
   uiScale: number;

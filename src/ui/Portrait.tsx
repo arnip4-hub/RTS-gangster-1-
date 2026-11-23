@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { GANG_COLORS } from '../sim/constants';
 import type { Gang, Person } from '../sim/types';
-import { bossPortraitUrl, portraitUrl } from './art';
+import { portraitUrl } from './art';
 import { useArtStatus } from './useArtStatus';
-import { readVisualStyle, usesPaintedCity } from '../render/visualStyle';
 import { appearanceIndex, personSkinGroup } from '../render/personAppearance';
 import { resolveCharacterWardrobe } from '../render/characterWardrobe';
 
@@ -16,10 +15,9 @@ import { resolveCharacterWardrobe } from '../render/characterWardrobe';
 export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   // Citizens and rank-and-file officers use a stable layered drawing. The
   // commissioned paintings remain for the crew and agency leadership.
-  const illustrated = usesPaintedCity(readVisualStyle());
-  const composed = illustrated && !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
+  const composed = !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
   // A boss's own painting when it has been delivered; the pool face otherwise.
-  const boss = illustrated ? undefined : bossPortraitUrl(person.face);
+  const boss = undefined;
   const bossStatus = useArtStatus(boss);
   const pool = composed ? undefined : portraitUrl(person);
   const poolStatus = useArtStatus(pool);
@@ -72,7 +70,7 @@ const CARD = ['#cfc3a4', '#c8bb9c', '#d4c8aa', '#c2b696'] as const;
  */
 export function PortraitDrawn({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   const p = appearanceIndex(person);
-  const wardrobe = readVisualStyle() === 'illustrated3d' ? resolveCharacterWardrobe(person) : undefined;
+  const wardrobe = resolveCharacterWardrobe(person);
   const hex = (color: number) => `#${color.toString(16).padStart(6, '0')}`;
   const tone = personSkinGroup(person);
   const skin = wardrobe ? hex(wardrobe.skinColor) : SKIN[tone * 2 + Math.floor(r(p, 1) * 2)];

@@ -38,7 +38,7 @@ export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capac
     part.computeBoundingBox(); part.computeBoundingSphere();
     let material = sources[index].material;
     const coachwork = options.coachworkPaint ?? !!options.painted;
-    const finish = options.finish ?? (options.painted ? 'illustrated' : 'enamel');
+    const finish = options.finish ?? 'enamel';
     if (coachwork) {
       const source = Array.isArray(material) ? material[0] : material;
       const texture = source instanceof THREE.MeshStandardMaterial

@@ -164,7 +164,7 @@ export class SculptReviewLayer {
         }
       });
       SCULPT_VEHICLE_KINDS.forEach((kind, index) => {
-        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity, { painted: this.options.painted, coachworkPaint: this.options.coachworkPaint ?? !!this.options.painted, finish: this.options.painted ? 'illustrated' : 'enamel' });
+        const vehicle = createSculptVehicle(cars[index].scene, kind, this.carCapacity, { painted: this.options.painted, coachworkPaint: this.options.coachworkPaint ?? !!this.options.painted, finish: 'enamel' });
         this.vehicles.set(kind, { parts: vehicle.parts, count: 0 });
         this.vehicleMaterials.push(...vehicle.ownedMaterials);
         for (const part of vehicle.parts) { part.visible = this.visible; this.scene.add(part); }

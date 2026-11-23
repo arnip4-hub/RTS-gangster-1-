@@ -68,7 +68,6 @@ import {SculptRubble,rubblePiles,type RubblePlacement} from './sculptRubble';
 import { bossInsideOffice, characterPriority, streetPersonVisible, useDetailedModels, carriesExplosives, workingInside } from './characterPresentation';
 import { characterInView, characterNeedsDetail, characterPixelHeight, DETAIL_KEEP_METRES, MAX_DETAILED_STREET_CHARACTERS } from './characterDetail';
 import { graphicsPixelRatio, LIGHT_DETAILED_STREET_CHARACTERS, readGraphicsQuality, type GraphicsQuality } from './graphicsQuality';
-import { readVisualStyle, usesPaintedCity } from './visualStyle';
 import { resolveCharacterWardrobe, type CharacterWardrobe } from './characterWardrobe';
 import { previewActorMotion, previewStreetPosition, type PreviewActorMotion } from './previewActorMotion';
 import { kerbside, roadHeading } from '../sim/vehicleNavigation';
@@ -92,7 +91,7 @@ import { churchBelfryLayout, civicDomeLayout, porticoColumnScale, CIVIC_STONE } 
 import { dailyMotion, deliveryDriver, loadingShuttle } from './dailyMotion';
 import { dockCraneGeometry, stationClockGeometry, trainShedGeometry } from './architecture';
 import { centreSiteHalfExtent, entryDoorGeometry, mouldingsFor, rusticationCourses, frontOf, frontageGeometry, interiorGeometry, massesForView, sectionMasses, pitchedRoofGeometry, storedGoodsGeometry, worksMachineGeometry } from './architecture';
-import { cityTextures, loadCityArt, loadIllustratedCityArt, type CityArt, type CityTextures } from './textures';
+import { cityTextures, loadIllustratedCityArt, type CityArt, type CityTextures } from './textures';
 import {
   BAY_W,
   KERB_H,
@@ -153,20 +152,8 @@ const paintScratch = new THREE.Color();
 // every building when seen from the air.
 const STONE = new THREE.Color(0.56, 0.535, 0.49);
 const RUSTIC_STONE = new THREE.Color(0.46, 0.42, 0.36);
-/** Multipliers over the facade textures: enough spread that a street of the
- * same facade still reads as different buildings. */
-const WALL_TINTS: [number, number, number][] = [
-  [1.00, 1.00, 1.00], [1.08, 0.94, 0.86], [0.82, 0.80, 0.80], [1.05, 1.02, 0.92],
-  [0.92, 0.95, 1.02], [1.10, 0.98, 0.80], [0.70, 0.68, 0.66], [1.02, 0.90, 0.84],
-  [0.95, 0.97, 0.94], [1.06, 1.04, 1.00],
-];
 /** Painted shopfront joinery: the period ran to dark, glossy colours. */
 const SHOP_PAINT = [0x4a6b52, 0x8c5a4a, 0x50607e, 0x9a8656, 0x6d5a48, 0x7a6f62, 0x5c4e6b, 0x8a7a5c];
-// The photographed brick/stucco tiles are darker than the original street
-// palette. Lift wall albedo alone; pale stone porticos, roofs and props keep
-// their existing response. These are linear colour multipliers.
-const FACADE_ALBEDO_GAIN = [1.8, 2.5, 1, 1, 1.3] as const;
-
 /** Renders New Temperance: streets, skyline, traffic, people and overlays. */
 /** The original's avenues are double-width: two carriageways flank a 14 m
  * central median. A bridge across the river remains roadway edge to edge. */
@@ -220,11 +207,9 @@ export class CityRenderer {
   readonly camera: THREE.OrthographicCamera;
   private renderer: THREE.WebGLRenderer;
   private graphicsQuality: GraphicsQuality = readGraphicsQuality();
-  private readonly visualStyle = readVisualStyle();
   private wardrobes = new WeakMap<Person, { key: string; value: CharacterWardrobe }>();
 
   private wardrobeFor(person: Person): CharacterWardrobe | undefined {
-    if (this.visualStyle !== 'illustrated3d') return undefined;
     const key = `${person.id}:${person.portrait}:${person.female}:${person.role}:${person.gangId}`;
     let cached = this.wardrobes.get(person);
     if (!cached || cached.key !== key) {
@@ -492,8 +477,7 @@ export class CityRenderer {
     this.scene.matrixWorldAutoUpdate = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.32;
-    if (usesPaintedCity(this.visualStyle)) this.renderer.toneMappingExposure = 1.12;
+    this.renderer.toneMappingExposure = 1.12;
 
     this.camera = new THREE.OrthographicCamera(-100, 100, 100, -100, -2000, 4000);
     const cityW = world.gridW * CELL;
@@ -577,7 +561,7 @@ export class CityRenderer {
 
     // Show procedural city art immediately, then swap in the delivered sheets
     // for the selected visual style as they finish loading.
-    void (usesPaintedCity(this.visualStyle) ? loadIllustratedCityArt() : loadCityArt()).then((art) => {
+    void loadIllustratedCityArt().then((art) => {
       if (!this.disposed) this.applyArt(art);
     });
   }
@@ -695,9 +679,7 @@ export class CityRenderer {
     this.facadeMats = this.tex.facades.map((f, index) => {
       // The painted sheets already carry their own highlights and soot. The
       // stronger gain belongs to the photographed sheets in detailed mode.
-      const gain = usesPaintedCity(this.visualStyle) && index < 5
-        ? [1.15, 1.45, 1.05, 1, 1.05][index]
-        : FACADE_ALBEDO_GAIN[index] ?? 1;
+      const gain = index < 5 ? [1.15, 1.45, 1.05, 1, 1.05][index] : 1;
       const m = new THREE.MeshStandardMaterial({
         color: new THREE.Color(gain, gain, gain),
         map: this.ownedTextures.clone(f.map),
@@ -852,7 +834,7 @@ export class CityRenderer {
     this.fireEscapes = new InstancePool(fireEscapeGeometry(), ironMat, nB, { castShadow: true });
 
     const roofPropMat = new THREE.MeshStandardMaterial({
-      color: usesPaintedCity(this.visualStyle) ? 0xb6a994 : 0xffffff,
+      color: 0xb6a994,
       roughness: 0.9, vertexColors: true,
     });
     // The saw-tooth roofs get a material of their own so the glazing can be mapped in later.
@@ -1027,7 +1009,7 @@ export class CityRenderer {
   private ensureSculptModels(): void {
     if (this.sculptModels) return;
     const layer = new SculptReviewLayer(this.scene, MAX_CARS + MAX_AGENTS,
-      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d', coachworkPaint: true });
+      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: true, coachworkPaint: true });
     this.sculptModels = layer;
     this.sculptLoad = layer.load().then(() => {
       this.sculptLoad = null;
@@ -1435,8 +1417,8 @@ export class CityRenderer {
       // Base colour: a period wall tint per building (fresh and sooted brick,
       // limewash, buff, ochre, grey stone) over the facade texture, with a
       // little lightness variation, then washed with gang colour.
-      const paintedFacade = usesPaintedCity(this.visualStyle) && prof.facade < 5;
-      const tint = paintedFacade ? [1, 1, 1] : WALL_TINTS[Math.floor(r01(b.id, 33) * WALL_TINTS.length)];
+      const paintedFacade = prof.facade < 5;
+      const tint = [1, 1, 1];
       const v = paintedFacade ? 0.94 + r01(b.id, 30) * 0.12 : 0.88 + r01(b.id, 30) * 0.24;
       this.colorScratch.setRGB(v * tint[0], v * tint[1], v * tint[2]);
       if (b.state === 'destroyed') this.colorScratch.setRGB(0.26, 0.24, 0.23);
