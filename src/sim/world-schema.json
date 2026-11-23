@@ -3157,6 +3157,25 @@
           "shape": {
             "type": "number"
           }
+        },
+        "transport": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": "scene"
+              },
+              {
+                "literal": "escorted"
+              },
+              {
+                "literal": "vehicle"
+              },
+              {
+                "literal": "station"
+              }
+            ]
+          }
         }
       }
     },
@@ -3199,6 +3218,12 @@
               },
               {
                 "literal": "returning"
+              },
+              {
+                "literal": "securing"
+              },
+              {
+                "literal": "delivering"
               }
             ]
           }
