@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="384" viewBox="0 0 256 384">
+<title>1930s HD layered pilot: bodyUpper, right</title>
+<g id="painted-bodyUpper"><path d="M115 139 L141 139 L142 179 Q128 188 112 179Z" fill="#ece7d9" stroke="#322a27" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" /><path d="M116 161 Q127 170 141 161" fill="none" stroke="#b8aea0" stroke-width="1.3" stroke-linecap="round"/><g data-walk="left-arm"><path d="M108 211 L119 212 L117 244 Q120 252 117 260 L107 259 Q99 251 102 244Z" fill="#e6e0d2" stroke="#322a27" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" /></g><g data-walk="right-arm"><path d="M155 208 L165 214 L166 241 Q176 255 169 262 L160 261 Q156 249 153 244Z" fill="#ddd5c7" stroke="#322a27" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" /></g></g>
+</svg>

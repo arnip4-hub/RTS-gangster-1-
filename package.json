@@ -10,8 +10,8 @@
   "description": "Standalone RTS gangster beta based on Original Gangster (MIT)",
   "license": "MIT",
   "scripts": {
-    "dev": "vite",
-    "build": "node scripts/build-save-schema.mjs --check && tsc --noEmit && vite build",
+    "dev": "node scripts/build-layered-pilot.mjs && vite",
+    "build": "node scripts/build-layered-pilot.mjs && node scripts/build-save-schema.mjs --check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
@@ -31,7 +31,8 @@
     "package:mac": "npm run build:release && node scripts/package-desktop.mjs --mac --x64 --arm64",
     "desktop:smoke": "npm run build:release && node scripts/desktop-smoke.mjs",
     "build:release": "npm run build && node scripts/optimize-art.mjs dist/art",
-    "branding:win": "node scripts/build-windows-branding.mjs"
+    "branding:win": "node scripts/build-windows-branding.mjs",
+    "art:layered-pilot": "node scripts/build-layered-pilot.mjs"
   },
   "dependencies": {
     "@wolffo/three-fire": "1.4.0",

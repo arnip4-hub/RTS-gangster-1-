@@ -1,8 +1,9 @@
 # Illustrated 1930s: layered 2D character renderer (design)
 
-**Status:** technical specification + non-breaking foundation. **Not an activated
-replacement** for `IllustratedPeople`, and not a promise that the required art
-assets have already been painted. The `illustrated3d` experiment stays disabled.
+**Status:** Stage 1 complete and Stage 2 male HD pilot implemented behind an
+explicit **developer-only** flag. The public `IllustratedPeople` renderer is
+unchanged by default. Full role/body/outfit coverage is **not** implemented;
+`illustrated3d` remains disabled.
 
 ## Decision
 
@@ -154,3 +155,15 @@ profiling. Include texture memory/draw calls/visible count instrumentation.
 3. Compiler and compositing renderer behind developer flag.
 4. Animation/art extension, portrait unification, performance profiling.
 5. Wider gallery and staged rollout into Illustrated 1930s after acceptance.
+
+## Stage 2 actual delivery (23 Nov 2026)
+
+![Editable four-direction 1930s pilot](../images/illustrated-layered-pilot-preview.svg)
+
+- Editable source artwork: `art-source/illustrated/layered-pilot/{slot}/{front,back,left,right}.svg`, **32 independently editable SVG pieces**. Eight logical layers (hair back, body lower, clothes lower, body upper, clothes upper, face, hair front, hat). Canvas 256×384; aligned ground baseline.
+- `scripts/build-layered-pilot.mjs` produces eight PNG atlases and `manifest.json` under `public/art/city/layered-pilot/`. Each atlas has 4 direction rows and 5 columns: one **standing pose plus 4 walk frames**. Source art remains vector; walk arcs use shoulder/hip transforms and alternate foot lift.
+- `LayeredPilotPeople` renders the eight layers with per-instance tint through `InstancePool`, independent directional UVs for the main and Tagged cameras, depth ordering, shadow and shared action cue atlas. Failures use the legacy renderer.
+- `IllustratedPeopleWithPilot` blends the two renderers: **only the selected male boss, lieutenant or hood** gets the prototype when `?layeredPeople=1`; everyone else uses the same `IllustratedPeople` as before. Selection/picking remains owned by `scene.ts`. This is intentionally a *single male average-build suit and fedora* proof, not 50 finished wardrobe models.
+- To review: choose **Options → Illustrated 1930s (preview)**, save/reopen the city, then launch the development build with `?layeredPeople=1` and click a male crew member. Without the flag, the legacy art is unchanged.
+- Packaging invokes the SVG→PNG compiler automatically before every `npm run dev` and `npm run build`. The pipeline validates asset dimensions and manifests; tests verify the fallback, renderer counts, idle/walk UVs and editable source inventory.
+- Next stages are multiple body templates, matching wardrobe silhouettes, separately drawn action animations, actual in-game portrait parity and benchmarked near/far detail selection. These are *not* yet supplied by this pilot.
