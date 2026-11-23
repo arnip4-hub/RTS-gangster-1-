@@ -15,6 +15,7 @@ jobs:
       - name: Create complete artwork archive
         shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
           import hashlib, json, zipfile
           
@@ -112,6 +113,7 @@ jobs:
               if corrupt: raise SystemExit('Corrupt ZIP member: ' + corrupt)
               assert len(z.namelist()) == len(items) + 2
           print(f'Created {filename} with {len(items)} source files, {Path(filename).stat().st_size / 1024**2:.1f} MiB ZIP')
+          PY
       - name: Upload downloadable ZIP artifact
         uses: actions/upload-artifact@v4
         with:
