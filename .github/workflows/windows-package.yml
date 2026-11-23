@@ -5,7 +5,7 @@ on:
     branches: [rts-development]
   push:
     branches: [rts-development]
-    paths: ['docs/releases/rts-beta-20261123.2.md']
+    paths: ['docs/releases/rts-beta-20261123.3.md']
   workflow_dispatch:
     inputs:
       tag:
@@ -37,12 +37,15 @@ jobs:
 
       - name: Check RTS investigations, custody, hearings and save compatibility
         run: npx vitest run tests/rts-police-core.test.ts tests/rts-witness-statements.test.ts tests/rts-fbi-cases.test.ts tests/rts-gunfight-court.test.ts tests/rts-courts.test.ts tests/prison-and-hijack.test.ts tests/rts-law-integration.test.ts tests/rts-law-save-validation.test.ts tests/police-case-ui.test.ts tests/law-politics-outcomes.test.ts tests/live-law.test.ts tests/body-recovery.test.ts tests/building-emergency.test.ts tests/original-witnesses.test.ts tests/original-fbi.test.ts tests/original-fbi-accountant.test.ts tests/fbi-lifecycle.test.ts
-      - name: Confirm beta.10 package version
+      - name: Validate 3D body skinning, wardrobe and settings
+        run: npx vitest run tests/visual-style.test.ts tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
+
+      - name: Verify beta.11 package version and illustrated3d style
         shell: pwsh
         run: |
           $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $lockVersion = (Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable)['version']
-          if ($packageVersion -ne '0.3.0-beta.10' -or $lockVersion -ne $packageVersion) {
+          if ($packageVersion -ne '0.3.0-beta.11' -or $lockVersion -ne $packageVersion) {
             throw "Release version mismatch: package=$packageVersion lock=$lockVersion"
           }
 
@@ -59,7 +62,7 @@ jobs:
         if: (github.event_name == 'workflow_dispatch' && inputs.tag != '') || (github.event_name == 'push' && github.ref == 'refs/heads/rts-development')
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event_name == 'push' && 'rts-beta-20261123.2' || inputs.tag }}
+          TAG: ${{ github.event_name == 'push' && 'rts-beta-20261123.3' || inputs.tag }}
         shell: pwsh
         run: |
           $notes = "docs/releases/$($env:TAG).md"

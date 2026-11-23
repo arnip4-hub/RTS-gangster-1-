@@ -208,9 +208,12 @@ export function OptionsTab() {
             onClick={() => useGame.getState().setVisualStyle('detailed')}>Detailed</button>
           <button aria-pressed={visualStyle === 'illustrated'} className={`btn sm${visualStyle === 'illustrated' ? ' on' : ''}`}
             onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
+          <button aria-pressed={visualStyle === 'illustrated3d'} className={`btn sm${visualStyle === 'illustrated3d' ? ' on' : ''}`}
+            onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D (experimental)</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated 1930s uses drawn street figures, painted city artwork, and HD sprite sedans, pickups, coupes, delivery trucks, police cars and unmarked FBI cars. Save and reopen the city to apply it; graphics quality is separate.
+          Illustrated 1930s uses drawn street figures and HD vehicle sprites. Illustrated 3D (experimental) uses painted city artwork and animated 3D people with separately fitted coats, dresses and headwear.
+          Save your game, then close and reopen the city to apply the selected artwork. Graphics quality is separate.
         </div>
         {visualStyle === 'illustrated' && <>
           <button className={`btn sm${layeredPilotPreview ? ' on' : ''}`} aria-pressed={layeredPilotPreview}

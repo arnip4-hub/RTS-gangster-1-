@@ -1,0 +1,69 @@
+name: Illustrated3D bind-space and wardrobe checks
+
+on:
+  push:
+    branches:
+      - fix/illustrated3d-bind-space-skinning
+  workflow_dispatch:
+
+concurrency:
+  group: illustrated3d-wardrobe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  focused:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Focused geometry regressions
+        run: npx vitest run tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
+
+  regressions:
+    needs: focused
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: All Vitest regressions
+        run: npx vitest run
+
+  gallery:
+    needs: focused
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install browser
+        run: npx playwright install --with-deps chromium
+      - name: Wardrobe gallery screenshots
+        run: |
+          mkdir -p wardrobe-check
+          for page in men women uniforms bodies; do
+            for phase in 0 0.25 0.5; do
+              node scripts/capture-wardrobe-review.mjs "wardrobe-check/${page}-${phase}.png" "--page=${page}" "--phase=${phase}"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: illustrated3d-wardrobe-review
+          path: wardrobe-check/
+          if-no-files-found: ignore

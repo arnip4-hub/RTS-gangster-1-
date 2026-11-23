@@ -127,12 +127,8 @@ export class WardrobeMaterialState {
           float warmSkin = smoothstep(.018, .075, sourcePaint.r - sourcePaint.g)
             * smoothstep(.008, .055, sourcePaint.g - sourcePaint.b)
             * smoothstep(.035, .12, sourceLight);
-          // The old woman's authored skirt can protrude around a shorter new
-          // skirt during a stride. Its cloth is removed below the waist per
-          // fragment; real calf skin and leather shoes remain intact.
-          if (paintedBareLegs > .5 && paintedOuterHem > 0.0
-            && vWardrobePoint.y > .17 && vWardrobePoint.y < .90
-            && vWardrobeBody > .25 && (warmSkin < .15 || vWardrobeOldSkirt > .45)) discard;
+          // Never discard animated leg or original-skirt fragments: these
+          // remain behind the new skinned shell during walking and falling.
           float calf = paintedBareLegs * clamp(vWardrobe.y, 0.0, 1.0)
             * smoothstep(.12, .22, vWardrobePoint.y)
             * (1.0 - smoothstep(.65, .85, vWardrobePoint.y));

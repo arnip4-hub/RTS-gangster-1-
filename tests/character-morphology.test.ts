@@ -5,6 +5,8 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CharacterMorphologyCache, characterFaceMorph, type CharacterBuild } from '../src/render/characterMorphology';
 import { prepareWardrobeMask } from '../src/render/characterWardrobeMaterial';
+import { createWardrobeGarments } from '../src/render/characterWardrobeGarments';
+import { CHARACTER_OUTFITS, resolveCharacterWardrobe, withCharacterWardrobe } from '../src/render/characterWardrobe';
 
 // Use the delivered mesh, UVs, skin weights and walking clip. Texture decoding
 // belongs to the browser visual review, so these geometry checks omit images.
@@ -80,7 +82,8 @@ describe('shared 3D character morphology', () => {
     expect(feetHeavy.distanceTo(feetAverage)).toBeLessThan(.0001);
     const handAverage = bodyBounds(average.model, /^lefthand$/i).getCenter(new THREE.Vector3());
     const handHeavy = bodyBounds(heavy.model, /^lefthand$/i).getCenter(new THREE.Vector3());
-    expect(handHeavy.x - handAverage.x).toBeGreaterThan(.065);
+    // Hand joints are untouched; weapon grips are not translated by build.
+    expect(Math.abs(handHeavy.x - handAverage.x)).toBeLessThan(.02);
     // Animation channels and inverse bindings retain their authored values.
     expect(arm.position.equals(shoulder)).toBe(true);
     expect(bones.skeleton.boneInverses.map(matrix => matrix.toArray())).toEqual(inverseMatrices);
@@ -110,6 +113,56 @@ describe('shared 3D character morphology', () => {
     cache.dispose();
   });
 
+  it.each([
+    ['fedora', false, 'coat'],
+    ['woman', true, 'dress'],
+  ] as const)('CPU-skins real %s body and %s garment through walk phases with finite short edges',
+    async (style, female, silhouette) => {
+      const asset = await geometryAsset(style), { model, mixer, clip } = rig(asset);
+      const group = new THREE.Group(); group.add(model);
+      const cache = new CharacterMorphologyCache();
+      expect(cache.apply(model, { build: 'stocky', heightScale: 1, faceIndex: 7 })).toBe(true);
+      const boneRest = new Map<string, THREE.Matrix4>(), restPositions = new Map<string, THREE.Vector3>();
+      group.updateMatrixWorld(true);
+      model.traverse(node => {
+        if (!(node instanceof THREE.Bone)) return;
+        boneRest.set(node.name, node.matrixWorld.clone());
+        restPositions.set(node.name, node.getWorldPosition(new THREE.Vector3()));
+      });
+      const base = resolveCharacterWardrobe({ id: female ? 72 : 63, female, portrait: 3, role: 'citizen' });
+      const outfit = CHARACTER_OUTFITS.find(item => item.silhouette === silhouette && item.sex === (female ? 'female' : 'male'))!;
+      const garments = createWardrobeGarments(model, withCharacterWardrobe(base, { outfit }), boneRest, restPositions);
+      const garment = garments.meshes.find(mesh => mesh.name === `wardrobe-${silhouette}`) as THREE.SkinnedMesh;
+      const body = model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+      expect(garment).toBeInstanceOf(THREE.SkinnedMesh);
+      expect(garment.skeleton).toBe(body.skeleton);
+      const point = new THREE.Vector3();
+      for (const phase of [0, .25, .5, .75]) {
+        mixer.setTime(phase * clip.duration); group.updateMatrixWorld(true);
+        garments.sync();
+        for (const mesh of [body, garment]) {
+          const pos = mesh.geometry.getAttribute('position'), index = mesh.geometry.index;
+          const skinned: THREE.Vector3[] = [];
+          for (let i = 0; i < pos.count; i++) {
+            mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
+            expect([point.x, point.y, point.z].every(Number.isFinite)).toBe(true);
+            skinned.push(point.clone());
+          }
+          let longest = 0;
+          const count = index?.count ?? pos.count;
+          for (let i = 0; i + 2 < count; i += 3) {
+            const a = skinned[index ? index.getX(i) : i];
+            const b = skinned[index ? index.getX(i + 1) : i + 1];
+            const c = skinned[index ? index.getX(i + 2) : i + 2];
+            longest = Math.max(longest, a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
+          }
+          expect(longest, `${style}/${mesh.name || 'body'}/phase ${phase}`).toBeLessThan(.35);
+        }
+      }
+      garments.dispose();
+      cache.dispose();
+    });
+
   it('shares identical geometry, retains live rigs and evicts only released entries', async () => {
     const asset = await geometryAsset('fedora'), cache = new CharacterMorphologyCache(2);
     const a = rig(asset), b = rig(asset), c = rig(asset), d = rig(asset);
@@ -127,6 +180,23 @@ describe('shared 3D character morphology', () => {
     expect(disposed).toHaveBeenCalledOnce();
     expect(cache.size).toBe(2); expect(cache.referenceCount).toBe(2);
     cache.dispose(); expect(cache.size).toBe(0); expect(cache.referenceCount).toBe(0);
+  });
+
+  it('deforms the same bind geometry regardless of sampled walking phase', async () => {
+    const asset = await geometryAsset('fedora'), still = rig(asset), walking = rig(asset);
+    const cache = new CharacterMorphologyCache();
+    walking.mixer.setTime(walking.clip.duration * .42);
+    walking.model.updateMatrixWorld(true);
+    const appearance = { build: 'heavy' as const, heightScale: 1.06, faceIndex: 6 };
+    expect(cache.apply(still.model, appearance)).toBe(true);
+    expect(cache.apply(walking.model, appearance)).toBe(true);
+    const a = still.model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+    const b = walking.model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+    // Cache keys, bind-pose geometry and inverse bindings are pose-independent.
+    expect(a.geometry).toBe(b.geometry);
+    expect(Array.from(a.geometry.getAttribute('position').array))
+      .toEqual(Array.from(b.geometry.getAttribute('position').array));
+    cache.dispose();
   });
 
   it('keeps short and tall equipment masks separate on otherwise identical bodies', async () => {

@@ -604,9 +604,8 @@ export const useGame = create<GameState>((set, get) => ({
     set({ graphicsQuality });
   },
   setVisualStyle: (visualStyle) => {
-    const supportedStyle = visualStyle === 'illustrated3d' ? 'detailed' : visualStyle;
-    writeVisualStyle(supportedStyle);
-    set({ visualStyle: supportedStyle });
+    writeVisualStyle(visualStyle);
+    set({ visualStyle });
   },
   setUiScale: (uiScale) => {
     writeUiScale(uiScale);

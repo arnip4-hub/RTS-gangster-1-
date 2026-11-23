@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ResolvedCharacterWardrobe } from './characterWardrobe';
+import { actorFromBind, bindBonePoint, skinGarmentToBody, wardrobeBodyMesh } from './characterBindSpace';
 
 export interface WardrobeGarments {
   meshes: THREE.Object3D[];
@@ -30,7 +31,14 @@ export function createWardrobeGarments(
   const followers: { mesh: THREE.Mesh; bone: THREE.Bone; restInverse: THREE.Matrix4 }[] = [];
   const bones = new Map<string, THREE.Bone>();
   model.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
-  const head = restPositions.get('Head');
+  const bodyMesh = wardrobeBodyMesh(model);
+  const head = bodyMesh
+    ? bindBonePoint(bodyMesh, 'Head', actorFromBind(bodyMesh, group))?.clone()
+      ?? restPositions.get('Head')?.clone()
+    : restPositions.get('Head')?.clone();
+  // The source GLB bind pose is height-neutral. The actor root scales height
+  // independently; scale the bind head anchor once so hat widths stay fixed.
+  if (head && bodyMesh) head.y *= wardrobe.heightScale;
   // Body height choices are applied to the actor root. The rest-position ratio
   // only fits the different authored male/female skeletons.
   const heightScale = wardrobe.heightScale;
@@ -243,12 +251,27 @@ export function createWardrobeGarments(
       // Keep a generous overlap: a triangle straddling the crop boundary must
       // not leave an open waistband when hips and spine bend differently.
       bodyTop = 1.00 * unit * heightScale;
-      const rings = [
+      const authoredRings = [
         { y: hem, w: isRobe ? .29 : isDress ? .25 : .247, d: isRobe ? .24 : isDress ? .20 : .18 },
         { y: .83, w: isDress ? .221 : .215, d: .172 },
         { y: 1.03, w: isDress ? .17 : .197, d: .137 },
         { y: 1.10, w: isDress ? .17 : .185, d: .137 },
       ].filter((r, i) => i === 0 || r.y > hem + .015);
+      // Keep face edges short even on ankle-length garments. A single
+      // thigh-to-ankle quad can otherwise cross the 35 cm stretch limit
+      // before an animation has even begun.
+      const rings: typeof authoredRings = [];
+      authoredRings.forEach((ring, index) => {
+        if (!index) { rings.push(ring); return; }
+        const prev = authoredRings[index - 1];
+        const steps = Math.ceil((ring.y - prev.y) / .10);
+        for (let step = 1; step <= steps; step++) {
+          const t = step / steps;
+          rings.push({ y: THREE.MathUtils.lerp(prev.y, ring.y, t),
+            w: THREE.MathUtils.lerp(prev.w, ring.w, t),
+            d: THREE.MathUtils.lerp(prev.d, ring.d, t) });
+        }
+      });
       const sides = 24, pos: number[] = [], indices: number[] = [];
       const colors: number[] = [], color = new THREE.Color();
       const belly = wardrobe.body.belly;
@@ -293,18 +316,21 @@ export function createWardrobeGarments(
         };
         material.customProgramCacheKey = () => `wardrobe-garment-${pattern}-v1`;
       materials.push(material);
-      // Keep the garment as a rigid shell attached to the pelvis. The imported
-      // character rigs use slightly different bone hierarchies; making this
-      // generated shell a second skinned mesh caused invalid inverse-bind
-      // combinations to produce the long exploding triangles seen in-game.
-      // The pelvis follows walking, turning and falling, while the source body
-      // continues to provide the detailed arm and leg motion underneath.
-      const mesh = new THREE.Mesh(geometry, material);
+      // Convert the actor-metre shell into this GLB body's bind geometry space.
+      // Transfer nearby skin weights and share its exact Skeleton/bindMatrix.
+      // No duplicate skeleton and no pelvis-following rigid cylinder.
+      if (!bodyMesh) {
+        geometry.dispose(); geometries.pop();
+        return { meshes, hidesSourceHat: false, hidesSourceBody: false,
+          bodyHem: Infinity, bodyTop: -Infinity, sync() {}, dispose() {
+            meshes.forEach(mesh => mesh.removeFromParent());
+            geometries.forEach(item => item.dispose()); materials.forEach(item => item.dispose());
+          } };
+      }
+      const mesh = skinGarmentToBody(geometry, material, group, bodyMesh);
       mesh.name = `wardrobe-${wardrobe.outfit.silhouette}`; mesh.userData.wardrobe = true;
       mesh.castShadow = true; mesh.receiveShadow = false; mesh.frustumCulled = false; mesh.raycast = () => {};
-      mesh.matrixAutoUpdate = false;
-      group.add(mesh); meshes.push(mesh);
-      followers.push({ mesh, bone: hips, restInverse: rest.get('Hips')!.clone().invert() });
+      meshes.push(mesh);
     }
   }
   let disposed = false;
@@ -312,7 +338,8 @@ export function createWardrobeGarments(
     meshes, hidesSourceHat: !!head && bones.has('Head'),
     // The original trouser body remains behind the open male coat. Closed
     // skirts/dresses replace the covered source geometry as before.
-    hidesSourceBody: shell && !openCoat && meshes.some(mesh => mesh.userData.wardrobe === true), bodyHem, bodyTop,
+    // Keep the source body intact: skinned garments overlap it in movement.
+    hidesSourceBody: false, bodyHem, bodyTop,
     sync() {
       if (disposed || !followers.length) return;
       group.updateWorldMatrix(true, false);
