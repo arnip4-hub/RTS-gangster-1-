@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { bindBonePoint, bindGeometryCorrection, wardrobeBodyMesh } from './characterBindSpace';
+import { bindBonePoint, wardrobeBodyMesh } from './characterBindSpace';
 
 export type CharacterBuild = 'thin' | 'average' | 'stocky' | 'heavy';
 export interface CharacterFaceMorph {
@@ -95,29 +95,24 @@ export class CharacterMorphologyCache {
     // The GLB can be centimetre-authored; frame * mesh.matrixWorld converts it
     // into the normalized actor's metres. No sampled bone matrix is consulted.
     const reference = wardrobeBodyMesh(model) ?? meshes[0];
-    const rawReference = frame.clone().multiply(reference.matrixWorld)
-      .multiply(reference.bindMatrix.clone().invert());
-    const correction = bindGeometryCorrection(reference, rawReference);
     const allBounds = new THREE.Box3();
     const p = new THREE.Vector3();
+    // Vertex attributes are in geometry space, converted to the skeleton's
+    // authored bind frame with bindMatrix, not the moving GLB root transform.
     for (const mesh of meshes) {
-      const toActor = correction.clone().multiply(frame).multiply(mesh.matrixWorld)
-        .multiply(mesh.bindMatrix.clone().invert());
       const positions = mesh.geometry.getAttribute('position');
       for (let i = 0; i < positions.count; i++) {
-        p.fromBufferAttribute(positions, i).applyMatrix4(mesh.bindMatrix).applyMatrix4(toActor);
+        p.fromBufferAttribute(positions, i).applyMatrix4(mesh.bindMatrix);
         allBounds.expandByPoint(p);
       }
     }
     const height = allBounds.max.y - allBounds.min.y;
     if (!Number.isFinite(height) || height <= 0) return false;
-    // Bone positions belong to the original inverse-bind frame and must NOT
-    // receive the corrective geometry scaling a second time.
-    const head = bindBonePoint(reference, 'head', rawReference)
+    const head = bindBonePoint(reference, 'head', new THREE.Matrix4())
       ?? new THREE.Vector3(0, allBounds.min.y + height * .89, 0);
-    const hips = bindBonePoint(reference, 'hips', rawReference)
+    const hips = bindBonePoint(reference, 'hips', new THREE.Matrix4())
       ?? new THREE.Vector3(0, allBounds.min.y + height * .54, 0);
-    const headFront = bindBonePoint(reference, 'headfront', rawReference);
+    const headFront = bindBonePoint(reference, 'headfront', new THREE.Matrix4());
     const front = headFront ? headFront.sub(head) : new THREE.Vector3(0, 0, 1);
     front.y = 0;
     if (front.lengthSq() < .000001) front.set(0, 0, 1);
@@ -142,7 +137,7 @@ export class CharacterMorphologyCache {
     for (const { mesh, key } of pending) {
       let cached = this.geometries.get(key);
       if (!cached) {
-        cached = { geometry: morphedGeometry(mesh, appearance.build, face, frame, correction, height, head, hips, front, side),
+        cached = { geometry: morphedGeometry(mesh, appearance.build, face, height, head, hips, front, side),
           references: 0, touched: ++this.clock };
         this.geometries.set(key, cached);
       }
@@ -192,7 +187,7 @@ export class CharacterMorphologyCache {
 }
 
 function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: CharacterFaceMorph,
-  frame: THREE.Matrix4, correction: THREE.Matrix4, height: number, head: THREE.Vector3, hips: THREE.Vector3,
+  height: number, head: THREE.Vector3, hips: THREE.Vector3,
   front: THREE.Vector3, side: THREE.Vector3): THREE.BufferGeometry {
   const source = mesh.geometry, geometry = source.clone();
   for (const name of DERIVED_ATTRIBUTES) geometry.deleteAttribute(name);
@@ -200,14 +195,12 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
   const indices = source.getAttribute('skinIndex'), weights = source.getAttribute('skinWeight');
   // This is the only mapping used for both directions. Inverting a weighted
   // sum of bone matrices is not valid: it may be nearly singular at joints.
-  const actorFromBind = correction.clone().multiply(frame).multiply(mesh.matrixWorld).multiply(mesh.bindMatrix.clone().invert());
-  const bindFromActor = actorFromBind.clone().invert();
+  const bindInverse = mesh.bindMatrix.clone().invert();
   const point = new THREE.Vector3(), offset = new THREE.Vector3(), delta = new THREE.Vector3();
   const profile = BUILDS[build];
   const shoulderY = head.y - height * .17;
   for (let index = 0; index < position.count; index++) {
-    point.fromBufferAttribute(position, index)
-      .applyMatrix4(mesh.bindMatrix).applyMatrix4(actorFromBind);
+    point.fromBufferAttribute(position, index).applyMatrix4(mesh.bindMatrix);
     let torso = 0, thigh = 0, faceWeight = 0, shoulderWeight = 0;
     for (let slot = 0; slot < 4; slot++) {
       const weight = weights.getComponent(index, slot);
@@ -233,11 +226,6 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
     const outsideNeck = THREE.MathUtils.smoothstep(Math.abs(lateral) / height, .035, .10);
     delta.addScaledVector(side, Math.sign(lateral) * profile.shoulder
       * shoulderBand * outsideNeck * Math.min(1, torso + shoulderWeight));
-    if (build === 'thin' && index === 3079) console.info('MORPH_VERTEX_DIAG', {
-      actor: point.toArray(), height, hips: hips.toArray(), head: head.toArray(), front: front.toArray(), side: side.toArray(),
-      torso, thigh, faceWeight, shoulderWeight, lateral, depth, waist, widthAmount, depthAmount,
-      delta: delta.toArray(), fromBind: actorFromBind.elements, bindMatrix: mesh.bindMatrix.elements,
-    });
     point.add(delta);
 
     if (faceWeight > .01) {
@@ -254,7 +242,7 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
       const nose = Math.exp(-Math.pow((faceY - .025) / .037, 2)) * THREE.MathUtils.smoothstep(forward, .055, .11);
       point.addScaledVector(front, .035 * (face.nose - 1) * nose * inFace);
     }
-    point.applyMatrix4(bindFromActor).applyMatrix4(mesh.bindMatrix.clone().invert());
+    point.applyMatrix4(bindInverse);
     position.setXYZ(index, point.x, point.y, point.z);
   }
   position.needsUpdate = true;
