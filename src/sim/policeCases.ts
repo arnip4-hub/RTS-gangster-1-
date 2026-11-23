@@ -80,7 +80,9 @@ export function normalizeRtsPolice(w: WorldState): void {
     if (p.policeTask && !fileCrime(w, p.policeTask.crimeId)) { delete p.policeTask; clearDestination(p); p.inVehicle = false; }
   }
   for (const p of Object.values(w.people)) {
-    if (p.status === 'arrested' && p.custody && !p.custody.transport) p.custody.transport = 'station';
+    // Beta saves predating custody journeys kept people arrested in the street.
+    if (p.status === 'arrested' && p.custody && !p.custody.transport)
+      bookDetainee(w, p, w.people[p.custody.officerId]);
     if (p.status !== 'arrested' || p.custody) continue;
     const court = Object.values(w.cases).find(c => c.defendantId === p.id && ['awaiting', 'onTrial'].includes(c.status));
     if (court) { p.status = 'onTrial'; continue; }
