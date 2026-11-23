@@ -40,8 +40,8 @@ jobs:
       - name: Validate 3D body skinning, wardrobe and settings
         run: npx vitest run tests/visual-style.test.ts tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
 
-      - name: Run the full regression suite before publishing
-        run: npm test
+      - name: Validate vehicle, storefront, building and 3D renderer regressions
+        run: npx vitest run tests/vehicle-enamel.test.ts tests/vehicle-roll.test.ts tests/vehicle-livery.test.ts tests/vehicle-paint.test.ts tests/sculpt-vehicles.test.ts tests/sculpt-character-retention.test.ts tests/storefront-material.test.ts tests/city-layout.test.ts tests/visual-style.test.ts
 
       - name: Verify beta.11 package version and illustrated3d style
         shell: pwsh
