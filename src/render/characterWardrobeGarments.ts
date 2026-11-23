@@ -33,8 +33,12 @@ export function createWardrobeGarments(
   model.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
   const bodyMesh = wardrobeBodyMesh(model);
   const head = bodyMesh
-    ? bindBonePoint(bodyMesh, 'Head', actorFromBind(bodyMesh, group)) ?? restPositions.get('Head')
-    : restPositions.get('Head');
+    ? bindBonePoint(bodyMesh, 'Head', actorFromBind(bodyMesh, group))?.clone()
+      ?? restPositions.get('Head')?.clone()
+    : restPositions.get('Head')?.clone();
+  // The source GLB bind pose is height-neutral. The actor root scales height
+  // independently; scale the bind head anchor once so hat widths stay fixed.
+  if (head && bodyMesh) head.y *= wardrobe.heightScale;
   // Body height choices are applied to the actor root. The rest-position ratio
   // only fits the different authored male/female skeletons.
   const heightScale = wardrobe.heightScale;
