@@ -360,7 +360,12 @@ function stepTasks(w: WorldState, rng: Rng, minutes: number): void {
 
 function assignTask(w: WorldState, c: CrimeRecord, active: Person[]): boolean {
   const f = c.police!, now = campaignMinute(w);
-  if (active.filter(p => p.policeTask).length >= MAX_ACTIVE_TASKS || active.some(p => p.policeTask?.crimeId === c.id)) return false;
+  // Moving an arrested person to custody does not occupy the case's
+  // investigation slot. Another officer may collect requested scene evidence
+  // while the arresting officer finishes that physical transfer.
+  const activeInvestigation = active.some(p => p.policeTask?.crimeId === c.id &&
+    !['securing', 'delivering'].includes(p.policeTask.phase));
+  if (active.filter(p => p.policeTask).length >= MAX_ACTIVE_TASKS || activeInvestigation) return false;
   const warrant = caseHasWarrant(w, c);
   const urgent = warrant || f.raidDueAt != null && f.raidDueAt <= now;
   const agent = active.filter(p => p.role === (f.agency === 'fbi' ? 'fbi' : 'police') && availableOfficer(w, p, urgent) &&
