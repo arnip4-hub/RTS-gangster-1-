@@ -6390,6 +6390,9 @@
           "shape": {
             "union": [
               {
+                "literal": "vehicle"
+              },
+              {
                 "literal": "sound"
               },
               {
@@ -6397,9 +6400,6 @@
               },
               {
                 "literal": "face"
-              },
-              {
-                "literal": "vehicle"
               },
               {
                 "literal": "direct"
@@ -6512,6 +6512,9 @@
           "shape": {
             "union": [
               {
+                "literal": "scene"
+              },
+              {
                 "literal": "surveillance"
               },
               {
@@ -6519,9 +6522,6 @@
               },
               {
                 "literal": "statement"
-              },
-              {
-                "literal": "scene"
               },
               {
                 "literal": "financial"
