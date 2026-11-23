@@ -962,6 +962,11 @@ export class CityRenderer {
           people.setVisible(this.streetsOpen);
           this.preparationRevision++;
         }
+      }, {
+        // The first independently layered man is developer-only. Existing saves
+        // and the public Illustrated 1930s option remain unchanged.
+        enabled: new URLSearchParams(window.location.search).get('layeredPeople') === '1',
+        selectedId: () => this.selectedPersonId,
       });
       this.illustratedPeople = people;
       void people.load();
