@@ -233,6 +233,11 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
     const outsideNeck = THREE.MathUtils.smoothstep(Math.abs(lateral) / height, .035, .10);
     delta.addScaledVector(side, Math.sign(lateral) * profile.shoulder
       * shoulderBand * outsideNeck * Math.min(1, torso + shoulderWeight));
+    if (build === 'thin' && index === 3079) console.info('MORPH_VERTEX_DIAG', {
+      actor: point.toArray(), height, hips: hips.toArray(), head: head.toArray(), front: front.toArray(), side: side.toArray(),
+      torso, thigh, faceWeight, shoulderWeight, lateral, depth, waist, widthAmount, depthAmount,
+      delta: delta.toArray(), fromBind: actorFromBind.elements, bindMatrix: mesh.bindMatrix.elements,
+    });
     point.add(delta);
 
     if (faceWeight > .01) {
