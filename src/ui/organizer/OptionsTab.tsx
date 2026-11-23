@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { readLayeredPilotPreview, writeLayeredPilotPreview } from '../../render/layeredPilotPreview';
 import { SAVE_NAME_MAX, useGame } from '../../app/store';
 import { slotLoadable } from '../../app/save';
 import { cameraApi } from '../CityView';
@@ -70,6 +71,7 @@ export function OptionsTab() {
   const startGame = useGame((s) => s.startGame);
   const [quit, setQuit] = useState<null | 'restart' | 'fresh' | 'menu'>(null);
   const [overwrite, setOverwrite] = useState<string | null>(null);
+  const [layeredPilotPreview, setLayeredPilotPreview] = useState(() => readLayeredPilotPreview(window.location.search));
   useGame((s) => s.version);
 
   const w = sim.world;
@@ -210,6 +212,23 @@ export function OptionsTab() {
         <div className="muted tiny" style={{ marginTop: 6 }}>
           Illustrated 1930s uses drawn street figures, painted city artwork, and HD sprite sedans, pickups, coupes, delivery trucks, police cars and unmarked FBI cars. Save and reopen the city to apply it; graphics quality is separate.
         </div>
+        {visualStyle === 'illustrated' && <>
+          <button className={`btn sm${layeredPilotPreview ? ' on' : ''}`} aria-pressed={layeredPilotPreview}
+            style={{ marginTop: 9 }}
+            onClick={() => {
+              const enabled = !layeredPilotPreview;
+              writeLayeredPilotPreview(enabled);
+              setLayeredPilotPreview(enabled);
+            }}>
+            Layered HD character (experimental): {layeredPilotPreview ? 'On' : 'Off'}
+          </button>
+          <div className="muted tiny" style={{ marginTop: 6 }}>
+            First art pilot: only a selected male boss, lieutenant or hood is drawn with
+            independently layered suit and fedora art. Everyone else uses the original
+            illustrated figures. Save and reopen the city to apply. Turn this off to
+            restore the original look.
+          </div>
+        </>}
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>
           {bureauGauges ? 'Bureau gauges: shown' : 'Bureau gauges: hidden'}
