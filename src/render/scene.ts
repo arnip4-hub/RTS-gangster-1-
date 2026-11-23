@@ -2092,6 +2092,8 @@ export class CityRenderer {
       return doors;
     };
     const people = this.peopleNear(areas, watchedIds).filter(p => near(p) &&
+      // Follow/selection overlays must not resurrect a detainee inside a car or cell.
+      (p.status !== 'arrested' || streetPersonVisible(p, null)) &&
       (this.visualStyle === 'illustrated3d' && p.status === 'dead'
         ? streetCorpseStage(p, w, this.subMinute) === 'body'
         : (burning(p)?
