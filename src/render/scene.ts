@@ -2054,7 +2054,7 @@ export class CityRenderer {
     const people = this.peopleNear(areas, watchedIds).filter(p => near(p) &&
       // Follow/selection overlays must not resurrect a detainee inside a car or cell.
       (p.status !== 'arrested' || streetPersonVisible(p, null)) &&
-      (this.visualStyle === 'illustrated3d' && p.status === 'dead'
+      (p.status === 'dead'
         ? streetCorpseStage(p, w, this.subMinute) === 'body'
         : (burning(p)?
       escapeSample(burning(p)!,w.minute+this.subMinute).time>=0:
@@ -2130,7 +2130,7 @@ export class CityRenderer {
       // Use the visible route tangent, not the previous committed waypoint.
       const driving = p.inVehicle && !shuttle;
       const vehicle = vehicleForPerson(w, p);
-      const ownCorpse = this.visualStyle === 'illustrated3d' && p.status === 'dead';
+      const ownCorpse = p.status === 'dead' && streetCorpseStage(p, w, this.subMinute) === 'body';
       const walking = !ownCorpse && (shuttle ? shuttle.walking : burn?burn.fleeing:shock?false:preview.moving && !p.inVehicle);
       const cue=this.characterActions.presentation(p.id);
       const response=p.emergencyResponse;
