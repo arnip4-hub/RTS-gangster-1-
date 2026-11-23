@@ -80,7 +80,7 @@ import { vehicleDriver, atOffice, officeDoors } from '../sim/transport';
 import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
 import { VehicleSpriteLayer, vehicleSpriteKind } from './vehicleSpriteLayer';
-import { IllustratedPeople } from './illustratedPeople';
+import { createIllustratedCharacterRenderer, type IllustratedCharacterRenderer } from './illustratedCharacterRenderer';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
 import { FACING_YAW, lotFacing, profileForLot, profileFor } from './profile';
@@ -353,7 +353,7 @@ export class CityRenderer {
   /** People at the wheel this frame, drawn as cars once the traffic is in. */
   private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; role?: PersonRole; delivery?: boolean; moving?: boolean; coroner?: boolean }[] = [];
   private actors!: ActorLayer;
-  private illustratedPeople: IllustratedPeople | null = null;
+  private illustratedPeople: IllustratedCharacterRenderer | null = null;
   private actorMotion = new ActorMotion();
   private characterActions:CharacterActions;
   private cityEffects?:CityEffects;
@@ -957,7 +957,7 @@ export class CityRenderer {
   private buildAgents(): void {
     this.actors = new ActorLayer(this.scene, MAX_AGENTS);
     if (this.visualStyle === 'illustrated') {
-      const people = new IllustratedPeople(this.scene, MAX_AGENTS, () => {
+      const people = createIllustratedCharacterRenderer(this.scene, MAX_AGENTS, () => {
         if (!this.disposed) {
           people.setVisible(this.streetsOpen);
           this.preparationRevision++;
