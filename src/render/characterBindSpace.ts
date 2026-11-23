@@ -7,7 +7,7 @@ export function actorFromBind(mesh: THREE.SkinnedMesh, actor: THREE.Object3D): T
   actor.updateWorldMatrix(true, false);
   mesh.updateWorldMatrix(true, false);
   return actor.matrixWorld.clone().invert()
-    .multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+    .multiply(mesh.matrixWorld).multiply(mesh.bindMatrix.clone().invert());
 }
 
 export function bindBonePoint(
@@ -119,7 +119,7 @@ export function skinGarmentToBody(
       weights[i * 4 + j] = total > 0 ? (largest[j]?.[1] ?? 0) / total : (j === 0 ? 1 : 0);
     }
     // Position attribute ends in body-local geometry coordinates, not metres.
-    local.copy(centre).applyMatrix4(toBind).applyMatrix4(body.bindMatrixInverse);
+    local.copy(centre).applyMatrix4(toBind).applyMatrix4(body.bindMatrix.clone().invert());
     target.setXYZ(i, local.x, local.y, local.z);
   }
   target.needsUpdate = true;
