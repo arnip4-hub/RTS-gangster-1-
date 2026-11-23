@@ -3,11 +3,11 @@ import * as THREE from 'three';
 /** Coordinates of the imported skeleton's actual bind pose in actor metres.
  * No sampled animation matrices are used. The actor may have been normalized
  * from centimetre GLBs via its model transform. */
-export function actorFromBind(mesh: THREE.SkinnedMesh, actor: THREE.Object3D): THREE.Matrix4 {
-  actor.updateWorldMatrix(true, false);
-  mesh.updateWorldMatrix(true, false);
-  return actor.matrixWorld.clone().invert()
-    .multiply(mesh.matrixWorld).multiply(mesh.bindMatrix.clone().invert());
+export function actorFromBind(mesh: THREE.SkinnedMesh, _actor: THREE.Object3D): THREE.Matrix4 {
+  // Convert inverse-bind bone world positions to the imported mesh's
+  // authoring frame. Animated world matrices and root centimetre scales
+  // must never enter this calculation.
+  return mesh.bindMatrix.clone().invert();
 }
 
 export function bindBonePoint(
@@ -18,43 +18,6 @@ export function bindBonePoint(
   return new THREE.Vector3()
     .setFromMatrixPosition(mesh.skeleton.boneInverses[index].clone().invert())
     .applyMatrix4(fromBind);
-}
-
-/** Imported GLBs can have a centimetre rig but metre-authored vertices.
- * The boneInverses still contain the correct authoring-space reference joints.
- * Find a single, fixed actor-space unit correction for this *asset*, never
- * from the current animated matrices. This correction is shared by all of its
- * skinned meshes, so clothing and body occupy the same rest coordinates. */
-export function bindGeometryCorrection(
-  body: THREE.SkinnedMesh, uncorrected: THREE.Matrix4,
-): THREE.Matrix4 {
-  const bounds = new THREE.Box3();
-  const positions = body.geometry.getAttribute('position');
-  const point = new THREE.Vector3();
-  for (let i = 0; i < positions.count; i++) {
-    point.fromBufferAttribute(positions, i)
-      .applyMatrix4(body.bindMatrix).applyMatrix4(uncorrected);
-    bounds.expandByPoint(point);
-  }
-  const height = bounds.max.y - bounds.min.y;
-  const head = bindBonePoint(body, 'Head', uncorrected);
-  const hips = bindBonePoint(body, 'Hips', uncorrected);
-  if (!head || !hips || height <= 0 || !Number.isFinite(height)) return new THREE.Matrix4();
-  // Body head is near 87% of its height, including the hair/hat cap.
-  // Round to source GLB unit steps (cm vs m) rather than "fitting" to a
-  // walking frame, which would make the mesh vary with AnimationMixer time.
-  const ratio = Math.abs(head.y) / Math.max(height * .87, .000001);
-  const exponent = Math.round(Math.log10(ratio));
-  const factor = Math.pow(10, exponent);
-  if (!Number.isFinite(factor) || factor < 10 || factor > 1000) return new THREE.Matrix4();
-  const midpoint = bounds.getCenter(new THREE.Vector3());
-  const offset = new THREE.Vector3(
-    hips.x - midpoint.x * factor,
-    -bounds.min.y * factor,
-    hips.z - midpoint.z * factor,
-  );
-  return new THREE.Matrix4().makeTranslation(offset.x, offset.y, offset.z)
-    .multiply(new THREE.Matrix4().makeScale(factor, factor, factor));
 }
 
 /** Find the actual skinned body (not a rigid hat or accessory). */
@@ -84,8 +47,9 @@ export function skinGarmentToBody(
   geometry: THREE.BufferGeometry, material: THREE.Material,
   actor: THREE.Object3D, body: THREE.SkinnedMesh,
 ): THREE.SkinnedMesh {
-  const rawFromBind = actorFromBind(body, actor);
-  const fromBind = bindGeometryCorrection(body, rawFromBind).multiply(rawFromBind);
+  // The body's vertex attributes are already in its authored geometry
+  // coordinates. Its bindMatrix maps them to skeleton bind coordinates.
+  const fromBind = body.bindMatrix.clone();
   const toBind = fromBind.clone().invert();
   const positions = body.geometry.getAttribute('position');
   const skinIndices = body.geometry.getAttribute('skinIndex');
@@ -99,7 +63,7 @@ export function skinGarmentToBody(
     `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   const p = new THREE.Vector3();
   for (let i = 0; i < positions.count; i++) {
-    p.fromBufferAttribute(positions, i).applyMatrix4(body.bindMatrix).applyMatrix4(fromBind);
+    p.fromBufferAttribute(positions, i).applyMatrix4(fromBind);
     const sample: SourceVertex = {
       position: p.clone(),
       index: [0, 1, 2, 3].map(j => skinIndices.getComponent(i, j)) as SourceVertex['index'],
@@ -157,7 +121,7 @@ export function skinGarmentToBody(
       weights[i * 4 + j] = total > 0 ? (largest[j]?.[1] ?? 0) / total : (j === 0 ? 1 : 0);
     }
     // Position attribute ends in body-local geometry coordinates, not metres.
-    local.copy(centre).applyMatrix4(toBind).applyMatrix4(body.bindMatrix.clone().invert());
+    local.copy(centre).applyMatrix4(toBind);
     target.setXYZ(i, local.x, local.y, local.z);
   }
   target.needsUpdate = true;
