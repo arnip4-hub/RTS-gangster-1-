@@ -81,6 +81,7 @@ import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
 import { VehicleSpriteLayer, vehicleSpriteKind } from './vehicleSpriteLayer';
 import { createIllustratedCharacterRenderer, type IllustratedCharacterRenderer } from './illustratedCharacterRenderer';
+import { readLayeredPilotPreview } from './layeredPilotPreview';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
 import { FACING_YAW, lotFacing, profileForLot, profileFor } from './profile';
@@ -965,7 +966,7 @@ export class CityRenderer {
       }, {
         // The first independently layered man is developer-only. Existing saves
         // and the public Illustrated 1930s option remain unchanged.
-        enabled: new URLSearchParams(window.location.search).get('layeredPeople') === '1',
+        enabled: readLayeredPilotPreview(window.location.search),
         selectedId: () => this.selectedPersonId,
       });
       this.illustratedPeople = people;
