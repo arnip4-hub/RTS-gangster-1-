@@ -27,9 +27,14 @@ function fixture(height = 1) {
       skinIndex[k] = 0; skinIndex[k + 1] = 3;
       skinWeight[k] = 1 - (y - .79) / .31; skinWeight[k + 1] = 1 - skinWeight[k];
     } else {
-      skinIndex[k] = x > 0 ? 1 : 2;
-      skinIndex[k + 1] = 0;
-      skinWeight[k] = .75; skinWeight[k + 1] = .25;
+      // A physical skinned crotch blends smoothly into both legs. Hard
+      // left/right assignment across one connected tube causes artificial
+      // split-triangle stretching not present on a correctly weighted mesh.
+      const legAmount = .5 * THREE.MathUtils.smoothstep(Math.abs(x), 0, .13)
+        * (1 - THREE.MathUtils.smoothstep(y, .50, .95));
+      skinIndex[k] = 0;
+      skinIndex[k + 1] = x > 0 ? 1 : 2;
+      skinWeight[k] = 1 - legAmount; skinWeight[k + 1] = legAmount;
     }
   }
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
