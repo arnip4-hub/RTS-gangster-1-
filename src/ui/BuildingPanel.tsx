@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArtImage } from './ArtImage';
 import { BuildingDispatch } from './BuildingDispatch';
+import { BuildingOrders } from './BuildingOrders';
 import { act, useGame } from '../app/store';
 import { buyFreightTruck, quoteBuildingSale, recallManager, repairBuilding, sackManager, sellBuilding, setFreightPolicy, setPay, setTrading, shutdownBuilding } from '../sim/api';
 import { businessCarryingCost } from '../sim/businessState';
@@ -40,6 +41,16 @@ export function BuildingPanel() {
   const mine = b.ownerGangId === gang.id;
   const manager = b.managerId != null ? w.people[b.managerId] : null;
   const owner = b.ownerPersonId != null ? w.people[b.ownerPersonId] : null;
+  // The seller may remain in the building after a gang buys it. Only the
+  // identified current ownership is reported in the public-facing dossier.
+  const ownerName = intel.ownerGangId != null
+    ? w.gangs[intel.ownerGangId]?.name ?? 'Identified gang'
+    : b.ownerGangId == null && owner && knowledge >= 2 ? owner.name
+    : b.cls === 'municipal' ? 'City administration'
+    : b.cls === 'charity' ? 'Charitable institution'
+    : 'Not yet identified';
+  const askingPriceVisible = knowledge >= 2 && b.ownerGangId == null &&
+    !['municipal', 'charity', 'residential', 'illegal'].includes(b.cls);
   const front = b.frontId != null ? w.buildings[b.frontId] : null;
   const hides = b.hidesId != null ? w.buildings[b.hidesId] : null;
   const cls = b.cls[0].toUpperCase() + b.cls.slice(1);
@@ -91,6 +102,20 @@ export function BuildingPanel() {
           <small>Move, guard or patrol this building</small>
         </div>}
         <div className="body">
+          <section className="building-dossier" aria-label="Property details">
+            <div className="building-section-heading"><b>Property dossier</b><small>Site #{b.id}</small></div>
+            <div className="kv"><span>Property</span><b>{buildingName(w, b.id)}</b></div>
+            <div className="kv"><span>Type</span><b>{t?.name ?? cls}</b></div>
+            <div className="kv"><span>District</span><b>{blk.district} · block {blk.gx},{blk.gy}</b></div>
+            <div className="kv"><span>Owner</span><b>{ownerName}</b></div>
+            {mine && owner && <div className="kv"><span>Former proprietor</span><b>{owner.name}</b></div>}
+            <div className="kv"><span>Status</span><b>{b.state === 'damaged' ? 'Damaged' : b.state === 'ceased' ? 'Not trading' : b.state === 'destroyed' ? 'Destroyed' : b.state === 'empty' ? 'Vacant' : 'Trading'}</b></div>
+            <div className="kv"><span>Land value</span><b>{blk.landValue} / 100</b></div>
+            {mine && b.acquisitionCost != null && <div className="kv"><span>Acquisition cost</span><b>{money(b.acquisitionCost)}</b></div>}
+            {askingPriceVisible && <div className="kv"><span>Asking price</span><b>about {money(premisesAskingPrice(w, b))}</b></div>}
+            {!mine && ownerName === 'Not yet identified' && <div className="note">The proprietor has not been identified. Investigate the site to learn more.</div>}
+          </section>
+          <BuildingOrders key={id} buildingId={id} />
           {mine && b.fbiClosedWeek!=null && <div className="note">The FBI seized the stock and closed this operation. Shut it down before opening a new business.</div>}
           {mine && b.fbiRaidWeek!=null && <div className="note">The FBI found this operation. A raid is expected from week {b.fbiRaidWeek}; ceasing trade does not erase the discovery.</div>}
           {mine && b.resumeTradingWeek!=null && <div className="note">Trading resumes in week {b.resumeTradingWeek}. There will be no income this week.</div>}
@@ -105,23 +130,10 @@ export function BuildingPanel() {
               </b>
             </div>
           )}
-          {/* A bought site keeps its seller as occupant: the owner is the gang. */}
-          {(intel.ownerGangId != null || owner && knowledge >= 2 && b.ownerGangId == null) && (
-            <div className="kv">
-              <span>Owner</span>
-              <b>{intel.ownerGangId != null ? w.gangs[intel.ownerGangId]?.name : owner!.name}</b>
-            </div>
-          )}
           {knowledge >= 3 && !mine && t && (
             <div className="kv">
               <span>Trade</span>
               <b>{money(t.profit)}/wk typical</b>
-            </div>
-          )}
-          {b.cls !== 'municipal' && b.cls !== 'charity' && b.cls !== 'residential' && !mine && intel.ownerGangId == null && (
-            <div className="kv">
-              <span>Asking price</span>
-              <b>about {money(premisesAskingPrice(w, b))}</b>
             </div>
           )}
 
