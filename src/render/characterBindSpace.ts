@@ -1,13 +1,44 @@
 import * as THREE from 'three';
 
-/** Coordinates of the imported skeleton's actual bind pose in actor metres.
- * No sampled animation matrices are used. The actor may have been normalized
- * from centimetre GLBs via its model transform. */
-export function actorFromBind(mesh: THREE.SkinnedMesh, _actor: THREE.Object3D): THREE.Matrix4 {
-  // Convert inverse-bind bone world positions to the imported mesh's
-  // authoring frame. Animated world matrices and root centimetre scales
-  // must never enter this calculation.
-  return mesh.bindMatrix.clone().invert();
+/** Convert the body's authored geometry coordinates to the actor frame.
+ * Include the normalized model's scale/translation, but cancel the actor's
+ * street position/rotation. Bones and sampled animation are never inverted. */
+function actorFromBodyGeometry(mesh: THREE.SkinnedMesh, actor: THREE.Object3D): THREE.Matrix4 {
+  actor.updateWorldMatrix(true, false);
+  mesh.updateWorldMatrix(true, false);
+  const actorInverse = actor.matrixWorld.clone().invert();
+  const actorFromBodyGeom = actorInverse.clone().multiply(mesh.matrixWorld);
+
+  // The shipped sculpt GLBs put a 0.01 transform on the imported Armature
+  // and its skinned mesh. The inverse-bind reference carries the same
+  // centimetre scale; Three's skinning cancels it on each vertex. Using the
+  // raw mesh.matrixWorld would therefore shrink the *effective* surface by
+  // 100 before transferring skin weights and then stretch generated clothes.
+  // The stable normalized model root (the first child beneath actor) is the
+  // correct authoring frame for these assets. Other rigs use the exact mesh
+  // transform above. Both paths use static node/bind data, never a blended
+  // animation matrix or its inverse.
+  let modelRoot: THREE.Object3D = mesh;
+  while (modelRoot.parent && modelRoot.parent !== actor) modelRoot = modelRoot.parent;
+  if (modelRoot !== mesh && modelRoot.parent === actor && mesh.skeleton.boneInverses.length) {
+    modelRoot.updateWorldMatrix(true, false);
+    const modelToMesh = modelRoot.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+    const meshScale = new THREE.Vector3().setFromMatrixScale(modelToMesh);
+    const inverseBindScale = new THREE.Vector3().setFromMatrixScale(
+      mesh.skeleton.boneInverses[0].clone().invert(),
+    );
+    const importedCentimetres = (['x', 'y', 'z'] as const).every(axis =>
+      meshScale[axis] > .005 && meshScale[axis] < .05 &&
+      inverseBindScale[axis] > .005 && inverseBindScale[axis] < .05);
+    if (importedCentimetres) return actorInverse.multiply(modelRoot.matrixWorld);
+  }
+  return actorFromBodyGeom;
+}
+
+/** Bind-pose bone coordinates in actor metres, with the complete model
+ * normalization and height scale applied exactly once. */
+export function actorFromBind(mesh: THREE.SkinnedMesh, actor: THREE.Object3D): THREE.Matrix4 {
+  return actorFromBodyGeometry(mesh, actor).multiply(mesh.bindMatrix.clone().invert());
 }
 
 export function bindBonePoint(
@@ -45,12 +76,13 @@ interface SourceVertex {
  * exact inverse bind matrices; it never allocates a second Skeleton. */
 export function skinGarmentToBody(
   geometry: THREE.BufferGeometry, material: THREE.Material,
-  _actor: THREE.Object3D, body: THREE.SkinnedMesh,
+  actor: THREE.Object3D, body: THREE.SkinnedMesh,
 ): THREE.SkinnedMesh {
-  // The body's vertex attributes are already in its authored geometry
-  // coordinates. Its bindMatrix maps them to skeleton bind coordinates.
-  const fromBind = body.bindMatrix.clone();
-  const toBind = fromBind.clone().invert();
+  // Both the body vertices and the new garment must meet in actor metres.
+  // Include the model's normalization and height scale once, then convert
+  // the garment back to the same geometry coordinates as its bound body.
+  const actorFromBodyGeom = actorFromBodyGeometry(body, actor);
+  const bodyGeomFromActor = actorFromBodyGeom.clone().invert();
   const positions = body.geometry.getAttribute('position');
   const skinIndices = body.geometry.getAttribute('skinIndex');
   const skinWeights = body.geometry.getAttribute('skinWeight');
@@ -63,7 +95,7 @@ export function skinGarmentToBody(
     `${Math.floor(x / cell)},${Math.floor(y / cell)},${Math.floor(z / cell)}`;
   const p = new THREE.Vector3();
   for (let i = 0; i < positions.count; i++) {
-    p.fromBufferAttribute(positions, i).applyMatrix4(fromBind);
+    p.fromBufferAttribute(positions, i).applyMatrix4(actorFromBodyGeom);
     const sample: SourceVertex = {
       position: p.clone(),
       index: [0, 1, 2, 3].map(j => skinIndices.getComponent(i, j)) as SourceVertex['index'],
@@ -121,7 +153,7 @@ export function skinGarmentToBody(
       weights[i * 4 + j] = total > 0 ? (largest[j]?.[1] ?? 0) / total : (j === 0 ? 1 : 0);
     }
     // Position attribute ends in body-local geometry coordinates, not metres.
-    local.copy(centre).applyMatrix4(toBind);
+    local.copy(centre).applyMatrix4(bodyGeomFromActor);
     target.setXYZ(i, local.x, local.y, local.z);
   }
   // The nearest skin weights can differ sharply across a skirt seam even

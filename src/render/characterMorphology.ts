@@ -206,7 +206,7 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
       if (weight <= 0) continue;
       const joint = indices.getComponent(index, slot);
       const name = mesh.skeleton.bones[joint]?.name ?? '';
-      if (/^(hips|spine\\d*)$/i.test(name)) torso += weight;
+      if (/^(hips|spine\d*)$/i.test(name)) torso += weight;
       if (/^(left|right)upleg$/i.test(name)) thigh += weight;
       if (/^(head|neck|head_end|headfront)$/i.test(name)) faceWeight += weight;
       if (/^(left|right)(shoulder|arm)$/i.test(name)) shoulderWeight += weight;

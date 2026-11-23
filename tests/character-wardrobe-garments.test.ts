@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
 import { createWardrobeGarments } from '../src/render/characterWardrobeGarments';
 import { CharacterMorphologyCache } from '../src/render/characterMorphology';
+import { actorFromBind, bindBonePoint } from '../src/render/characterBindSpace';
 import { CHARACTER_HEADWEAR, CHARACTER_OUTFITS, resolveCharacterWardrobe, withCharacterWardrobe } from '../src/render/characterWardrobe';
 
 function fixture(height = 1) {
@@ -77,6 +78,78 @@ describe('bone-fitted wardrobe geometry', () => {
     }
     expect(dimensions.size).toBeGreaterThanOrEqual(11);
   });
+
+  it.each([
+    [false, 'm-long-duster', 'fedora-brown'],
+    [true, 'f-long-fur', 'cloche-burgundy'],
+  ] as const)(
+    'keeps %s long clothing and hat in actor metres with non-unit model scaling and a translated actor',
+    (female, outfitId, hatId) => {
+      const base = resolveCharacterWardrobe({ id: female ? 72 : 17, portrait: 2, female, role: 'citizen' });
+      const wardrobe = withCharacterWardrobe(base, {
+        heightScale: 1.06,
+        outfit: CHARACTER_OUTFITS.find(outfit => outfit.id === outfitId)!,
+        headwear: CHARACTER_HEADWEAR.find(hat => hat.id === hatId)!,
+      });
+      const make = (shiftActor: boolean) => {
+        const f = fixture();
+        // As in SculptReviewLayer, the source GLB was bound before the model
+        // normalization and the independent height scaling were applied.
+        f.model.scale.set(.82, 1.06, .91);
+        f.model.position.set(.12, .11, -.09);
+        if (shiftActor) {
+          f.group.position.set(18, 7.5, -26);
+          f.group.rotation.y = .43;
+        }
+        f.group.updateMatrixWorld(true);
+        // CharacterEquipment stores rest matrices after normalization.
+        f.rest.clear(); f.points.clear();
+        f.model.traverse(node => {
+          if (!(node instanceof THREE.Bone)) return;
+          f.rest.set(node.name, node.matrixWorld.clone());
+          f.points.set(node.name, node.getWorldPosition(new THREE.Vector3()));
+        });
+        const result = createWardrobeGarments(f.model, wardrobe, f.rest, f.points);
+        result.sync(); f.group.updateMatrixWorld(true);
+        const inverseActor = f.group.matrixWorld.clone().invert();
+        const bindHead = bindBonePoint(f.body, 'Head', actorFromBind(f.body, f.group))!;
+        const actualHead = f.head.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverseActor);
+        expect(bindHead.distanceTo(actualHead)).toBeLessThan(1e-5);
+        const inActor = (mesh: THREE.Mesh, index: number) => new THREE.Vector3()
+          .fromBufferAttribute(mesh.geometry.getAttribute('position'), index)
+          .applyMatrix4(mesh.matrixWorld).applyMatrix4(inverseActor);
+        const actorBounds = (mesh: THREE.Mesh) => {
+          const bounds = new THREE.Box3(), position = mesh.geometry.getAttribute('position');
+          for (let i = 0; i < position.count; i++) bounds.expandByPoint(inActor(mesh, i));
+          return bounds;
+        };
+        const hat = result.meshes.find(mesh => mesh.name === 'wardrobe-headwear') as THREE.Mesh;
+        const collar = result.meshes.find(mesh => mesh.name === 'wardrobe-collar') as THREE.Mesh;
+        const shell = result.meshes.find(mesh => mesh.name === 'wardrobe-' + wardrobe.outfit.silhouette) as THREE.SkinnedMesh;
+        expect(hat).toBeInstanceOf(THREE.Mesh);
+        expect(collar).toBeInstanceOf(THREE.Mesh);
+        expect(shell).toBeInstanceOf(THREE.SkinnedMesh);
+        expect(shell.skeleton).toBe(f.body.skeleton);
+        expect(shell.bindMatrix.toArray()).toEqual(f.body.bindMatrix.toArray());
+        // Ring 0 is authored exactly on bodyHem in actor coordinates. A second
+        // model scale/translation after the bind-space conversion fails here.
+        expect(inActor(shell, 0).y).toBeCloseTo(result.bodyHem, 5);
+        const hatBounds = actorBounds(hat), collarBounds = actorBounds(collar);
+        expect(hatBounds.min.y).toBeGreaterThan(bindHead.y - .2);
+        expect(hatBounds.max.y).toBeLessThan(bindHead.y + .5);
+        return { result, hatBounds, collarBounds, hem: inActor(shell, 0),
+          shellBounds: actorBounds(shell) };
+      };
+
+      const origin = make(false), city = make(true);
+      for (const key of ['hatBounds', 'collarBounds', 'shellBounds'] as const) {
+        expect(city[key].min.distanceTo(origin[key].min), key + ' minimum').toBeLessThan(2e-5);
+        expect(city[key].max.distanceTo(origin[key].max), key + ' maximum').toBeLessThan(2e-5);
+      }
+      expect(city.hem.distanceTo(origin.hem)).toBeLessThan(2e-5);
+      origin.result.dispose(); city.result.dispose();
+    },
+  );
 
   it('skins coat and dress shells to the existing body skeleton', () => {
     const f = fixture();

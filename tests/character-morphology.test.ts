@@ -58,6 +58,49 @@ function bodyBounds(model: THREE.Object3D, bone: RegExp): THREE.Box3 {
 const neutralFace = { width: 1, jawWidth: 1, length: 1, nose: 1, cheeks: 1 };
 
 describe('shared 3D character morphology', () => {
+  it('widens isolated Spine, Spine1 and Spine2 skin influences on a heavy torso', () => {
+    // A Hips-only width assertion misses an incorrectly escaped \\d in the
+    // spine regex. Keep each spine region driven solely by its own bone.
+    const model = new THREE.Group();
+    const boneNames = ['Hips', 'Spine', 'Spine1', 'Spine2'];
+    const bones = boneNames.map(name => {
+      const bone = new THREE.Bone(); bone.name = name; return bone;
+    });
+    bones[0].position.y = .92; model.add(bones[0]);
+    for (let i = 1; i < bones.length; i++) {
+      bones[i].position.y = .1; bones[i - 1].add(bones[i]);
+    }
+    const vertices = [0, 0, 0, 0, 1.8, 0];
+    const boneIndices = [0, 0];
+    for (let i = 0; i < bones.length; i++) {
+      vertices.push(.14, 1.02 + i * .01, .1, -.14, 1.02 + i * .01, .1);
+      boneIndices.push(i, i);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setIndex([2, 3, 4, 4, 5, 6, 6, 7, 8, 0, 1, 2]);
+    const indices = new Uint16Array(boneIndices.length * 4);
+    const weights = new Float32Array(boneIndices.length * 4);
+    for (let i = 0; i < boneIndices.length; i++) {
+      indices[i * 4] = boneIndices[i]; weights[i * 4] = 1;
+    }
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
+    const body = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial());
+    model.add(body); model.updateMatrixWorld(true);
+    body.bind(new THREE.Skeleton(bones), body.matrixWorld.clone());
+    const cache = new CharacterMorphologyCache();
+    expect(cache.apply(model, { build: 'heavy', heightScale: 1, faceIndex: 0, face: neutralFace })).toBe(true);
+    const morphed = body.geometry.getAttribute('position');
+    for (let i = 0; i < bones.length; i++) {
+      const positiveVertex = 2 + i * 2;
+      expect(morphed.getX(positiveVertex), `${boneNames[i]} should widen`)
+        .toBeGreaterThan(geometry.getAttribute('position').getX(positiveVertex) + .025);
+    }
+    cache.dispose(); body.skeleton.dispose(); geometry.dispose();
+  });
+
+
   it.each(['fedora', 'woman'])('widens %s torso and shoulders without widening head or shoes', async style => {
     const asset = await geometryAsset(style), average = rig(asset), heavy = rig(asset);
     const cache = new CharacterMorphologyCache();

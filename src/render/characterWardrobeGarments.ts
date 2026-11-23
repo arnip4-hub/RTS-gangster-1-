@@ -32,13 +32,14 @@ export function createWardrobeGarments(
   const bones = new Map<string, THREE.Bone>();
   model.traverse(node => { if (node instanceof THREE.Bone) bones.set(node.name, node); });
   const bodyMesh = wardrobeBodyMesh(model);
+  group.updateWorldMatrix(true, false);
+  const actorInverse = group.matrixWorld.clone().invert();
   const head = bodyMesh
     ? bindBonePoint(bodyMesh, 'Head', actorFromBind(bodyMesh, group))?.clone()
       ?? restPositions.get('Head')?.clone()
     : restPositions.get('Head')?.clone();
-  // The source GLB bind pose is height-neutral. The actor root scales height
-  // independently; scale the bind head anchor once so hat widths stay fixed.
-  if (head && bodyMesh) head.y *= wardrobe.heightScale;
+  // The bind anchor already contains the model's normalized/height-scaled
+  // transform. Do not multiply its Y by heightScale again.
   // Body height choices are applied to the actor root. The rest-position ratio
   // only fits the different authored male/female skeletons.
   const heightScale = wardrobe.heightScale;
@@ -60,7 +61,7 @@ export function createWardrobeGarments(
         let weight = 0;
         for (let j = 0; j < 4; j++) if (indices.getComponent(i, j) === joint) weight += weights.getComponent(i, j);
         if (weight < .8) continue;
-        node.getVertexPosition(i, point).applyMatrix4(node.matrixWorld);
+        node.getVertexPosition(i, point).applyMatrix4(node.matrixWorld).applyMatrix4(actorInverse);
         if (point.y >= head.y - .055 * unit && point.y <= head.y + .055 * unit) bounds.expandByPoint(point);
       }
     });
@@ -104,7 +105,9 @@ export function createWardrobeGarments(
     // baking large source-rig inverse scales into the clothing vertices.
     mesh.matrixAutoUpdate = false;
     group.add(mesh); meshes.push(mesh);
-    followers.push({ mesh, bone, restInverse: bind.clone().invert() });
+    // Capture the rest transform in actor coordinates even when the actor
+    // already stands at a nonzero city position when equipment is built.
+    followers.push({ mesh, bone, restInverse: actorInverse.clone().multiply(bind).invert() });
   }
   function ellipsoid(x: number, y: number, z: number, sx: number, sy: number, sz: number, color: number): Part {
     const geometry = new THREE.SphereGeometry(1, 12, 8);
