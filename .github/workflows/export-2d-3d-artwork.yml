@@ -1,0 +1,135 @@
+name: Export RTS 2D and 3D artwork ZIP
+on:
+  push:
+    branches:
+      - archive/2d-3d-artwork-20261123
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  export-artwork:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create complete artwork archive
+        shell: bash
+        run: |
+          from pathlib import Path
+          import hashlib, json, zipfile
+          
+          root = Path('.')
+          filename = 'RTS-Gangster-2D-3D-Listaverkasafn-2026-11-23.zip'
+          dirs = [
+              'art-source/illustrated',
+              'public/art/portraits/illustrated',
+              'public/art/city/sculpt',
+              'docs/images',
+          ]
+          individual = [
+              'docs/2D_TO_3D_ASSET_INVENTORY.md',
+              'docs/ART_DIRECTION.md',
+              'docs/design/illustrated-1930s-character-system.md',
+              'src/ui/Portrait.tsx',
+              'src/ui/art.ts',
+              'src/render/visualStyle.ts',
+              'src/render/illustratedPeople.ts',
+              'src/render/illustratedCharacterRenderer.ts',
+              'src/render/illustratedCharacterSpec.ts',
+              'src/render/layeredPilotPeople.ts',
+              'src/render/layeredPilotPreview.ts',
+              'src/render/vehicleSpriteLayer.ts',
+              'src/render/vehicleLivery.ts',
+              'src/render/vehiclePaint.ts',
+              'src/render/sculptVehicles.ts',
+              'src/render/sculptReviewLayer.ts',
+              'src/render/characterWardrobe.ts',
+              'src/render/characterWardrobeGarments.ts',
+              'src/render/characterWardrobeMaterial.ts',
+              'src/render/characterBindSpace.ts',
+              'src/render/characterMorphology.ts',
+              'src/render/characterEquipment.ts',
+              'src/render/characterMotion.ts',
+              'src/render/personAppearance.ts',
+              'src/render/textures.ts',
+              'scripts/build-illustrated-people.mjs',
+              'scripts/build-illustrated-corner.mjs',
+              'scripts/build-layered-pilot.mjs',
+              'scripts/build-painted-character.mjs',
+              'scripts/build-painted-vehicles.mjs',
+              'scripts/capture-vehicle-review.mjs',
+              'scripts/capture-wardrobe-review.mjs',
+              'scripts/capture-visual-review.mjs',
+              'tests/character-morphology.test.ts',
+              'tests/character-wardrobe-garments.test.ts',
+              'tests/character-wardrobe-material.test.ts',
+              'tests/visual-style.test.ts',
+          ]
+          items = set()
+          for d in dirs:
+              path = Path(d)
+              if not path.is_dir(): raise SystemExit('Missing directory: ' + d)
+              items.update(p for p in path.rglob('*') if p.is_file())
+          for pattern in ['illustrated-*', 'vehicle-fleet-eight-*']:
+              items.update(p for p in Path('public/art/city').glob(pattern) if p.is_file())
+          for f in individual:
+              p = Path(f)
+              if not p.is_file(): raise SystemExit('Missing required file: ' + f)
+              items.add(p)
+          items = sorted(items, key=lambda p: p.as_posix())
+          prefix = 'RTS-Gangster-Listaverkasafn/'
+          readme = '''RTS Gangster — 2D og 3D LISTAVERKASAFN (23. nóvember 2026)
+          
+          Þetta er varðveislusafn úr RTS Gangster GitHub-verkefninu.
+          Það inniheldur:
+          * Frumteikningar í art-source/illustrated (fólk, bílaáferðir, SVG-lög)
+          * Afleidd 2D-söfn og 48 myndir í public/art/portraits/illustrated
+          * Málaðar 3D-áferðir, teiknaða bíla og persónur í public/art/city
+          * Núverandi 3D GLB-líkön, hreyfigögn og búnað í public/art/city/sculpt
+          * Skjáskot og yfirlitsmyndir úr docs/images
+          * Skrá yfir allar eignir og áætlun í docs/2D_TO_3D_ASSET_INVENTORY.md
+          * Viðeigandi frumkóða, myndvinnsluskriftur og prófanir
+          
+          Athugið: 50 búningar og 8 einkennisbúningar eru útlitsskilgreiningar
+          í characterWardrobe.ts, en ekki 58 aðskildar 3D GLB-skrár.
+          Hvað sem verður um 2D-leikjateiknarann á ekki að eyða málningunni,
+          frumteikningum eða 2D-andlitsmyndunum í notendaviðmótinu.
+          
+          MANIFEST.json inniheldur SHA-256 og stærð allra skránna.
+          Þetta ZIP-safn breytir engum skrám í leiknum.
+          '''
+          manifest = []
+          for p in items:
+              b = p.read_bytes()
+              manifest.append({'path': p.as_posix(), 'bytes': len(b), 'sha256': hashlib.sha256(b).hexdigest()})
+          with zipfile.ZipFile(filename, mode='w', compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as z:
+              z.writestr(prefix + 'LES_MIG_FYRST.txt', readme)
+              z.writestr(prefix + 'MANIFEST.json', json.dumps({'version':'2026-11-23','source_branch':'rts-development','files':manifest}, indent=2, ensure_ascii=False))
+              for p in items:
+                  z.write(p, arcname=prefix + p.as_posix())
+          with zipfile.ZipFile(filename) as z:
+              corrupt = z.testzip()
+              if corrupt: raise SystemExit('Corrupt ZIP member: ' + corrupt)
+              assert len(z.namelist()) == len(items) + 2
+          print(f'Created {filename} with {len(items)} source files, {Path(filename).stat().st_size / 1024**2:.1f} MiB ZIP')
+      - name: Upload downloadable ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RTS-Gangster-2D-3D-Listaverkasafn
+          path: RTS-Gangster-2D-3D-Listaverkasafn-2026-11-23.zip
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish direct ZIP download
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zipfile=RTS-Gangster-2D-3D-Listaverkasafn-2026-11-23.zip
+          tag=rts-gangster-artwork-archive-20261123
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$zipfile" --clobber
+          else
+            gh release create "$tag" "$zipfile" --target "$GITHUB_SHA" --prerelease \
+              --title "RTS Gangster — 2D og 3D listaverkasafn" \
+              --notes "ZIP með frumteikningum 2D, safnmyndum fólks og bíla, 3D GLB-líkönum og hreyfingum, áferðum, skjáskotum, tengdum frumkóða og skjalfestri úttekt. Safnið inniheldur varðveitt efni en breytir ekki RTS-leiknum."
+          fi
