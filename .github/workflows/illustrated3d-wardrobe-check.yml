@@ -6,6 +6,10 @@ on:
       - fix/illustrated3d-bind-space-skinning
   workflow_dispatch:
 
+concurrency:
+  group: illustrated3d-wardrobe-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   wardrobe:
     runs-on: ubuntu-latest
@@ -17,10 +21,12 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: All Vitest regressions
-        run: npx vitest run
       - name: TypeScript
         run: npm run typecheck
+      - name: Focused geometry regressions
+        run: npx vitest run tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
+      - name: All Vitest regressions
+        run: npx vitest run
       - name: Install browser
         run: npx playwright install --with-deps chromium
       - name: Wardrobe gallery screenshots
