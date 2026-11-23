@@ -79,9 +79,6 @@ import { specialistParticipants } from '../sim/specialistJobs';
 import { vehicleDriver, atOffice, officeDoors } from '../sim/transport';
 import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
-import { VehicleSpriteLayer, vehicleSpriteKind } from './vehicleSpriteLayer';
-import { createIllustratedCharacterRenderer, type IllustratedCharacterRenderer } from './illustratedCharacterRenderer';
-import { readLayeredPilotPreview } from './layeredPilotPreview';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
 import { FACING_YAW, lotFacing, profileForLot, profileFor } from './profile';
@@ -142,7 +139,6 @@ const SLAB_HALF = BLOCK_SIZE / 2 + PAVE_W;
 /** Keep tyre soles just clear of the road, in metres. */
 const VEHICLE_GROUND_CLEARANCE = .008;
 
-const CAR_COLORS = [0x14151a, 0x1c2b22, 0x3a1f1c, 0x1b2740, 0x2e2a22, 0x5d5140, 0x8d8371, 0x232323];
 /**
  * Overcoat colours for the citizens. Mid-tones with a hue to them: the pavement
  * is neutral grey, so it is colour rather than brightness that picks a figure
@@ -354,7 +350,6 @@ export class CityRenderer {
   /** People at the wheel this frame, drawn as cars once the traffic is in. */
   private drivers: { x: number; z: number; facing: number; hex: number; kind: VehicleId; role?: PersonRole; delivery?: boolean; moving?: boolean; coroner?: boolean; carKey: string; emergency?: boolean; pullingIn?: boolean }[] = [];
   private actors!: ActorLayer;
-  private illustratedPeople: IllustratedCharacterRenderer | null = null;
   private actorMotion = new ActorMotion();
   private characterActions:CharacterActions;
   private cityEffects?:CityEffects;
@@ -385,10 +380,6 @@ export class CityRenderer {
   private policeBeacons!: InstancePool;
   private lastVehicleYaw = new Map<string, number>();
   private activeVehicleYaw = new Set<string>();
-  private vehicleSprites: VehicleSpriteLayer | null = null;
-  private preferVehicleSprites = false;
-  private vehicleSpritesActive = false;
-  private reviewSpeedsterSprite = false;
   private sculptModels: SculptReviewLayer | null = null;
   private sculptLoad: Promise<void> | null = null;
   private preferSculptModels = false;
@@ -969,21 +960,6 @@ export class CityRenderer {
 
   private buildAgents(): void {
     this.actors = new ActorLayer(this.scene, MAX_AGENTS);
-    if (this.visualStyle === 'illustrated') {
-      const people = createIllustratedCharacterRenderer(this.scene, MAX_AGENTS, () => {
-        if (!this.disposed) {
-          people.setVisible(this.streetsOpen);
-          this.preparationRevision++;
-        }
-      }, {
-        // The first independently layered man is developer-only. Existing saves
-        // and the public Illustrated 1930s option remain unchanged.
-        enabled: readLayeredPilotPreview(window.location.search),
-        selectedId: () => this.selectedPersonId,
-      });
-      this.illustratedPeople = people;
-      void people.load();
-    }
     for (const mesh of this.actors.meshes) mesh.userData.actorRootHeight = KERB_H + .008;
     const mat = new THREE.MeshBasicMaterial({ visible: false });
     const agentGeo = new THREE.BoxGeometry(.68, 1.97, .66);
@@ -1043,11 +1019,7 @@ export class CityRenderer {
     this.policeBeacons = new InstancePool(new THREE.SphereGeometry(.09, 8, 6), this.beaconMat, capacity, { dynamic: true, color: true });
     for (const p of [this.sedans, this.trucks, this.hearses, this.speedsters, this.headlamps, this.taillights, this.taxiSigns, this.policeBeacons]) this.scene.add(p.mesh);
     // Delivered models are the default. Explicit switches retain the audit/fallback views.
-    this.reviewSpeedsterSprite = this.visualStyle === 'illustrated';
-    this.preferVehicleSprites = this.visualStyle === 'illustrated' ||
-      new URLSearchParams(window.location.search).get('vehicleSprites') === '1';
-    if (this.preferVehicleSprites) this.ensureVehicleSprites();
-    this.preferSculptModels = this.visualStyle !== 'illustrated' && useDetailedModels(window.location.search);
+    this.preferSculptModels = useDetailedModels(window.location.search);
     if (this.preferSculptModels) this.ensureSculptModels();
     this.syncVehiclePresentation();
   }
@@ -1055,7 +1027,7 @@ export class CityRenderer {
   private ensureSculptModels(): void {
     if (this.sculptModels) return;
     const layer = new SculptReviewLayer(this.scene, MAX_CARS + MAX_AGENTS,
-      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d', coachworkPaint: this.visualStyle !== 'illustrated' });
+      () => this.syncVehiclePresentation(), MAX_AGENTS, { painted: this.visualStyle === 'illustrated3d', coachworkPaint: true });
     this.sculptModels = layer;
     this.sculptLoad = layer.load().then(() => {
       this.sculptLoad = null;
@@ -1063,28 +1035,16 @@ export class CityRenderer {
     });
   }
 
-  private ensureVehicleSprites(): void {
-    if (this.vehicleSprites) return;
-    const layer = new VehicleSpriteLayer(this.scene, MAX_CARS + MAX_AGENTS, () => this.syncVehiclePresentation());
-    this.vehicleSprites = layer;
-    void layer.load();
-  }
-
   private syncVehiclePresentation(): void {
-    const previousSprites = this.vehicleSpritesActive, previousModels = this.sculptModelsActive;
-    const active = this.preferVehicleSprites && !!this.vehicleSprites?.ready && !this.disposed;
-    this.vehicleSpritesActive = active;
-    this.sculptModelsActive = this.preferSculptModels && !!this.sculptModels?.ready && !active && !this.disposed;
-    if (previousSprites !== this.vehicleSpritesActive || previousModels !== this.sculptModelsActive) this.preparationRevision++;
-    this.vehicleSprites?.setVisible(this.streetsOpen && active);
+    const previousModels = this.sculptModelsActive;
+    this.sculptModelsActive = this.preferSculptModels && !!this.sculptModels?.ready && !this.disposed;
+    if (previousModels !== this.sculptModelsActive) this.preparationRevision++;
     this.sculptModels?.setVisible(this.streetsOpen && this.sculptModelsActive);
-    this.sedans.mesh.visible = this.streetsOpen && !active && !this.sculptModelsActive;
-    this.trucks.mesh.visible = this.streetsOpen && !active && !this.sculptModelsActive;
+    this.sedans.mesh.visible = this.streetsOpen && !this.sculptModelsActive;
+    this.trucks.mesh.visible = this.streetsOpen && !this.sculptModelsActive;
     this.hearses.mesh.visible = this.streetsOpen;
-    // The open car's seated 3D driver currently protrudes through the billboard
-    // in one camera view. Keep that pairing intact until a matching rider exists.
-    this.speedsters.mesh.visible = this.streetsOpen && !this.sculptModelsActive && !(active && this.reviewSpeedsterSprite);
-    const fittings = this.streetsOpen && !this.vehicleSpritesActive;
+    this.speedsters.mesh.visible = this.streetsOpen && !this.sculptModelsActive;
+    const fittings = this.streetsOpen;
     if (this.taxiSigns) this.taxiSigns.mesh.visible = fittings;
     if (this.policeBeacons) this.policeBeacons.mesh.visible = fittings;
     if (this.taillights) this.taillights.mesh.visible = fittings && this.taillightMat.opacity > 0.02;
@@ -1105,24 +1065,6 @@ export class CityRenderer {
       characters: this.sculptModels?.characterCount ?? 0,
       cachedCharacters: this.sculptModels?.cachedCharacterCount ?? 0,
       vehicles: this.sculptModels?.vehicleCount ?? 0, presentation: { ...this.characterDetailStats } };
-  }
-
-  /** Temporary review switch; the production city keeps its measured 3D vehicles. */
-  setVehicleSpritesEnabled(enabled: boolean): void {
-    this.preferVehicleSprites = enabled;
-    if (enabled) this.ensureVehicleSprites();
-    this.syncVehiclePresentation();
-  }
-
-  /** Isolated art QA only; the seated driver still needs a matching sprite. */
-  setSpeedsterSpriteForReview(enabled: boolean): void {
-    this.reviewSpeedsterSprite = enabled;
-    this.syncVehiclePresentation();
-  }
-
-  getVehicleSpriteStatus(): { requested: boolean; ready: boolean; active: boolean; error: string | null } {
-    return { requested: this.preferVehicleSprites, ready: !!this.vehicleSprites?.ready,
-      active: this.vehicleSpritesActive, error: this.vehicleSprites?.error ?? null };
   }
 
   private buildSelection(): void {
@@ -2068,7 +2010,6 @@ export class CityRenderer {
     this.burningPeople?.reset();
     this.emergencyHoses?.reset();
     this.actors.reset();
-    this.illustratedPeople?.reset();
     this.sculptModels?.resetCharacters();
     this.drivers.length = 0;
     this.standingCars.length = 0;
@@ -2255,16 +2196,12 @@ export class CityRenderer {
       // Closed cabins conceal their occupants. Picking uses the vehicle-sized
       // envelope above, so no standing miniature protrudes through its roof.
       if (!driving) {
-        const illustrated = !!this.illustratedPeople?.ready &&
-          (p.status === 'active' || p.status === 'beaten' || !!action);
-        if (illustrated) this.illustratedPeople!.push(p, pos.x, surface, pos.y, facing, motion.phase, walking,
-          { action, heldWeapon: burn ? undefined : this.characterActions.heldWeapon(p.id), carrying: !!shuttle?.carrying });
-        const detailed = !illustrated && hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
+        const detailed = hdIds.has(p.id) && this.sculptModels?.pushCharacter(p.id, actorStyleFor(p),
           this.dummy.matrix, motion.phase, walking,
           {role:p.role,coat:hex,wardrobe:this.wardrobeFor(p),firefighting:action?.kind==='firefight',charred:burn&&escape!.fatal?Math.min(1,.25+burn.time/(BURNING_TIMING.flee+2)):ownCorpse&&p.burningEscape?.fatal?1:0,weapon:ownCorpse||burn||response||action?.kind==='strike'||action?.kind==='throw'?undefined:this.characterActions.heldWeapon(p.id),
             carriedProp:shuttle?.carrying?'crate':!burn&&action?.kind!=='throw'&&carriesExplosives(w,p)?'explosives':undefined,throwable:action?.kind==='throw'?action.throwable:undefined},
           {clock:this.simClock,delta:this.actionDelta,action,previewActions:this.actionsEnabled||action?.kind==='shoot',posture:p.closeCombat?.posture,...(shuttle ? (shuttle.carrying ? {gait:'carry' as const} : {}) : dailyMotion(w,p))});
-        if (!detailed && !illustrated)
+        if (!detailed)
           this.actors.push(p, this.dummy.matrix, this.colorScratch, motion.phase, walking ? 1 : 0,action,this.wardrobeFor(p));
         if(burn&&escape!.fatal)this.burningPeople?.push(pos.x,surface,pos.y,burn.time,burn.deathTime,
           detailed?this.sculptModels?.burningAnchors(p.id):undefined,p.id,
@@ -2273,7 +2210,7 @@ export class CityRenderer {
           if(nozzle)this.emergencyHoses?.push(nozzle,response.lookAt,surface,action.time);}
         if (visibleIds.has(p.id)) this.characterDetailStats[detailed ? 'detailed' : 'simplified']++;
       }
-      else if (vehicle === 'speedster' && !this.sculptModelsActive && !(this.vehicleSpritesActive && this.reviewSpeedsterSprite)) {
+      else if (vehicle === 'speedster' && !this.sculptModelsActive) {
         this.dummy.position.set(pos.x - Math.sin(facing) * .72, surface - .10, pos.y - Math.cos(facing) * .72);
         this.dummy.scale.setScalar(1);
         this.dummy.updateMatrix();
@@ -2298,8 +2235,7 @@ export class CityRenderer {
         this.dummy.updateMatrix();
         (p.status === 'arrested' ? this.arrestMarks : this.waitMarks).push(this.dummy.matrix);
       }
-      const carPaint = (driving || shuttle) && this.visualStyle !== 'illustrated'
-        ? vehiclePaintFor(p.vehicleKey ?? `p${p.id}`, p.vehicleKey ? undefined : p.role) : hex;
+      const carPaint = (driving || shuttle) ? vehiclePaintFor(p.vehicleKey ?? `p${p.id}`, p.vehicleKey ? undefined : p.role) : hex;
       if (driving && (!p.vehicleKey || w.vehicleFleet?.[p.vehicleKey]?.driverId===p.id)) {
         const carKey = p.vehicleKey ?? `p${p.id}`;
         const pulled = this.pulledIn.get(carKey) ?? 0;
@@ -2321,17 +2257,10 @@ export class CityRenderer {
       const at=previewVehicle(car,car.pos,this.subMinute,{x:0,y:0});
       this.pullIn(key,at,true);
       const fleetPull = this.pulledIn.get(key) ?? 0;
-      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:this.visualStyle !== 'illustrated' ? vehiclePaintFor(key) : 0x252525,kind:car.kind,carKey:key,pullingIn:fleetPull>.05&&fleetPull<.95});
+      this.drivers.push({x:at.x,z:at.y,facing:roadHeading(w,car.pos),hex:vehiclePaintFor(key),kind:car.kind,carKey:key,pullingIn:fleetPull>.05&&fleetPull<.95});
     }
     for (const driver of deliveryDrivers) {
       const motion = this.actorMotion.sample(driver.id, driver.pos.x, driver.pos.y, driver.walking, driver.facing);
-      if (this.illustratedPeople?.ready) {
-        this.illustratedPeople.push({ id: driver.id, portrait: 0, female: false, role: 'citizen' },
-          driver.pos.x, streetSurfaceHeight(this.world, driver.pos.x, driver.pos.y) + .008,
-          driver.pos.y, driver.facing, motion.phase, driver.walking,
-          { rowOverride: 4, carrying: driver.carrying });
-        continue;
-      }
       this.dummy.position.set(driver.pos.x, streetSurfaceHeight(this.world, driver.pos.x, driver.pos.y) + .008, driver.pos.y);
       this.dummy.rotation.set(0, driver.facing, 0); this.dummy.scale.setScalar(CHARACTER_SCALE); this.dummy.updateMatrix();
       this.sculptModels?.pushCharacter(driver.id, 'worker', this.dummy.matrix, motion.phase, driver.walking,
@@ -2345,7 +2274,7 @@ export class CityRenderer {
       this.pullIn(`delivery:${delivery.sourceId}`,pos,!delivery.path.length);
       const deliveryKey = `delivery:${delivery.sourceId}`;
       const deliveryPull = this.pulledIn.get(deliveryKey) ?? 0;
-      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:this.visualStyle !== 'illustrated' ? vehiclePaintFor(deliveryKey) : 0x4e5647,kind:'truck',delivery:true,carKey:deliveryKey,pullingIn:deliveryPull>.05&&deliveryPull<.95});
+      this.drivers.push({x:pos.x,z:pos.y,facing:dx*dx+dy*dy>1e-10?Math.atan2(dx,dy):delivery.heading,hex:vehiclePaintFor(deliveryKey),kind:'truck',delivery:true,carKey:deliveryKey,pullingIn:deliveryPull>.05&&deliveryPull<.95});
     }
     const bodyTime = campaignMinute(w, w.minute + this.subMinute);
     for (const p of Object.values(w.people)) {
@@ -2359,7 +2288,6 @@ export class CityRenderer {
     this.emergencyHoses?.commit();
     this.agentMesh.count = i;
     this.actors.commit();
-    this.illustratedPeople?.draw(this.camera);
     this.sculptModels?.commitCharacters();
     this.actorMotion.retain(new Set(this.agentIds));
     this.personHalo.visible = haloShown;
@@ -2477,9 +2405,7 @@ export class CityRenderer {
     this.taillights.reset();
     this.taxiSigns.reset();
     this.policeBeacons.reset();
-        this.vehicleSprites?.reset(camera);
     this.activeVehicleYaw.clear();
-    const spriteMode = this.vehicleSpritesActive;
 
     // Every car in the city was drawn as a full model each frame (about 1.6M
     // triangles, twice with shadows); only those the frame can reach are now.
@@ -2501,11 +2427,10 @@ export class CityRenderer {
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
       const taxi = !truck && isTrafficTaxi(c.color);
-      const paint = this.visualStyle !== 'illustrated' ? (taxi ? TAXI_VEHICLE_PAINT : trafficPaint(c.color)) : CAR_COLORS[c.color % CAR_COLORS.length];
+      const paint = taxi ? TAXI_VEHICLE_PAINT : trafficPaint(c.color);
       this.colorScratch.setHex(paint);
       const canvas = truckCanvasPaint(trafficKey);
-      if (spriteMode) this.vehicleSprites!.push(truck ? 'truck' : 'coupe', x, z, yaw);
-      else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(truck ? 'truck' : 'coupe', this.dummy.matrix, paint, truck ? 2 : 0, canvas)) { /* Detailed vehicle */ }
+      if (this.sculptModelsActive && this.sculptModels?.pushVehicle(truck ? 'truck' : 'coupe', this.dummy.matrix, paint, truck ? 2 : 0, canvas)) { /* Detailed vehicle */ }
       else (truck ? this.trucks : this.sedans).push(this.dummy.matrix, this.colorScratch);
       if (taxi) this.placeTaxiSign(x, z, yaw);
       this.placeVehicleLights(x, z, yaw, truck ? 'truck' : 'coupe', dusk, false);
@@ -2530,8 +2455,6 @@ export class CityRenderer {
       const police = (d.role === 'police' || d.role === 'policeChief') && d.kind === 'coupe';
       const canvas = !d.coroner && d.kind === 'truck' ? truckCanvasPaint(d.carKey) : 0;
       if (d.coroner) this.hearses.push(this.dummy.matrix, this.colorScratch);
-      else if (spriteMode && (d.kind !== 'speedster' || this.reviewSpeedsterSprite))
-        this.vehicleSprites!.push(d.kind, d.x, d.z, yaw, d.delivery ? 'delivery' : vehicleSpriteKind(d.kind, d.role));
       else if (this.sculptModelsActive && this.sculptModels?.pushVehicle(d.kind, this.dummy.matrix, d.hex, police ? 1 : canvas ? 2 : 0, canvas)) { /* Detailed vehicle */ }
       else (d.kind === 'truck' ? this.trucks : d.kind === 'speedster' ? this.speedsters : this.sedans).push(this.dummy.matrix, this.colorScratch);
       if (police) this.placePoliceBeacon(d.x, d.z, yaw, !!d.emergency);
@@ -2543,13 +2466,12 @@ export class CityRenderer {
     this.hearses.commit();
     this.speedsters.commit();
     this.sculptModels?.commitVehicles();
-    this.vehicleSprites?.commit();
     this.headlamps.commit();
     this.taillights.commit();
     this.taxiSigns.commit();
     this.policeBeacons.commit();
     retainVehicleYaw(this.lastVehicleYaw, this.activeVehicleYaw);
-    const night = dusk > 0.02 && this.streetsOpen && !this.vehicleSpritesActive;
+    const night = dusk > 0.02 && this.streetsOpen;
     this.headlamps.mesh.visible = night;
     this.taillights.mesh.visible = night;
   }
@@ -2782,12 +2704,11 @@ export class CityRenderer {
     this.preparationRevision++;
     this.agentMesh.visible = open;
     this.actors.setVisible(open);
-    this.illustratedPeople?.setVisible(open);
     this.sculptModels?.setVisible(open && this.sculptModelsActive);
     if (!open) this.personHalo.visible = false;
     for (const p of [this.footRings, this.waitMarks, this.arrestMarks]) p.mesh.visible = open;
     this.syncVehiclePresentation();
-    this.headlamps.mesh.visible = open && !this.vehicleSpritesActive;
+    this.headlamps.mesh.visible = open;
     if (!open) {
       this.agentMesh.count = 0;
       this.agentIds = [];
@@ -2796,8 +2717,6 @@ export class CityRenderer {
       this.emergencyHoses?.reset();
       this.emergencyHoses?.commit();
       this.actorMotion.clear();
-      this.illustratedPeople?.reset();
-      this.illustratedPeople?.draw(this.camera);
     } else {
       this.updateCamera();
     }
@@ -3074,7 +2993,7 @@ export class CityRenderer {
     // Chalk outlines and charred silhouettes where people died, checked twice a second.
     if (this.clock - this.deathMarksChecked > .5) {
       this.deathMarksChecked = this.clock;
-      if (!this.deathMarks) { this.deathMarks = new DeathMarks(256, this.visualStyle === 'illustrated3d'); this.scene.add(this.deathMarks.group); }
+      if (!this.deathMarks) { this.deathMarks = new DeathMarks(256); this.scene.add(this.deathMarks.group); }
       this.deathMarks.update(this.world, (x, y) => streetSurfaceHeight(this.world, x, y), p => this.shuttleSeen.get(p.id) ?? p.pos);
     }
     // Pose transitions can settle after a paused command; one-shot action time
@@ -3125,7 +3044,6 @@ export class CityRenderer {
       this.buildingsDirty = false;
     }
     const dusk = this.applyTimeOfDay();
-    this.illustratedPeople?.setDusk(dusk);
     for (const [id, view] of this.tagged.views) {
       const watched = this.world.people[id];
       if (!watched) { this.tagged.views.delete(id); continue; }
@@ -3201,7 +3119,6 @@ export class CityRenderer {
     this.renderer.render(this.scene, this.camera);
     this.buildingOutline.render(this.renderer, this.camera);
     for (const view of this.tagged.views.values()) this.renderTaggedView(view);
-    if (this.illustratedPeople && this.tagged.views.size) this.illustratedPeople.draw(this.camera);
   }
 
   private clearBuildingViews(): void {
@@ -3328,8 +3245,6 @@ export class CityRenderer {
       shadowCamera.top = extent; shadowCamera.bottom = -extent;
       shadowCamera.updateProjectionMatrix();
       this.selectionRing.visible = false;
-      if (this.vehicleSpritesActive) this.refreshTraffic(this.headlampMat.opacity / .9, t.camera);
-      this.illustratedPeople?.draw(t.camera);
       this.renderer.setViewport(r.x, this.height - r.y - r.height, r.width, r.height);
       this.renderer.setScissor(left, this.height - bottom, right - left, bottom - top);
       this.renderer.setScissorTest(true);
@@ -3351,7 +3266,6 @@ export class CityRenderer {
       [shadowCamera.left, shadowCamera.right, shadowCamera.top, shadowCamera.bottom] = shadowBounds;
       shadowCamera.updateProjectionMatrix();
       this.selectionRing.visible = ringVisible;
-      if (this.vehicleSpritesActive) this.refreshTraffic(this.headlampMat.opacity / .9);
       this.renderer.setViewport(0, 0, this.width, this.height);
       this.renderer.setScissorTest(false);
     }
@@ -3426,8 +3340,6 @@ export class CityRenderer {
     // Release resources while the renderer still has its WebGL bookkeeping.
     this.ownedTextures.dispose();
     this.sun?.shadow.dispose();
-    this.vehicleSprites?.dispose();
-    this.illustratedPeople?.dispose();
     this.sculptModels?.dispose();
     this.cityEffects?.dispose();
     this.deathMarks?.dispose();

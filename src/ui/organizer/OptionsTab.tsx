@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { readLayeredPilotPreview, writeLayeredPilotPreview } from '../../render/layeredPilotPreview';
 import { SAVE_NAME_MAX, useGame } from '../../app/store';
 import { slotLoadable } from '../../app/save';
 import { cameraApi } from '../CityView';
@@ -71,7 +70,6 @@ export function OptionsTab() {
   const startGame = useGame((s) => s.startGame);
   const [quit, setQuit] = useState<null | 'restart' | 'fresh' | 'menu'>(null);
   const [overwrite, setOverwrite] = useState<string | null>(null);
-  const [layeredPilotPreview, setLayeredPilotPreview] = useState(() => readLayeredPilotPreview(window.location.search));
   useGame((s) => s.version);
 
   const w = sim.world;
@@ -206,32 +204,13 @@ export function OptionsTab() {
         <div className="row" role="group" aria-label="City artwork" style={{ gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
           <button aria-pressed={visualStyle === 'detailed'} className={`btn sm${visualStyle === 'detailed' ? ' on' : ''}`}
             onClick={() => useGame.getState().setVisualStyle('detailed')}>Detailed</button>
-          <button aria-pressed={visualStyle === 'illustrated'} className={`btn sm${visualStyle === 'illustrated' ? ' on' : ''}`}
-            onClick={() => useGame.getState().setVisualStyle('illustrated')}>Illustrated 1930s (preview)</button>
           <button aria-pressed={visualStyle === 'illustrated3d'} className={`btn sm${visualStyle === 'illustrated3d' ? ' on' : ''}`}
-            onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D (experimental)</button>
+            onClick={() => useGame.getState().setVisualStyle('illustrated3d')}>Illustrated 3D</button>
         </div>
         <div className="muted tiny" style={{ marginTop: 6 }}>
-          Illustrated 1930s uses drawn street figures and HD vehicle sprites. Illustrated 3D (experimental) uses painted city artwork and animated 3D people with separately fitted coats, dresses and headwear.
+          Detailed uses the measured 3D city. Illustrated 3D uses painted city artwork and animated 3D people with separately fitted coats, dresses and headwear.
           Save your game, then close and reopen the city to apply the selected artwork. Graphics quality is separate.
         </div>
-        {visualStyle === 'illustrated' && <>
-          <button className={`btn sm${layeredPilotPreview ? ' on' : ''}`} aria-pressed={layeredPilotPreview}
-            style={{ marginTop: 9 }}
-            onClick={() => {
-              const enabled = !layeredPilotPreview;
-              writeLayeredPilotPreview(enabled);
-              setLayeredPilotPreview(enabled);
-            }}>
-            Layered HD character (experimental): {layeredPilotPreview ? 'On' : 'Off'}
-          </button>
-          <div className="muted tiny" style={{ marginTop: 6 }}>
-            First art pilot: only a selected male boss, lieutenant or hood is drawn with
-            independently layered suit and fedora art. Everyone else uses the original
-            illustrated figures. Save and reopen the city to apply. Turn this off to
-            restore the original look.
-          </div>
-        </>}
         <button aria-pressed={bureauGauges} className={`btn sm${bureauGauges ? ' on' : ''}`} style={{ marginTop: 8 }}
           onClick={() => useGame.getState().setBureauGauges(!bureauGauges)}>
           {bureauGauges ? 'Bureau gauges: shown' : 'Bureau gauges: hidden'}

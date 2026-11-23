@@ -23,14 +23,10 @@ describe('vehicle roll and street fittings', () => {
     const mesh = () => ({ visible: true, dispose() {} });
     const city = Object.assign(Object.create(CityRenderer.prototype), {
       streetsOpen: true,
-      vehicleSpritesActive: false,
       sculptModelsActive: false,
-      preferVehicleSprites: false,
       disposed: false,
       preparationRevision: 0,
-      reviewSpeedsterSprite: false,
       taillightMat: { opacity: .5 },
-      vehicleSprites: undefined,
       sculptModels: undefined,
       sedans: { mesh: mesh() },
       trucks: { mesh: mesh() },

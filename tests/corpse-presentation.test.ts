@@ -48,27 +48,23 @@ describe('illustrated 3D street corpse presentation', () => {
     expect(heldCorpseAction(burned, cue)).toBe(cue);
   });
 
-  it('uses only police sheets in 3D mode while legacy modes retain their body sprites', () => {
+  it('uses police sheets for uncovered bodies in pure 3D', () => {
     const context = new Proxy({}, { get: (_object, key) => key === 'canvas' ? {} : () => {} });
     vi.stubGlobal('document', { createElement: () => ({ width: 256, height: 256, getContext: () => context }) });
-    const loads = vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(() => new THREE.Texture());
     const w = world(), now = campaignMinute(w), p = victim();
     w.people[p.id] = p;
-    const painted = new DeathMarks(8, true), legacy = new DeathMarks(8);
-    const counts = (marks: DeathMarks) => marks.group.children.map(child => (child as THREE.InstancedMesh).count);
+    const marks = new DeathMarks(8);
+    const counts = (m: DeathMarks) => m.group.children.map(child => (child as THREE.InstancedMesh).count);
     try {
-      expect(loads).toHaveBeenCalledTimes(1); // Only the legacy renderer needs the sprite atlas.
-      painted.update(w); legacy.update(w);
-      expect(counts(painted)).toEqual([0, 0, 0]);
-      expect(counts(legacy)).toEqual([1, 0, 0]);
+      marks.update(w);
+      // Uncovered body stage now draws as a sheet (no 2D body atlas).
+      expect(counts(marks)).toEqual([1, 0]);
       p.bodyRecovery = { coveredAt: now, collectedAt: now + 5 };
-      painted.update(w); legacy.update(w);
-      expect(counts(painted)).toEqual([0, 1, 0]);
-      expect(counts(legacy)).toEqual([0, 1, 0]);
+      marks.update(w);
+      expect(counts(marks)).toEqual([1, 0]);
       w.minute += 5;
-      painted.update(w); legacy.update(w);
-      expect(counts(painted)).toEqual([0, 0, 0]);
-      expect(counts(legacy)).toEqual([0, 0, 0]);
-    } finally { painted.dispose(); legacy.dispose(); }
+      marks.update(w);
+      expect(counts(marks)).toEqual([0, 0]);
+    } finally { marks.dispose(); }
   });
 });

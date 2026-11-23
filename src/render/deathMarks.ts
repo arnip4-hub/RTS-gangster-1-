@@ -2,12 +2,9 @@ import * as THREE from 'three';
 import type { Person, WorldState } from '../sim/types';
 import { streetCorpseStage } from './corpsePresentation';
 import { peopleList } from '../sim/entityLists';
-import { illustratedPersonRow } from './illustratedPeople';
-import { patchInstancedUv } from './materialUv';
-import { InstancePool } from './pool';
 import { KERB_H } from './util';
 
-const LENGTH = 2.3, WIDTH = 1.35, ATLAS_ROWS = 32;
+const LENGTH = 2.3, WIDTH = 1.35;
 type MarkKind = 'sheet' | 'charred';
 
 function markTexture(kind: MarkKind): THREE.CanvasTexture {
@@ -44,30 +41,14 @@ function markTexture(kind: MarkKind): THREE.CanvasTexture {
 export class DeathMarks {
   readonly group = new THREE.Group();
   private readonly geometry = new THREE.PlaneGeometry(WIDTH, LENGTH).rotateX(-Math.PI / 2);
-  private readonly bodies: InstancePool;
   private readonly marks: Record<MarkKind, THREE.InstancedMesh>;
   private signature = '';
   private readonly matrix = new THREE.Matrix4();
   private readonly rotation = new THREE.Quaternion();
-  private readonly uv = new THREE.Vector4();
   private readonly up = new THREE.Vector3(0, 1, 0);
-  private bodyTexture: THREE.Texture | null;
 
-  constructor(private readonly capacity = 256, private readonly sheetsOnly = false) {
+  constructor(private readonly capacity = 256) {
     this.group.name = 'death-scenes';
-    this.bodyTexture = sheetsOnly ? null : new THREE.TextureLoader().load(`${import.meta.env.BASE_URL}art/city/illustrated-people-atlas.png`);
-    if (this.bodyTexture) {
-      this.bodyTexture.colorSpace = THREE.SRGBColorSpace;
-      this.bodyTexture.minFilter = this.bodyTexture.magFilter = THREE.LinearFilter;
-      this.bodyTexture.generateMipmaps = false;
-    }
-    const bodyMaterial = new THREE.MeshBasicMaterial({ map: this.bodyTexture, side: THREE.DoubleSide,
-      transparent: true, depthWrite: false });
-    patchInstancedUv(bodyMaterial);
-    this.bodies = new InstancePool(this.geometry, bodyMaterial, capacity, { uv: true, dynamic: true });
-    this.bodies.mesh.name = 'individual-street-bodies';
-    this.bodies.mesh.renderOrder = 2;
-    this.group.add(this.bodies.mesh);
     const make = (kind: MarkKind) => {
       const material = new THREE.MeshBasicMaterial({ map: markTexture(kind), transparent: true, depthWrite: false,
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -82,13 +63,12 @@ export class DeathMarks {
     at: (p: Person) => { x: number; y: number } = p => p.pos): void {
     const dead = peopleList(w).filter(p => {
       const stage = streetCorpseStage(p, w);
-      return stage != null && stage !== 'gone' && (!this.sheetsOnly || stage === 'sheet');
+      return stage != null && stage !== 'gone';
     })
       .sort((a, b) => (b.diedAt ?? 0) - (a.diedAt ?? 0) || b.id - a.id).slice(0, this.capacity);
     const signature = dead.map(p => `${p.id}:${streetCorpseStage(p, w)}`).join(',');
     if (signature === this.signature) return;
     this.signature = signature;
-    this.bodies.reset();
     const counts: Record<MarkKind, number> = { sheet: 0, charred: 0 };
     for (const p of dead) {
       const kind = streetCorpseStage(p, w) === 'sheet' ? 'sheet'
@@ -98,15 +78,9 @@ export class DeathMarks {
       const pos = at(p);
       this.matrix.compose(new THREE.Vector3(pos.x, groundY(pos.x, pos.y) + .05, pos.y),
         this.rotation, new THREE.Vector3(1, 1, 1));
-      if (kind === 'body') {
-        const row = illustratedPersonRow(p);
-        this.uv.set(1 / 4, 1 / ATLAS_ROWS, 0, (ATLAS_ROWS - 1 - row) / ATLAS_ROWS);
-        this.bodies.push(this.matrix, undefined, this.uv);
-      } else {
-        const mesh = this.marks[kind]; mesh.setMatrixAt(counts[kind]++, this.matrix);
-      }
+      const drawn = kind === 'body' ? 'sheet' : kind;
+      const mesh = this.marks[drawn]; mesh.setMatrixAt(counts[drawn]++, this.matrix);
     }
-    this.bodies.commit();
     for (const kind of ['sheet', 'charred'] as const) {
       const mesh = this.marks[kind]; mesh.count = counts[kind]; mesh.instanceMatrix.needsUpdate = true;
     }
@@ -114,7 +88,6 @@ export class DeathMarks {
 
   dispose(): void {
     this.group.removeFromParent();
-    this.bodies.dispose(); this.bodyTexture?.dispose();
     for (const mesh of Object.values(this.marks)) {
       (mesh.material as THREE.MeshBasicMaterial).map?.dispose();
       (mesh.material as THREE.Material).dispose(); mesh.dispose();

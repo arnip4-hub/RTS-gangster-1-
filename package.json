@@ -10,8 +10,8 @@
   "description": "Standalone RTS gangster beta based on Original Gangster (MIT)",
   "license": "MIT",
   "scripts": {
-    "dev": "node scripts/build-layered-pilot.mjs && vite",
-    "build": "node scripts/build-layered-pilot.mjs && node scripts/build-save-schema.mjs --check && tsc --noEmit && vite build",
+    "dev": "vite",
+    "build": "node scripts/build-save-schema.mjs --check && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",

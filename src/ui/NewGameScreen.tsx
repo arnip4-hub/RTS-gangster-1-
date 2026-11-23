@@ -14,11 +14,10 @@ import { Icon } from './common';
 import { Plaque } from './Plaque';
 import { audio } from '../audio/audio';
 import { Portrait } from './Portrait';
-import { readVisualStyle } from '../render/visualStyle';
 
 /** Step through the current portrait pool, preserving the name sentinel. */
 function stepPortrait(current: number, dir: 1 | -1, female: boolean): number {
-  const n = readVisualStyle() === 'illustrated' ? 6 : female ? 32 : 64;
+  const n = female ? 32 : 64;
   return ((current + dir + n) % n) || n;
 }
 

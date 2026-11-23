@@ -34,7 +34,7 @@
       const hybrid = query.get('people') === 'painted3d';
       const wardrobeMode = query.get('people') === 'wardrobe3d';
       const corpseStage = query.get('corpse');
-      localStorage.setItem('og.visualStyle', wardrobeMode ? 'illustrated3d' : 'illustrated');
+      localStorage.setItem('og.visualStyle', 'illustrated3d');
       const close = hybrid && query.get('close') === '1';
       const canvas = document.getElementById('city');
       const { world } = createWorld({ ...defaultGameOptions(), continuousTime: true,
@@ -124,7 +124,7 @@
       // geometry. Wait for the final material set before accepting a frame.
       const until = performance.now() + 30000;
       const peopleReady = () => wardrobeMode ? renderer.getSculptModelStatus().ready
-        : renderer.illustratedPeople?.ready && renderer.vehicleSprites?.ready;
+        : renderer.sculptModels?.ready;
       while (performance.now() < until &&
         (!peopleReady() ||
          !renderer.facadeMats?.[0]?.map?.image?.src?.includes('illustrated-facade-red-brick.jpg') ||
@@ -239,7 +239,7 @@
                 lotFacing(lot, block.center, b.id)).facade }; }) },
         cast: cast.map(p => ({ id: p.id, role: p.role })),
         stats() { return { drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
-          carSprites: renderer.vehicleSprites?.sprites.count, carModels: renderer.sedans?.count,
+          carModels: renderer.sedans?.count,
           wardrobeMode, detailed: wardrobeMode ? renderer.getSculptModelStatus() : undefined,
           painted3d: paintedActor ? { skinnedMeshes: paintedActor.skeletons.length,
             boneCounts: paintedActor.skeletons, triangles: paintedActor.triangles,
