@@ -216,6 +216,7 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
     }
     offset.copy(point).sub(hips);
     const lateral = offset.dot(side), depth = offset.dot(front);
+    if (build === 'heavy' && index === 150) console.info('MORPH_BIND_DIAGNOSTIC', { height, head: head.toArray(), hips: hips.toArray(), point: point.toArray(), torso, thigh, faceWeight, fromBind: actorFromBind.elements.slice(0, 16) });
     const waist = Math.exp(-Math.pow((point.y / height - .57) / .17, 2));
     const legBand = Math.exp(-Math.pow((point.y / height - .39) / .12, 2));
     const widthAmount = (profile.width - 1) * torso * waist + (profile.thigh - 1) * thigh * legBand;
