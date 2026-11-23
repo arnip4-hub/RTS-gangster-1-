@@ -10,7 +10,7 @@ import { allBuildings } from '../world';
 import { peopleList } from '../entityLists';
 import { recordSqueal } from '../squealers';
 import { placeInPrison } from '../prison';
-import { tickPoliceCases } from '../policeCases';
+import { leavePoliceCustody, tickPoliceCases } from '../policeCases';
 import { refreshPoliceWanted } from '../caseEvidence';
 import { recordTaxDisclosures, tickRtsCourts } from '../rtsCourts';
 
@@ -347,6 +347,7 @@ function releasePrisoners(w: WorldState): void {
     p.jailWeeks--;
     if (p.jailWeeks <= 0) {
       p.status = 'active';
+      if (w.options.continuousTime) leavePoliceCustody(w, p);
       delete p.prisonId;
       delete p.prisonSince;
       delete p.prisonOperation;
