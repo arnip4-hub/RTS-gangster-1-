@@ -95,6 +95,19 @@ describe('shared 3D character morphology', () => {
       const { model, mixer, clip } = rig(asset);
       const scale = build === 'thin' ? .93 : build === 'heavy' ? 1.07 : 1;
       expect(cache.apply(model, { build, heightScale: scale, faceIndex: 17 })).toBe(true);
+      if (build === 'thin') {
+        const mesh = model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+        const source = asset.scene.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+        const p = mesh.geometry.getAttribute('position'), old = source.geometry.getAttribute('position');
+        let max = 0, at = 0;
+        for (let k = 0; k < p.count; k++) {
+          const d = new THREE.Vector3().fromBufferAttribute(p,k).distanceTo(new THREE.Vector3().fromBufferAttribute(old,k));
+          if (d > max) { max = d; at = k; }
+        }
+        const info = new THREE.Box3().setFromObject(model, true);
+        console.info('BIND_MORPH_DIFF', style, { max, at, src: new THREE.Vector3().fromBufferAttribute(old,at).toArray(),
+          morphed: new THREE.Vector3().fromBufferAttribute(p,at).toArray(), bounds: info.getSize(new THREE.Vector3()).toArray() });
+      }
       const origin = new THREE.Box3().setFromObject(model, true);
       expect(Math.abs(origin.min.y)).toBeLessThan(.002);
       expect(origin.getSize(new THREE.Vector3()).y).toBeCloseTo(1.82 * scale, 1);
