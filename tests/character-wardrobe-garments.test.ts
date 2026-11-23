@@ -37,10 +37,9 @@ function fixture(height = 1) {
   const body = new THREE.SkinnedMesh(geometry, new THREE.MeshBasicMaterial({ color: 0x665544 }));
   model.add(body);
   group.updateMatrixWorld(true);
-  const skeleton = new THREE.Skeleton([hip, ...hip.children.filter(b => b instanceof THREE.Bone) as THREE.Bone[], head]);
-  // The skeleton array needs unique joints, in the same order as skin indices.
-  skeleton.bones = [hip, hip.children[0] as THREE.Bone, hip.children[1] as THREE.Bone, spine, head];
-  skeleton.calculateInverses();
+  const skeleton = new THREE.Skeleton([
+    hip, hip.children[0] as THREE.Bone, hip.children[1] as THREE.Bone, spine, head,
+  ]);
   body.bind(skeleton, body.matrixWorld.clone());
   const rest = new Map<string, THREE.Matrix4>(), points = new Map<string, THREE.Vector3>();
   model.traverse(node => { if (node instanceof THREE.Bone) {
