@@ -125,7 +125,8 @@ Engin `.blend`, `.fbx`, `.gltf` eða önnur venjuleg breytanleg 3D-frumskrá fan
 
 ## Sýnimyndir sem þegar liggja fyrir
 
-- [48-ramma bílasafn / Illustrated cars](images/illustrated-vehicle-fleet.png)
+- [Teiknaða 48-ramma bílasafnið](../public/art/city/illustrated-vehicle-atlas.png)
+- [Málaðir 3D-bílar í 12 litum](images/illustrated-vehicle-fleet.png)
 - [3D coupe og litasamsetningar](images/illustrated-coupe-paints.png)
 - [Búningar karla](images/wardrobe-men.png)
 - [Búningar kvenna](images/wardrobe-women.png)
