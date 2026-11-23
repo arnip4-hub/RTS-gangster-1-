@@ -106,9 +106,9 @@ export function skinGarmentToBody(
     candidates.sort((a, b) => a.distance - b.distance);
     const influence = new Map<number, number>();
     // The four nearest *positions* supply up to four strongest bone weights.
-    for (const candidate of candidates.slice(0, 4)) {
+    for (const candidate of candidates.slice(0, 12)) {
       const sample = samples[candidate.index];
-      const gain = 1 / Math.max(candidate.distance, .0004);
+      const gain = 1 / Math.sqrt(Math.max(candidate.distance, .0025));
       for (let slot = 0; slot < 4; slot++) {
         const w = sample.weight[slot] * gain;
         if (w > 0) influence.set(sample.index[slot], (influence.get(sample.index[slot]) ?? 0) + w);
@@ -124,6 +124,49 @@ export function skinGarmentToBody(
     local.copy(centre).applyMatrix4(toBind);
     target.setXYZ(i, local.x, local.y, local.z);
   }
+  // The nearest skin weights can differ sharply across a skirt seam even
+  // though the two vertices are centimeters apart. Regularize transferred
+  // weights over garment mesh adjacency so one hem triangle does not attach
+  // to opposing thighs during a stride. All influences still originate from
+  // the source GLB skeleton; no new bones or bind matrices are fabricated.
+  const neighbor = Array.from({ length: target.count }, () => new Set<number>());
+  const triangles = geometry.index;
+  const faceCount = triangles?.count ?? target.count;
+  for (let i = 0; i + 2 < faceCount; i += 3) {
+    const a = triangles ? triangles.getX(i) : i;
+    const b = triangles ? triangles.getX(i + 1) : i + 1;
+    const c = triangles ? triangles.getX(i + 2) : i + 2;
+    neighbor[a].add(b); neighbor[a].add(c);
+    neighbor[b].add(a); neighbor[b].add(c);
+    neighbor[c].add(a); neighbor[c].add(b);
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const nextIndex = new Uint16Array(indices.length);
+    const nextWeight = new Float32Array(weights.length);
+    for (let i = 0; i < target.count; i++) {
+      const accum = new Map<number, number>();
+      const collect = (vertex: number, share: number) => {
+        for (let slot = 0; slot < 4; slot++) {
+          const weight = weights[vertex * 4 + slot] * share;
+          if (weight <= 0) continue;
+          const joint = indices[vertex * 4 + slot];
+          accum.set(joint, (accum.get(joint) ?? 0) + weight);
+        }
+      };
+      collect(i, neighbor[i].size ? .6 : 1);
+      for (const j of neighbor[i]) collect(j, .4 / neighbor[i].size);
+      const jointWeights = [...accum].sort((a, b) => b[1] - a[1]).slice(0, 4);
+      const total = jointWeights.reduce((sum, item) => sum + item[1], 0);
+      for (let slot = 0; slot < 4; slot++) {
+        nextIndex[i * 4 + slot] = jointWeights[slot]?.[0] ?? 0;
+        nextWeight[i * 4 + slot] = total > 0 ? (jointWeights[slot]?.[1] ?? 0) / total
+          : slot === 0 ? 1 : 0;
+      }
+    }
+    indices.set(nextIndex);
+    weights.set(nextWeight);
+  }
+
   target.needsUpdate = true;
   geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(indices, 4));
   geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(weights, 4));
