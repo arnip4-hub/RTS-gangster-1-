@@ -6,30 +6,33 @@ import * as THREE from 'three';
 function actorFromBodyGeometry(mesh: THREE.SkinnedMesh, actor: THREE.Object3D): THREE.Matrix4 {
   actor.updateWorldMatrix(true, false);
   mesh.updateWorldMatrix(true, false);
-  const fromGeometry = actor.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+  const actorInverse = actor.matrixWorld.clone().invert();
+  const actorFromBodyGeom = actorInverse.clone().multiply(mesh.matrixWorld);
 
-  // Certain delivered GLBs scale only their mesh node by 0.01 while the
-  // skeleton remains in metre-sized bind coordinates. Three's skinning then
-  // cancels that internal 0.01 at each vertex. The bare mesh.matrixWorld is
-  // therefore NOT the reference-space transform seen by the skinned surface.
-  // Correct that static authoring-scale discrepancy, not any blended or
-  // currently animated skin matrix. Normal model height/position changes are
-  // already present in fromGeometry and must not be applied a second time.
-  const rootBone = mesh.skeleton.bones[0];
-  if (rootBone) {
-    rootBone.updateWorldMatrix(true, false);
-    const meshScale = new THREE.Vector3().setFromMatrixScale(mesh.matrixWorld);
-    const boneScale = new THREE.Vector3().setFromMatrixScale(rootBone.matrixWorld);
-    const correction = new THREE.Vector3(1, 1, 1);
-    for (const axis of ['x', 'y', 'z'] as const) {
-      const factor = meshScale[axis] > 1e-8 ? boneScale[axis] / meshScale[axis] : 1;
-      // Only normalize imported centimetre meshes; a real clothing/body size
-      // adjustment must remain intact, including nonuniform model.scale.
-      if (factor > 10 && factor < 1000) correction[axis] = factor;
-    }
-    fromGeometry.scale(correction);
+  // The shipped sculpt GLBs put a 0.01 transform on the imported Armature
+  // and its skinned mesh. The inverse-bind reference carries the same
+  // centimetre scale; Three's skinning cancels it on each vertex. Using the
+  // raw mesh.matrixWorld would therefore shrink the *effective* surface by
+  // 100 before transferring skin weights and then stretch generated clothes.
+  // The stable normalized model root (the first child beneath actor) is the
+  // correct authoring frame for these assets. Other rigs use the exact mesh
+  // transform above. Both paths use static node/bind data, never a blended
+  // animation matrix or its inverse.
+  let modelRoot: THREE.Object3D = mesh;
+  while (modelRoot.parent && modelRoot.parent !== actor) modelRoot = modelRoot.parent;
+  if (modelRoot !== mesh && modelRoot.parent === actor && mesh.skeleton.boneInverses.length) {
+    modelRoot.updateWorldMatrix(true, false);
+    const modelToMesh = modelRoot.matrixWorld.clone().invert().multiply(mesh.matrixWorld);
+    const meshScale = new THREE.Vector3().setFromMatrixScale(modelToMesh);
+    const inverseBindScale = new THREE.Vector3().setFromMatrixScale(
+      mesh.skeleton.boneInverses[0].clone().invert(),
+    );
+    const importedCentimetres = (['x', 'y', 'z'] as const).every(axis =>
+      meshScale[axis] > .005 && meshScale[axis] < .05 &&
+      inverseBindScale[axis] > .005 && inverseBindScale[axis] < .05);
+    if (importedCentimetres) return actorInverse.multiply(modelRoot.matrixWorld);
   }
-  return fromGeometry;
+  return actorFromBodyGeom;
 }
 
 /** Bind-pose bone coordinates in actor metres, with the complete model
