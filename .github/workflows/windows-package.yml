@@ -73,6 +73,18 @@ jobs:
             gh release create $env:TAG release/RTS-gangster-beta-*.exe --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version" --notes-file $notes
             if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
           } else {
+            # Replace the files in the existing prerelease, without creating a
+            # new tag or changing the 0.3.0-beta.11 download filenames.
             gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber
             if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
+            # Keep the existing beta.11 tag and release notes aligned with the
+            # newly packaged source revision. This tag is a lightweight ref.
+            if ($env:TAG -eq 'rts-beta-20261123.3' -and $env:GITHUB_REF -eq 'refs/heads/rts-development') {
+              $repo = $env:GITHUB_REPOSITORY
+              $commit = $env:GITHUB_SHA
+              gh api --method PATCH "repos/$repo/git/refs/tags/$($env:TAG)" -f "sha=$commit" -F force=true
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget existing beta.11 tag' }
+              gh release edit $env:TAG --target $commit --notes-file $notes
+              if ($LASTEXITCODE -ne 0) { throw 'Failed to update existing beta.11 release notes' }
+            }
           }
