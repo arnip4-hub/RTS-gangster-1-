@@ -27,6 +27,7 @@ import { cameraApi } from './CityView';
 import { Icon } from './common';
 import { InterfaceButton, WindowHeading } from './InterfaceControls';
 import { MapAccess } from './MapAccess';
+import { openWeekSection, WEEK_QUICK_LINKS } from './weekQuickNavigation';
 import { RightSheet } from './organizer/RightSheet';
 import { HoodsCommandBar } from './HoodsCommandBar';
 import { Minimap } from './Minimap';
@@ -64,6 +65,7 @@ export function WeekHud() {
   const sim=useGame(s=>s.sim)!;
   const paused=useGame(s=>s.paused), finishing=useGame(s=>s.finishingWeek);
   const organizerOpen=useGame(s=>s.organizerOpen);
+  const organizerTab=useGame(s=>s.organizerTab);
   const sheet=useGame(s=>s.sheet);
   const weekPlanOpen=useGame(s=>s.weekPlanOpen);
   const filter=useGame(s=>s.messageFilter), override=useGame(s=>s.messageOverride);
@@ -122,9 +124,23 @@ export function WeekHud() {
   return <div className="classic-hud">
     <header className="week-bars">
       <div className="week-titlebar">
-        <button className="week-exit" onClick={()=>state().setQuitPrompt(true)} title="Exit to the main menu (Ctrl+Q)">Exit</button>
-        <span>Working week <b>{w.week}</b></span>
-        <span className="week-status">{paused?'Paused':finishing?'Finishing week':`${WEEK_DAYS[dayIndex(w.minute,!!w.options.continuousTime)]} · ${weekTime(w.minute,!!w.options.continuousTime)}`}</span>
+        <div className="week-title-actions">
+          <button type="button" className="week-exit" onClick={()=>state().setQuitPrompt(true)}
+            title="Exit to the main menu (Ctrl+Q)">Exit</button>
+          <button type="button" className="week-exit" aria-pressed={organizerOpen&&organizerTab==='options'}
+            onClick={()=>openWeekSection('options')} title="Open game Options">Options</button>
+        </div>
+        <nav className="week-quick-links" aria-label="Organizer shortcuts">
+          {WEEK_QUICK_LINKS.map(({id,label})=><button key={id} type="button"
+            className="week-quick-button" aria-pressed={organizerOpen&&organizerTab===id}
+            title={`Open ${label} in the Organizer`} onClick={()=>openWeekSection(id)}>
+            <Icon name={`tabs/${id}`} size={13}/><span>{label}</span>
+          </button>)}
+        </nav>
+        <div className="week-title-time">
+          <span>Working week <b>{w.week}</b></span>
+          <span className="week-status">{paused?'Paused':finishing?'Finishing week':`${WEEK_DAYS[dayIndex(w.minute,!!w.options.continuousTime)]} · ${weekTime(w.minute,!!w.options.continuousTime)}`}</span>
+        </div>
         <span className="week-place" title={place}>{place}</span>
         <span className="week-cash">Cash <b><MoneyRoll value={gang.cash} /></b></span>
       </div>
