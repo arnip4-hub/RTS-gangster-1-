@@ -957,7 +957,7 @@ export interface PoliceFile {
 export interface PoliceTask {
   crimeId: ID;
   kind: 'interview' | 'surveillance' | 'arrest';
-  phase: 'travelling' | 'working' | 'searching' | 'returning';
+  phase: 'travelling' | 'working' | 'searching' | 'returning' | 'securing' | 'delivering';
   target: Vec2;
   until: number;
   workLeft: number;
@@ -974,6 +974,8 @@ export interface PoliceCustody {
   arrestedAt: number;
   reviewAt: number;
   releaseAt: number;
+  /** The street arrest, escorted transfer, police vehicle, or station custody. */
+  transport?: 'scene' | 'escorted' | 'vehicle' | 'station';
 }
 
 export interface CrimeRecord {
