@@ -1,0 +1,80 @@
+name: Illustrated 3D experimental portable EXE only
+
+on:
+  push:
+    branches: [fix/illustrated3d-bind-space-skinning]
+    paths:
+      - '.github/workflows/illustrated3d-portable.yml'
+      - 'src/render/**'
+      - 'src/ui/organizer/OptionsTab.tsx'
+      - 'src/app/store.ts'
+      - 'tests/visual-style.test.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: illustrated3d-portable-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-portable:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - run: npm ci
+
+      - name: TypeScript and selected-style persistence
+        run: |
+          npm run typecheck
+          npx vitest run tests/visual-style.test.ts tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
+
+      - name: Build production application
+        run: npm run build:release
+
+      - name: Package portable Windows EXE only (no installer)
+        run: node scripts/package-desktop.mjs --win portable --publish never
+
+      - name: Verify and uniquely name the single portable executable
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem release -Filter '*Setup*.exe')
+          if ($installer.Count -gt 0) { throw 'Unexpected installer build: Portable-only packaging violated.' }
+          $portable = @(Get-ChildItem release -Filter '*Portable*.exe')
+          if ($portable.Count -ne 1) { throw "Expected exactly one Portable EXE, got $($portable.Count)." }
+          Rename-Item -LiteralPath $portable[0].FullName -NewName 'RTS-gangster-Illustrated3D-Portable-beta10.exe'
+          $path = 'release/RTS-gangster-Illustrated3D-Portable-beta10.exe'
+          if (!(Test-Path $path)) { throw 'Portable EXE does not exist.' }
+          Write-Host "Verified: $path"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RTS-gangster-Illustrated3D-Portable-ONLY
+          path: release/RTS-gangster-Illustrated3D-Portable-beta10.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish direct portable EXE as experimental prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'rts-illustrated3d-portable-preview-20261123'
+          $exe = 'release/RTS-gangster-Illustrated3D-Portable-beta10.exe'
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag $exe --target $env:GITHUB_SHA --prerelease --title 'RTS Gangster Illustrated 3D Portable preview' --notes 'Experimental Illustrated 3D preview. Portable EXE only; no installer. In-game: Options > City artwork > Illustrated 3D (experimental). Save and reopen the city to apply. Work in progress: full simulation regressions and manual visual assessment may remain incomplete.'
+          } else {
+            gh release upload $tag $exe --clobber
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish portable EXE prerelease.' }
