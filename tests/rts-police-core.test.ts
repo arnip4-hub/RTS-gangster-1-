@@ -140,6 +140,19 @@ describe('physical RTS investigations and arrest', () => {
     expect(officer.buildingId).toBe(station.id);
   });
 
+  it('migrates older arrested saves to an actual station instead of preserving a stranded street marker', () => {
+    const s = scene(); s.identify(); s.file.stage = 'wanted'; s.file.warrantAt = s.now;
+    const rng = new Rng(1); rng.chance = () => false;
+    expect(tryCaseArrest(s.w, rng, s.officer, s.suspect, s.crime.id)).toBe(true);
+    delete s.suspect.custody!.transport;
+    delete s.officer.policeTask;
+    normalizeRtsPolice(s.w);
+    const station = Object.values(s.w.buildings).find(b => b.typeId === 'policeHQ' && b.state !== 'destroyed')!;
+    expect(s.suspect.custody?.transport).toBe('station');
+    expect(s.suspect.buildingId).toBe(station.id);
+    expect(streetPersonVisible(s.suspect, s.suspect.id)).toBe(false);
+  });
+
   it('finishes custody even if the arresting officer loses their transport task', () => {
     const s = scene(); s.identify(); s.file.stage = 'wanted'; s.file.warrantAt = s.now;
     const rng = new Rng(1); rng.chance = () => false;
