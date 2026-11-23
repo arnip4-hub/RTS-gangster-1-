@@ -3593,8 +3593,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   pointer-events: none;
   z-index: 5;
 }
-/* The live journal must receive clicks above the street HUD while it is open. */
-.organizer-frame.live-organizer { z-index: 7; }
+/* Keep the live journal above city controls, but below the fixed top bar.
+   The original brass header remains interactive even with a book page open. */
+.organizer-frame.live-organizer { z-index: 7; top: 94px; }
+@media (max-width: 700px) {
+  .organizer-frame.live-organizer { top: 124px; }
+}
 .organizer-frame > * { pointer-events: auto; }
 .organizer-frame .journal-tabs {
   position: static;
