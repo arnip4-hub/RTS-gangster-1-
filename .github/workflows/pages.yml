@@ -31,7 +31,7 @@ jobs:
       - run: npm ci
 
       - name: Check arrest, police transport and court regressions
-        run: npx vitest run tests/rts-police-core.test.ts tests/live-law.test.ts tests/rts-courts.test.ts
+        run: npx vitest run tests/rts-police-core.test.ts tests/live-law.test.ts tests/rts-courts.test.ts tests/building-actions.test.ts tests/building-dispatch.test.ts tests/business-controls.test.ts
 
       # Pages serves the site from /<repository name>/.
       - run: npm run build:release
