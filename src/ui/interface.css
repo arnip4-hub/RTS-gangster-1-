@@ -352,8 +352,8 @@
 }
 .building-dispatch-launch small { font: 10px var(--font-body); opacity: .75; }
 .building-dispatch {
-  position: absolute; left: 404px; bottom: 28px; z-index: 8;
-  width: min(420px, calc(100vw - 430px));
+  position: absolute; left: 430px; bottom: 28px; z-index: 8;
+  width: min(420px, calc(100vw - 456px));
   max-height: min(570px, calc(100vh - 320px));
   display: flex; flex-direction: column; overflow: hidden;
   border: 2px ridge #a89268; border-radius: 3px;
