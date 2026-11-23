@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useGame } from '../app/store';
+import { prepareBuildingOrder } from './prepareBuildingOrder';
 import { ORDERS } from '../sim/constants';
 import type { ID } from '../sim/types';
 import { Icon } from './common';
-import { buildingActions, type BuildingAction, type BuildingActionGroup } from './buildingActions';
+import { buildingActions, type BuildingActionGroup } from './buildingActions';
 
 const GROUPS: { id: BuildingActionGroup; label: string }[] = [
   { id: 'property', label: 'Property and business' },
@@ -25,30 +26,6 @@ export function BuildingOrders({ buildingId }: { buildingId: ID }) {
   const actions = buildingActions(w, gang.id, buildingId);
   const teamId = teamChoice != null && gang.teamIds.includes(teamChoice)
     ? teamChoice : gang.teamIds[0] ?? null;
-
-  const prepare = (action: BuildingAction) => {
-    const state = useGame.getState();
-    const current = state.sim;
-    if (!current || !current.world.buildings[buildingId] || state.selectedBuildingId !== buildingId) return;
-    if (state.jobCard || state.specialistCard || state.pickMode) {
-      state.notify('Finish or cancel the current map order before planning another.'); return;
-    }
-    if (teamId == null || !current.playerGang.teamIds.includes(teamId) || !current.world.teams[teamId]) {
-      state.notify('Assign a lieutenant to a crew before giving orders.'); return;
-    }
-    const valid = buildingActions(current.world, current.playerGang.id, buildingId).some(candidate =>
-      candidate.type === action.type && candidate.personId === action.personId &&
-      candidate.opts?.recruitKind === action.opts?.recruitKind);
-    if (!valid) { state.notify('That order is no longer available at this site.'); return; }
-    state.setTab('lieutenants');
-    state.selectTeam(teamId);
-    state.beginOrder(action.type, teamId);
-    if (action.personId != null) state.updateJobCard({ personId: action.personId });
-    else state.updateJobCard({ buildingIds: [buildingId], blockIds: [],
-      requested: { buildingIds: [buildingId], blockIds: [] } });
-    if (action.opts) state.updateJobOpts(action.opts);
-    state.setOrganizerOpen(true);
-  };
 
   return <section className="building-order-panel" aria-label="Building orders">
     <div className="building-section-heading">
@@ -74,7 +51,7 @@ export function BuildingOrders({ buildingId }: { buildingId: ID }) {
             <button key={`${action.type}:${action.opts?.recruitKind ?? action.personId ?? ''}`}
               type="button" className="btn sm" disabled={teamId == null}
               title={ORDERS[action.type].desc}
-              onClick={() => prepare(action)}>
+              onClick={() => prepareBuildingOrder(buildingId, teamId, action)}>
               <Icon name={`orders/${action.type}`} size={15} />
               <span>{action.label}</span>
             </button>)}
