@@ -5,6 +5,8 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { CharacterMorphologyCache, characterFaceMorph, type CharacterBuild } from '../src/render/characterMorphology';
 import { prepareWardrobeMask } from '../src/render/characterWardrobeMaterial';
+import { createWardrobeGarments } from '../src/render/characterWardrobeGarments';
+import { CHARACTER_OUTFITS, resolveCharacterWardrobe, withCharacterWardrobe } from '../src/render/characterWardrobe';
 
 // Use the delivered mesh, UVs, skin weights and walking clip. Texture decoding
 // belongs to the browser visual review, so these geometry checks omit images.
@@ -110,6 +112,56 @@ describe('shared 3D character morphology', () => {
     }
     cache.dispose();
   });
+
+  it.each([
+    ['fedora', false, 'coat'],
+    ['woman', true, 'dress'],
+  ] as const)('CPU-skins real %s body and %s garment through walk phases with finite short edges',
+    async (style, female, silhouette) => {
+      const asset = await geometryAsset(style), { model, mixer, clip } = rig(asset);
+      const group = new THREE.Group(); group.add(model);
+      const cache = new CharacterMorphologyCache();
+      expect(cache.apply(model, { build: 'stocky', heightScale: 1, faceIndex: 7 })).toBe(true);
+      const boneRest = new Map<string, THREE.Matrix4>(), restPositions = new Map<string, THREE.Vector3>();
+      group.updateMatrixWorld(true);
+      model.traverse(node => {
+        if (!(node instanceof THREE.Bone)) return;
+        boneRest.set(node.name, node.matrixWorld.clone());
+        restPositions.set(node.name, node.getWorldPosition(new THREE.Vector3()));
+      });
+      const base = resolveCharacterWardrobe({ id: female ? 72 : 63, female, portrait: 3, role: 'citizen' });
+      const outfit = CHARACTER_OUTFITS.find(item => item.silhouette === silhouette && item.sex === (female ? 'female' : 'male'))!;
+      const garments = createWardrobeGarments(model, withCharacterWardrobe(base, { outfit }), boneRest, restPositions);
+      const garment = garments.meshes.find(mesh => mesh.name === `wardrobe-${silhouette}`) as THREE.SkinnedMesh;
+      const body = model.getObjectByProperty('isSkinnedMesh', true) as THREE.SkinnedMesh;
+      expect(garment).toBeInstanceOf(THREE.SkinnedMesh);
+      expect(garment.skeleton).toBe(body.skeleton);
+      const point = new THREE.Vector3();
+      for (const phase of [0, .25, .5, .75]) {
+        mixer.setTime(phase * clip.duration); group.updateMatrixWorld(true);
+        garments.sync();
+        for (const mesh of [body, garment]) {
+          const pos = mesh.geometry.getAttribute('position'), index = mesh.geometry.index;
+          const skinned: THREE.Vector3[] = [];
+          for (let i = 0; i < pos.count; i++) {
+            mesh.getVertexPosition(i, point).applyMatrix4(mesh.matrixWorld);
+            expect([point.x, point.y, point.z].every(Number.isFinite)).toBe(true);
+            skinned.push(point.clone());
+          }
+          let longest = 0;
+          const count = index?.count ?? pos.count;
+          for (let i = 0; i + 2 < count; i += 3) {
+            const a = skinned[index ? index.getX(i) : i];
+            const b = skinned[index ? index.getX(i + 1) : i + 1];
+            const c = skinned[index ? index.getX(i + 2) : i + 2];
+            longest = Math.max(longest, a.distanceTo(b), b.distanceTo(c), c.distanceTo(a));
+          }
+          expect(longest, `${style}/${mesh.name || 'body'}/phase ${phase}`).toBeLessThan(.35);
+        }
+      }
+      garments.dispose();
+      cache.dispose();
+    });
 
   it('shares identical geometry, retains live rigs and evicts only released entries', async () => {
     const asset = await geometryAsset('fedora'), cache = new CharacterMorphologyCache(2);
