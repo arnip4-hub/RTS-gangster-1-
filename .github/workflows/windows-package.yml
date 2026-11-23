@@ -40,6 +40,9 @@ jobs:
       - name: Validate 3D body skinning, wardrobe and settings
         run: npx vitest run tests/visual-style.test.ts tests/character-morphology.test.ts tests/character-wardrobe-garments.test.ts tests/character-wardrobe-material.test.ts
 
+      - name: Run the full regression suite before publishing
+        run: npm test
+
       - name: Verify beta.11 package version and illustrated3d style
         shell: pwsh
         run: |
@@ -65,6 +68,10 @@ jobs:
           TAG: ${{ github.event_name == 'push' && 'rts-beta-20261123.3' || inputs.tag }}
         shell: pwsh
         run: |
+          if ($env:GITHUB_EVENT_NAME -eq 'push') {
+            $branchSha = (gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/rts-development" --jq .object.sha).Trim()
+            if ($branchSha -ne $env:GITHUB_SHA) { throw "Newer commits were pushed during build; refusing to publish an outdated release" }
+          }
           $notes = "docs/releases/$($env:TAG).md"
           if (!(Test-Path $notes)) { throw "Release notes not found: $notes" }
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
