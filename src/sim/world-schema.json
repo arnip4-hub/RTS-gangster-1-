@@ -5992,6 +5992,26 @@
               }
             ]
           }
+        },
+        "shots": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "lastShotAt": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "number"
+              }
+            ]
+          }
         }
       }
     },
@@ -6311,6 +6331,16 @@
             "union": [
               {
                 "ref": "T102"
+              }
+            ]
+          }
+        },
+        "statusNote": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "type": "string"
               }
             ]
           }
@@ -6696,6 +6726,16 @@
             "union": [
               {
                 "type": "number"
+              }
+            ]
+          }
+        },
+        "companionCrimeIds": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "ref": "T3"
               }
             ]
           }

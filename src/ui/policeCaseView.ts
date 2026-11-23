@@ -46,8 +46,8 @@ function caseStatusReason(w: WorldState, crime: CrimeRecord, disclosed: boolean)
   const victim = crime.victimId == null ? undefined : w.people[crime.victimId];
   if (victim) bits.push(`Victim: ${victim.name}`);
   if ((crime.shots ?? 0) > 1) bits.push(`${crime.shots} shots in this fight`);
-  if (file.statusNote) bits.push(file.statusNote);
   if (!disclosed) return bits.join(' · ') || null;
+  if (file.statusNote) bits.push(file.statusNote);
   const naming = file.statements.filter(s => !s.withdrawn && s.suspectId != null && ['face', 'direct'].includes(s.observation));
   const named = new Set(naming.map(s => s.suspectId));
   if (named.size === 0 && file.suspectId == null) bits.push('No face identification; the offender is not named.');
@@ -67,7 +67,8 @@ function caseStatusReason(w: WorldState, crime: CrimeRecord, disclosed: boolean)
 export function policeCaseView(w: WorldState, crime: CrimeRecord, viewer: ID) {
   const file = crime.police;
   const disclosed = policeFileDisclosed(w, crime, viewer);
-  const court = Object.values(w.cases).filter(c => c.sourceCrimeId === crime.id && c.gangId === viewer)
+  const court = Object.values(w.cases).filter(c => c.gangId === viewer &&
+    (c.sourceCrimeId === crime.id || c.companionCrimeIds?.includes(crime.id)))
     .sort((a, b) => Number(['awaiting', 'onTrial'].includes(b.status)) - Number(['awaiting', 'onTrial'].includes(a.status)) || b.id - a.id)[0];
   const detained = Object.values(w.people).find(p => p.gangId === viewer && p.custody?.crimeId === crime.id &&
     ['arrested', 'onTrial'].includes(p.status));

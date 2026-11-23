@@ -172,7 +172,7 @@ function recentGunfight(w: WorldState, shooterId: ID, pos: { x: number; y: numbe
 /** First shot from this person opens his file. A later shot of his joins it.
  * A killing changes that file to Shootout and homicide. Another killer, or a
  * second victim, opens a new file. */
-function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number; y: number },
+export function fileGunfight(w: WorldState, rng: Rng, shooter: Person, pos: { x: number; y: number },
   homicide: boolean, victimId?: ID): void {
   const existing = recentGunfight(w, shooter.id, pos, homicide ? victimId : undefined);
   if (existing) {
