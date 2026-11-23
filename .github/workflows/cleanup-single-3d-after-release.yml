@@ -1,0 +1,93 @@
+name: Retire obsolete branches and superseded betas after verified Windows build
+
+on:
+  workflow_run:
+    workflows: ['Windows beta build and tests']
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rts-post-release-cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'rts-development' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Back up distinct branch tips and remove only pinned obsolete refs and releases
+        shell: bash
+        run: |
+          set -euo pipefail
+          repo='arnip4-hub/RTS-gangster-1-'
+          tag='rts-beta-20261123.3'
+          [[ "$GITHUB_REPOSITORY" == "$repo" ]] || exit 1
+          [[ "$(gh api "repos/$repo" --jq .default_branch)" == 'rts-development' ]] || exit 1
+          current_tag_sha="$(gh api "repos/$repo/git/ref/tags/$tag" --jq '.object.sha')"
+          [[ "$current_tag_sha" == "$RELEASE_SHA" ]] || { echo "Release tag is not the successfully packaged commit"; exit 1; }
+          [[ "$(gh api "repos/$repo/releases/455688551" --jq .tag_name)" == "$tag" ]] || exit 1
+          assets="$(gh release view "$tag" --repo "$repo" --json assets --jq '.assets[].name')"
+          grep -Fx 'RTS-gangster-beta-Setup-0.3.0-beta.11.exe' <<< "$assets"
+          grep -Fx 'RTS-gangster-beta-Portable-0.3.0-beta.11.exe' <<< "$assets"
+
+          branches=(
+            'archive/2d-3d-artwork-20261123|5e95b60aeb82d134d101121b452400bc10627279|-'
+            'docs/2d-to-3d-asset-inventory|37668b9ad398e5fb9f205ce43af2c8aba23b5bdf|12'
+            'fix/actor-space-wardrobe-morphology|63656ce53ec25f6bd925a6b1d16b933266a1b182|13'
+            'fix/illustrated3d-bind-space-skinning|f29f527c85eaa6e4fdf82097c721b22da73ef0e2|11'
+            'graphics/illustrated-vehicles|0f5c9becca840cbd2c6280828eefab79a236920b|-'
+            'richer-3d-streetscape|02cedbee7cca457909112516255064937caf51fc|-'
+            'single-3d-style|9eacb76d62f5b3f9f60b9db3800ece9e600be944|-'
+            'vehicle-enamel-1930s|4d0758d6ab228513cde2589cb0bba1ba5735ae26|-'
+            'work|3d0cc1a3b83335643410bfd90280d4ff95306680|-'
+          )
+          old_releases=(
+            'rts-illustrated3d-portable-preview-20261123|455670759'
+            'rts-beta-20261123.2|455516779'
+            'rts-beta-20261123.1|455287709'
+            'rts-beta-20261122.1|454634409'
+          )
+          # All preflight checks must pass before mutating any refs.
+          for row in "${branches[@]}"; do
+            IFS='|' read -r branch sha pr <<< "$row"
+            found="$(gh api "repos/$repo/git/ref/heads/$branch" --jq '.object.sha')"
+            [[ "$found" == "$sha" ]] || { echo "Branch moved: $branch"; exit 1; }
+            if [[ "$pr" != '-' ]]; then
+              read -r prbranch prsha merged < <(gh api "repos/$repo/pulls/$pr" --jq '[.head.ref, .head.sha, .merged_at] | @tsv')
+              [[ "$prbranch" == "$branch" && "$prsha" == "$sha" && "$merged" != "null" ]] || { echo "PR safety check failed: $branch"; exit 1; }
+            fi
+          done
+          for row in "${old_releases[@]}"; do
+            IFS='|' read -r old_tag id <<< "$row"
+            [[ "$(gh api "repos/$repo/releases/$id" --jq .tag_name)" == "$old_tag" ]] || { echo "Release changed: $id"; exit 1; }
+          done
+
+          # Keep the four unmerged/independent branch tips reachable as historic tags.
+          snapshots=(
+            'archive/2d-3d-artwork-20261123|5e95b60aeb82d134d101121b452400bc10627279|2d-3d-artwork'
+            'graphics/illustrated-vehicles|0f5c9becca840cbd2c6280828eefab79a236920b|illustrated-vehicles'
+            'vehicle-enamel-1930s|4d0758d6ab228513cde2589cb0bba1ba5735ae26|vehicle-enamel'
+            'work|3d0cc1a3b83335643410bfd90280d4ff95306680|legacy-work'
+          )
+          for row in "${snapshots[@]}"; do
+            IFS='|' read -r branch sha short <<< "$row"
+            gh api -X POST "repos/$repo/git/refs" -f "ref=refs/tags/precleanup-20261123-$short" -f "sha=$sha" >/dev/null
+            echo "Preserved $branch as a history tag"
+          done
+          for row in "${branches[@]}"; do
+            IFS='|' read -r branch sha pr <<< "$row"
+            gh api -X DELETE "repos/$repo/git/refs/heads/$branch" >/dev/null
+            echo "Deleted obsolete branch: $branch"
+          done
+          # Git tags for obsolete beta releases remain for reproducibility.
+          for row in "${old_releases[@]}"; do
+            IFS='|' read -r old_tag id <<< "$row"
+            gh api -X DELETE "repos/$repo/releases/$id" >/dev/null
+            echo "Removed superseded prerelease: $old_tag"
+          done
+          echo "Only rts-development remains as a development branch; beta.11 and art archive remain published."
