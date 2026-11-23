@@ -97,7 +97,7 @@ export class CharacterMorphologyCache {
     const allBounds = new THREE.Box3();
     const p = new THREE.Vector3();
     for (const mesh of meshes) {
-      const toActor = frame.clone().multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+      const toActor = frame.clone().multiply(mesh.matrixWorld).multiply(mesh.bindMatrix.clone().invert());
       const positions = mesh.geometry.getAttribute('position');
       for (let i = 0; i < positions.count; i++) {
         p.fromBufferAttribute(positions, i).applyMatrix4(mesh.bindMatrix).applyMatrix4(toActor);
@@ -195,7 +195,7 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
   const indices = source.getAttribute('skinIndex'), weights = source.getAttribute('skinWeight');
   // This is the only mapping used for both directions. Inverting a weighted
   // sum of bone matrices is not valid: it may be nearly singular at joints.
-  const actorFromBind = frame.clone().multiply(mesh.matrixWorld).multiply(mesh.bindMatrixInverse);
+  const actorFromBind = frame.clone().multiply(mesh.matrixWorld).multiply(mesh.bindMatrix.clone().invert());
   const bindFromActor = actorFromBind.clone().invert();
   const point = new THREE.Vector3(), offset = new THREE.Vector3(), delta = new THREE.Vector3();
   const profile = BUILDS[build];
@@ -244,7 +244,7 @@ function morphedGeometry(mesh: THREE.SkinnedMesh, build: CharacterBuild, face: C
       const nose = Math.exp(-Math.pow((faceY - .025) / .037, 2)) * THREE.MathUtils.smoothstep(forward, .055, .11);
       point.addScaledVector(front, .035 * (face.nose - 1) * nose * inFace);
     }
-    point.applyMatrix4(bindFromActor).applyMatrix4(mesh.bindMatrixInverse);
+    point.applyMatrix4(bindFromActor).applyMatrix4(mesh.bindMatrix.clone().invert());
     position.setXYZ(index, point.x, point.y, point.z);
   }
   position.needsUpdate = true;
