@@ -41,7 +41,7 @@ jobs:
         shell: pwsh
         run: |
           $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $lockVersion = (Get-Content package-lock.json -Raw | ConvertFrom-Json).version
+          $lockVersion = (Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable)['version']
           if ($packageVersion -ne '0.3.0-beta.10' -or $lockVersion -ne $packageVersion) {
             throw "Release version mismatch: package=$packageVersion lock=$lockVersion"
           }
