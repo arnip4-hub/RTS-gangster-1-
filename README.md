@@ -9,22 +9,25 @@ and open the Organizer whenever you need it.
 This is a **work in progress**, not a finished RTS conversion. Financial
 reports still close weekly; RTS investigations and hearings now run on live deadlines; crews, vehicles, deliveries and live orders carry on.
 
-## Windows download — 0.3.0-beta.6
+## Windows download — 0.3.0-beta.11 (updated 23 November 2026)
 
-[Download the RTS-gangster-beta-Setup-0.3.0-beta.6.exe installer](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261118.4/RTS-gangster-beta-Setup-0.3.0-beta.6.exe).
-Lawyer case-file inquiries now take one 30-minute visit at the courthouse,
-show whether the lawyer is travelling or working, and then return him to HQ.
-An assigned lawyer or accountant car is used on every work trip; assigning a
-car remains optional.
+The supported city renderer is now the **single painted 3D 1930s style**.
+The latest Windows packages include the integrated wardrobe, enamel-painted
+period vehicles, revised building masses and storefronts, and the latest
+police, body-handling, and street fixes.
 
-Read the [0.3.0-beta.6 release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261118.4)
-for the full list, or see the [police, FBI and court guide](docs/RTS_LAW.md).
-The agreed **24-real-minute game day is unchanged**.
+- [Windows installer (Setup)](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261123.3/RTS-gangster-beta-Setup-0.3.0-beta.11.exe)
+- [Portable Windows EXE](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261123.3/RTS-gangster-beta-Portable-0.3.0-beta.11.exe)
+- [Latest beta release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261123.3)
+
+Existing save data remains supported. This is a work-in-progress beta, not a
+final production release. Older 2D experiments are kept in repository history
+and art archives, not as separate supported game modes.
 
 ## Where the project stands
 
 Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
-branch. The `main` branch keeps the earlier remake baseline.
+branch. It is the sole active development branch; legacy prototypes are preserved through Git history and archived refs.
 
 - **City and controls:** watch the 3D city, click the minimap
   to jump across town, open the Organizer with `O` or **Book**, use **Move crew**
