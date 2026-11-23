@@ -80,7 +80,7 @@ import { siteBuilding } from '../sim/premises';
 import { createVehicleMaterial, VEHICLE_PROFILE, vehicleGeometry, vehicleForPerson, vehicleLightGeometry } from './vehicles';
 import { SculptReviewLayer } from './sculptReviewLayer';
 import { SCULPT_VEHICLE_PROFILE } from './sculptVehicles';
-import { FACING_YAW, lotFacing, profileForLot, profileFor } from './profile';
+import { FACING_YAW, lotFacing, profileForLot, profileFor, storefrontStyle } from './profile';
 import { createPitchedRoofMaterials } from './roofMaterials';
 import { createInteriorMaterials } from './interiorMaterials';
 import { industrialFixtureFor, industrialFixtureOffsets } from './interiorFixtures';
@@ -291,6 +291,7 @@ export class CityRenderer {
   private cutawayDoors!: InstancePool;
   private gableRoofs!: InstancePool;
   private hipRoofs!: InstancePool;
+  private mansardRoofs!: InstancePool;
   private cornice!: InstancePool;
   private rubble!: InstancePool;
   private rubbleModels?:SculptRubble;
@@ -305,6 +306,11 @@ export class CityRenderer {
   private signs!: InstancePool;
   private banners!: InstancePool;
   private awnings!: InstancePool;
+  private marquees!: InstancePool;
+  private bladeSigns!: InstancePool;
+  private pilasters!: InstancePool;
+  private stoops!: InstancePool;
+  private skylights!: InstancePool;
   private fireEscapes!: InstancePool;
   private sawteeth!: InstancePool;
   private columns!: InstancePool;
@@ -777,6 +783,7 @@ export class CityRenderer {
     const pitchedMat = createPitchedRoofMaterials(this.ownedTextures);
     this.gableRoofs = new InstancePool(pitchedRoofGeometry(), pitchedMat.gable, nB, { color: true, castShadow: true, receiveShadow: true });
     this.hipRoofs = new InstancePool(pitchedRoofGeometry(true), pitchedMat.hip, nB, { color: true, castShadow: true, receiveShadow: true });
+    this.mansardRoofs = new InstancePool(pitchedRoofGeometry(true), pitchedMat.hip, nB, { color: true, castShadow: true, receiveShadow: true });
 
     const front = frontageGeometry();
     const slab = slabGeometry();
@@ -829,6 +836,16 @@ export class CityRenderer {
     const awnMat = new THREE.MeshStandardMaterial({ roughness: 0.85, side: THREE.DoubleSide, vertexColors: true });
     this.awnMat = awnMat;
     this.awnings = new InstancePool(awningGeometry(), awnMat, nB, { color: true, castShadow: true });
+    const marqueeGeo = new THREE.BoxGeometry(1, 0.18, 0.6);
+    const bladeGeo = new THREE.BoxGeometry(0.12, 1.2, 0.35);
+    const pilasterGeo = new THREE.BoxGeometry(0.22, 1, 0.18);
+    const stoopGeo = new THREE.BoxGeometry(1.4, 0.18, 0.7);
+    const skylightGeo = new THREE.BoxGeometry(1.6, 0.12, 1.1);
+    this.marquees = new InstancePool(marqueeGeo, new THREE.MeshStandardMaterial({ color: 0x3a3028, roughness: .6, metalness: .15, emissive: 0x221810 }), nB, { color: true, castShadow: true });
+    this.bladeSigns = new InstancePool(bladeGeo, new THREE.MeshStandardMaterial({ color: 0x2a2420, roughness: .7, metalness: .1, emissive: 0x181410 }), nB, { color: true, castShadow: true });
+    this.pilasters = new InstancePool(pilasterGeo, new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: .85 }), nB * 2, { color: true, castShadow: true });
+    this.stoops = new InstancePool(stoopGeo, new THREE.MeshStandardMaterial({ color: 0x6a6058, roughness: .9 }), nB, { color: true, castShadow: true });
+    this.skylights = new InstancePool(skylightGeo, new THREE.MeshStandardMaterial({ color: 0x8898a0, roughness: .3, metalness: .1, transparent: true, opacity: .7 }), nB, { color: true, castShadow: true });
 
     const ironMat = new THREE.MeshStandardMaterial({ roughness: 0.7, metalness: 0.35, vertexColors: true });
     this.fireEscapes = new InstancePool(fireEscapeGeometry(), ironMat, nB, { castShadow: true });
@@ -879,14 +896,14 @@ export class CityRenderer {
     this.fireDamageDecor=new FireDamageDecor(this.ownedTextures,nB);
     this.decor = [this.rubble,...this.fireDamageDecor.pools,
       this.interiorRooms, this.interiorWorks, this.interiorMachines, this.interiorStorage,
-      this.entryDoors, this.cutawayDoors, this.gableRoofs, this.hipRoofs,
+      this.entryDoors, this.cutawayDoors, this.gableRoofs, this.hipRoofs, this.mansardRoofs,
       this.cornice,
       this.shopBase,
       this.closedFronts,
       this.plinthBase,
       this.signs,
       this.banners,
-      this.awnings,
+      this.awnings, this.marquees, this.bladeSigns, this.pilasters, this.stoops, this.skylights,
       this.fireEscapes,
       this.sawteeth,
       this.tanks,
@@ -1095,12 +1112,16 @@ export class CityRenderer {
     // Only low-frequency stains and strategic colours use the city-size canvas.
     // Asphalt, road markings and names are sampled at their native resolution.
     for (const blk of activeBlocks(w)) {
-      // Bridges and the river have no slab over them; keep their asphalt.
-      if (avenueRoadway(blk) || blk.layout?.use === 'water') continue;
+      // Bridges, the river and avenue blocks have no full slab; keep their asphalt.
+      // Avenue carriageways flank the median and must show the same road texture.
+      if (avenueRoadway(blk) || blk.layout?.use === 'water' || blk.layout?.use === 'avenue') continue;
       const rect = blockRect(blk);
-      const pave = paveWidth(w), ox = (rect.x - pave) * sx, oy = (rect.y - pave) * sy;
+      const pave = paveWidth(w);
+      // Inset slightly inside the pavement slab so the fill never bleeds onto kerbs or lanes.
+      const inset = pave * 0.15;
+      const ox = (rect.x - pave + inset) * sx, oy = (rect.y - pave + inset) * sy;
       ctx.fillStyle = '#26262a';
-      ctx.fillRect(ox, oy, (rect.w + 2 * pave) * sx, (rect.h + 2 * pave) * sy);
+      ctx.fillRect(ox, oy, (rect.w + 2 * pave - 2 * inset) * sx, (rect.h + 2 * pave - 2 * inset) * sy);
     }
 
     // Manholes and puddles, placed off the block ids so they never wander.
@@ -1602,6 +1623,55 @@ export class CityRenderer {
           const aw = rpickColor(b.id, 51);
           this.awnings.push(this.dummy.matrix, aw);
         }
+
+        // 3D streetscape dressing
+        if (!frontCut && !fireStage && !prof.ruin) {
+          const style = storefrontStyle(b.typeId, b.id);
+          if (style === 'nightlifeLobby' && r01(b.id, 44) < 0.7) {
+            const mf = frontOf(m0, .7);
+            const [mx, mz] = local(mf.x, mf.z);
+            this.dummy.position.set(mx, KERB_H + bh + .3, mz);
+            this.dummy.scale.set(Math.min(5, m0.w * .6), 1, 1);
+            this.dummy.updateMatrix();
+            this.marquees.push(this.dummy.matrix);
+          }
+          if ((style === 'classicDisplay' || style === 'artDecoGlazed' || style === 'nightlifeLobby') && r01(b.id, 45) < 0.5) {
+            const bf = frontOf(m0, .15);
+            const [bx2, bz2] = local(bf.x, bf.z);
+            this.dummy.position.set(bx2, KERB_H + bh + .6, bz2);
+            this.dummy.scale.set(1, 1, 1);
+            this.dummy.updateMatrix();
+            this.bladeSigns.push(this.dummy.matrix);
+          }
+          if (prof.base === 'shop') {
+            for (const side of [-1, 1]) {
+              const pf = frontOf(m0, .06);
+              const [px, pz] = local(pf.x + side * m0.w * .42, pf.z);
+              this.dummy.position.set(px, KERB_H + bh * .5, pz);
+              this.dummy.scale.set(1, bh, 1);
+              this.dummy.updateMatrix();
+              this.pilasters.push(this.dummy.matrix);
+            }
+          }
+          if (prof.base === 'entry' && r01(b.id, 46) < 0.4) {
+            const sf = frontOf(m0, .2);
+            const [sx2, sz2] = local(sf.x, sf.z);
+            this.dummy.position.set(sx2, KERB_H, sz2);
+            this.dummy.scale.set(1, 1, 1);
+            this.dummy.updateMatrix();
+            this.stoops.push(this.dummy.matrix);
+          }
+        }
+      }
+
+      // Skylights on flat commercial roofs
+      if (!lowered && !prof.ruin && prof.roof === 'flat' && (b.cls === 'commercial' || b.cls === 'industrial') && r01(b.id, 47) < 0.3) {
+        const m0 = masses[0];
+        this.dummy.position.set(px + m0.dx * Math.cos(yaw), KERB_H + m0.h + .08, pz - m0.dz * Math.sin(yaw));
+        this.dummy.rotation.set(0, yaw, 0);
+        this.dummy.scale.set(1, 1, 1);
+        this.dummy.updateMatrix();
+        this.skylights.push(this.dummy.matrix);
       }
 
       // --- ownership banner, so a held site reads from the air
@@ -1632,7 +1702,7 @@ export class CityRenderer {
           this.dummy.updateMatrix();
           this.tintScratch.setRGB(.90 + r01(b.id, 93) * .16, .90 + r01(b.id, 94) * .14, .90 + r01(b.id, 95) * .12);
           if(fireStage)this.tintScratch.setRGB(.19,.18,.17);
-          (prof.roof === 'gable' ? this.gableRoofs : this.hipRoofs).push(this.dummy.matrix, this.tintScratch);
+          (prof.roof === 'gable' ? this.gableRoofs : prof.roof === 'mansard' ? this.mansardRoofs : this.hipRoofs).push(this.dummy.matrix, this.tintScratch);
           top = Math.max(top, m0.h + prof.roofHeight);
         }
         // --- fire escapes on the tenements

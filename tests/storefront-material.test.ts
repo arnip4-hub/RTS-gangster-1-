@@ -52,7 +52,7 @@ it('daytime does not add flat emission while the existing afternoon ramp remains
     sun: new THREE.DirectionalLight(), hemi: new THREE.HemisphereLight(), bounce: new THREE.DirectionalLight(),
     scene: new THREE.Scene(), facadeMats: [new THREE.MeshStandardMaterial()],
     shopMat: new THREE.MeshStandardMaterial(), glowMat: new THREE.MeshBasicMaterial(),
-    headlampMat: new THREE.MeshBasicMaterial(), groundMat: new THREE.MeshStandardMaterial(),
+    headlampMat: new THREE.MeshBasicMaterial(), taillightMat: new THREE.MeshBasicMaterial(), groundMat: new THREE.MeshStandardMaterial(),
     lampGlow: { mesh: { visible: false } },
   }) as { world: { phase: string; minute: number }; scene: THREE.Scene; shopMat: THREE.MeshStandardMaterial;
     applyTimeOfDay(): number; facadeMats: THREE.MeshStandardMaterial[] };
