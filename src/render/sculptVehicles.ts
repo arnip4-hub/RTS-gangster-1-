@@ -65,6 +65,12 @@ export function createSculptVehicle(root: THREE.Object3D, kind: VehicleId, capac
       mesh.setColorAt(0, new THREE.Color(1, 1, 1));
       mesh.instanceColor!.setUsage(THREE.DynamicDrawUsage);
     }
+    const livery = new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1);
+    const canvas = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+    livery.setUsage(THREE.DynamicDrawUsage);
+    canvas.setUsage(THREE.DynamicDrawUsage);
+    mesh.geometry.setAttribute('aLivery', livery);
+    mesh.geometry.setAttribute('aCanvas', canvas);
     mesh.raycast = () => {};
     return mesh;
   });

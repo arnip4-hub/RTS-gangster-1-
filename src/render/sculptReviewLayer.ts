@@ -408,13 +408,18 @@ export class SculptReviewLayer {
   }
 
   resetVehicles(): void { for (const vehicle of this.vehicles.values()) vehicle.count = 0; }
-  pushVehicle(kind: VehicleId, matrix: THREE.Matrix4, paint = 0x25282b): boolean {
+  pushVehicle(kind: VehicleId, matrix: THREE.Matrix4, paint = 0x25282b, livery = 0, canvas = 0): boolean {
     const vehicle = this.vehicles.get(kind);
     if (!this.ready || !this.visible || !vehicle || vehicle.count >= this.carCapacity) return false;
     this.vehiclePaint.setHex(paint);
+    const canvasColor = new THREE.Color(canvas || 0x6b5344);
     for (const part of vehicle.parts) {
       part.setMatrixAt(vehicle.count, matrix);
       if (this.options.coachworkPaint ?? this.options.painted) part.setColorAt(vehicle.count, this.vehiclePaint);
+      const liveries = part.geometry.getAttribute('aLivery') as THREE.InstancedBufferAttribute | undefined;
+      const canvases = part.geometry.getAttribute('aCanvas') as THREE.InstancedBufferAttribute | undefined;
+      liveries?.setX(vehicle.count, livery);
+      canvases?.setXYZ(vehicle.count, canvasColor.r, canvasColor.g, canvasColor.b);
     }
     vehicle.count++;
     return true;
@@ -425,6 +430,10 @@ export class SculptReviewLayer {
       part.count = vehicle.count;
       if (vehicle.count) part.instanceMatrix.needsUpdate = true;
       if (vehicle.count && part.instanceColor) part.instanceColor.needsUpdate = true;
+      const liveries = part.geometry.getAttribute('aLivery') as THREE.InstancedBufferAttribute | undefined;
+      const canvases = part.geometry.getAttribute('aCanvas') as THREE.InstancedBufferAttribute | undefined;
+      if (liveries) liveries.needsUpdate = true;
+      if (canvases) canvases.needsUpdate = true;
     }
   }
   setVisible(visible: boolean): void {

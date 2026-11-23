@@ -124,9 +124,16 @@ export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId,
     previousCompile.call(material, shader, renderer);
     shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>
       attribute float aBodyPaint;
+      attribute float aLivery;
+      attribute vec3 aCanvas;
       varying float vBodyPaint;
+      varying float vLivery;
+      varying vec3 vCanvas;
       varying vec3 vVehiclePaint;
       varying vec3 vVehiclePoint;`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vLivery = aLivery;
+        vCanvas = aCanvas;`)
       .replace('#include <color_vertex>', `${THREE.ShaderChunk.color_vertex.replace(/vColor\.xyz\s*\*=\s*instanceColor(?:\.xyz)?\s*;/g, '')}
         vBodyPaint = aBodyPaint;
         vVehiclePoint = position;
@@ -136,6 +143,8 @@ export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId,
         #endif`);
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
       varying float vBodyPaint;
+      varying float vLivery;
+      varying vec3 vCanvas;
       varying vec3 vVehiclePaint;
       varying vec3 vVehiclePoint;`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -161,12 +170,12 @@ export function paintedVehicleMaterial(source: THREE.Material, kind?: VehicleId,
         // Preserve the authored paint's broad shading while lifting black
         // source albedo enough that cream/green coachwork is actually visible.
         vec3 coachPaint = vVehiclePaint * clamp(.47 + 1.75 * sqrt(max(coachLight, 0.0)), .48, 1.45);
-        ${options.twoTone ? `
-          float doorBand = step(.35, vVehiclePoint.y) * (1.0 - step(.95, vVehiclePoint.y))
-            * step(.15, abs(vVehiclePoint.z));
-          coachPaint = mix(coachPaint, vec3(.85, .82, .74), doorBand * coachMask);
-        ` : ''}
-        diffuseColor.rgb = mix(diffuseColor.rgb, coachPaint, coachMask);`)
+        float doorBand = step(.35, vVehiclePoint.y) * (1.0 - step(.95, vVehiclePoint.y))
+          * step(.15, abs(vVehiclePoint.z));
+        coachPaint = mix(coachPaint, vec3(.847, .816, .737), doorBand * coachMask * step(.5, vLivery) * (1.0 - step(1.5, vLivery)));
+        diffuseColor.rgb = mix(diffuseColor.rgb, coachPaint, coachMask);
+        float canvas = step(vVehiclePoint.x, ${size ? (-size.length * .10).toFixed(6) : '-0.4'}) * step(1.5, vLivery);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vCanvas, canvas * (1.0 - coachMask));`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         ${finish === 'enamel' ? 'roughnessFactor = mix(roughnessFactor, 0.37, coachMask);' : ''}`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
