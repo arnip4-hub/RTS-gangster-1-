@@ -49,3 +49,17 @@ export function vehiclePaintFor(identity: string | number, role?: PersonRole): n
 export function trafficPaint(index: number): number {
   return VEHICLE_PAINTS[((index % VEHICLE_PAINTS.length) + VEHICLE_PAINTS.length) % VEHICLE_PAINTS.length].color;
 }
+
+/** Body roll about the car's long axis. A missing last yaw means the first frame. */
+export function nextVehicleRoll(last: number | undefined, yaw: number, moving: boolean): number {
+  if (last == null || !moving) return 0;
+  let delta = yaw - last;
+  while (delta > Math.PI) delta -= Math.PI * 2;
+  while (delta < -Math.PI) delta += Math.PI * 2;
+  return Math.max(-.045, Math.min(.045, delta * 2.2));
+}
+
+/** Drop yaw samples for cars that were not drawn this frame. */
+export function retainVehicleYaw(samples: Map<string, number>, active: Set<string>): void {
+  for (const key of samples.keys()) if (!active.has(key)) samples.delete(key);
+}
