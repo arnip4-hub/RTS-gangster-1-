@@ -119,7 +119,7 @@
 .planning-interface .planning-groups .group-btn .gb-description { font-size: 10px; }
 .planning-interface .map-buttons { box-shadow: 1px 2px 7px #0005; }
 .planning-interface .map-buttons .hud-btn { font: 600 12px var(--font-heading); padding: 4px 7px; }
-.game-shell.planning-interface:has(.journal) .map-buttons { width: calc(100vw - min(820px, 50vw) - 48px); max-width: calc(100vw - min(820px, 50vw) - 48px); }
+.game-shell.planning-interface:has(.journal) .map-buttons { width: auto; max-width: 160px; }
 .planning-interface .jobcard .head, .planning-interface .right-sheet .rs-head { background: linear-gradient(#b4a17c,#907b55); box-shadow: inset 0 1px #e1cd9f; }
 .planning-interface .jobcard .head h4, .planning-interface .right-sheet .rs-head h4 { font-family: var(--font-heading); }
 .planning-interface .journal-tools { align-items: center; }
@@ -158,7 +158,7 @@
   .planning-interface .organizer-frame .journal-tabs .jtab .icon { width: 14px !important; height: 14px !important; }
 }
 @media (max-width: 900px) {
-  .game-shell.planning-interface:has(.journal) .map-buttons { width: auto; max-width: calc(100vw - 20px); }
+  .game-shell.planning-interface:has(.journal) .map-buttons { width: auto; max-width: 140px; }
 }
 @media (max-width: 700px) {
   .week-windows { top: 98px; max-height: calc(100% - 240px); gap: 8px; }

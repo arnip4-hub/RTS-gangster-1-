@@ -196,11 +196,12 @@ export function Organizer() {
     .filter((p) => p.gangId === gang.id && p.role !== 'boss' && p.status !== 'dead')
     .reduce((s, p) => s + p.pay, 0);
   const withStrip = tab === 'lieutenants' && !jobCard && !staff;
+  const bookMode = !!(jobCard || staff);
 
   return (
     <>
-      <div className={`organizer-frame${live ? ' live-organizer' : ''}`}>
-        <div className="journal-tabs" role="tablist" aria-label="Organizer sections">
+      <div className={`organizer-frame${live ? ' live-organizer' : ''}${bookMode ? ' job-book-mode' : ''}`}>
+        {!bookMode && <div className="journal-tabs" role="tablist" aria-label="Organizer sections">
           {TABS.map((t) => (
             <button key={t.id} role="tab" tabIndex={tab === t.id ? 0 : -1} onKeyDown={e => {
               const i = TABS.findIndex(x => x.id === t.id);
@@ -213,7 +214,7 @@ export function Organizer() {
               </span>
             </button>
           ))}
-        </div>
+        </div>}
         <div className={`journal planning-journal${withStrip ? ' with-strip' : ''}`}>
           <div className="journal-heading">
             <Kicker className="gold">Gang Organizer · Week {w.week}{live ? ' · Live' : ''}</Kicker>

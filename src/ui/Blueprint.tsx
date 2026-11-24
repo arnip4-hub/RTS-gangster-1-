@@ -86,10 +86,12 @@ function mapArea(canvas: HTMLCanvasElement, journalOpen: boolean, live: boolean)
   const weekBars = live ? document.querySelector('.week-bars')?.getBoundingClientRect() : null;
   const y = Math.max(top ? top.bottom - origin.top + 14 : 24, weekBars ? weekBars.bottom - origin.top + 12 : 24);
   const controls = document.querySelector('.map-buttons')?.getBoundingClientRect();
-  // The live minimap and clock float over the plan. Reserving space above the
-  // clock shrank a tall window's city map into a shallow horizontal strip.
-  const bottom = controls && controls.height > 0 ? controls.top - origin.top - 12 : height - 18;
-  return { x, y, w: Math.max(100, width - x - 24), h: Math.max(160, bottom - y) };
+  // Vertical map toolbar on the right: reserve its width, keep the map full height.
+  const rightPad = controls && controls.width > 0 && controls.right > origin.left + width * .6
+    ? Math.max(18, origin.left + width - controls.left + 10)
+    : 24;
+  const bottom = height - 18;
+  return { x, y, w: Math.max(100, width - x - rightPad), h: Math.max(160, bottom - y) };
 }
 
 function fit(w: WorldState, area: { x: number; y: number; w: number; h: number }, view: View): Frame {

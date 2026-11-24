@@ -150,7 +150,7 @@ export function WeekHud() {
             title={finishing?'Stop skipping and pause (P)':paused?'Resume (P)':'Pause (P)'} onClick={()=>finishing?state().cancelFinishWeek():state().setPaused(!paused)}/>
           <InterfaceButton label={organizerOpen?'Close Organizer':'Open Organizer'} glyph="▤" caption="Book" aria-pressed={organizerOpen} title={organizerOpen?'Close the live Organizer (O)':'Open the live Organizer (O)'} onClick={()=>{
             if(organizerOpen){state().setOrganizerOpen(false);state().setOrganizerCollapsed(false);}
-            else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('city');}
+            else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('plan');}
           }}/>
           <InterfaceButton label="Help" glyph="?" caption="Help" onClick={()=>state().setHelpOpen(true)}/>
           <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={weekPlanOpen} title="Overhead City Plan (Insert) · Move with W/A/S/D or arrow keys" onClick={()=>zoom('plan')}/>

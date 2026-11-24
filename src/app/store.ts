@@ -682,6 +682,8 @@ export const useGame = create<GameState>((set, get) => ({
       organizerCollapsed: false,
       // The orders list makes way for the map the targets are picked on.
       sheet: null,
+      // Open the overview / planner map with the job book.
+      planningView: 'plan',
       jobCard: {
         type,
         teamId,

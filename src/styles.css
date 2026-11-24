@@ -2885,24 +2885,35 @@ input[type='range']::-moz-range-thumb {
 
 .map-buttons {
   position: absolute;
-  right: 24px;
-  bottom: 24px;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  bottom: auto;
   z-index: 6;
+  max-height: calc(100dvh - 48px);
 }
 .map-buttons .instrument {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 10px 14px;
-  max-width: 48vw;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 6px 5px;
+  max-width: none;
+  width: auto;
+}
+.map-buttons .hud-btn {
+  padding: 4px 6px;
+  font-size: 11px;
+  text-align: left;
+  white-space: nowrap;
 }
 .map-buttons .sep {
-  width: 1px;
-  height: 22px;
+  width: 100%;
+  height: 1px;
   background: rgba(232, 199, 120, 0.3);
-  margin: 0 4px;
+  margin: 2px 0;
 }
+.map-buttons .kicker { font-size: 10px; letter-spacing: .08em; margin-bottom: 2px; }
 
 @media (min-width: 901px) and (max-width: 1180px) {
   .journal {
@@ -2970,7 +2981,7 @@ input[type='range']::-moz-range-thumb {
   text-transform: uppercase;
   color: #62685e;
 }
-.city-plan-heading h2 { font-size: 25px; margin-top: 2px; }
+.city-plan-heading h2 { font-size: 20px; margin-top: 1px; line-height: 1.1; }
 .city-plan-header p { flex: 0 0 100%; font-size: 12px; line-height: 1.3; margin: 0; color: #62685e; }
 .city-plan-header p.target-hint { color: #146c70; font-weight: 600; }
 .city-plan-tools { display: flex; align-items: center; gap: 4px; }
@@ -3596,6 +3607,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 /* Keep the live journal above city controls, but below the fixed top bar.
    The original brass header remains interactive even with a book page open. */
 .organizer-frame.live-organizer { z-index: 7; top: 94px; }
+/* Job book + planner map: tabs are already on the main screen, so drop them
+   and let the journal and map fill the frame. */
+.organizer-frame.job-book-mode {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px 16px;
+}
+.organizer-frame.job-book-mode .planning-journal {
+  grid-row: 1;
+}
+
 @media (max-width: 700px) {
   .organizer-frame.live-organizer { top: 124px; }
 }
