@@ -48,24 +48,26 @@ const missing = [];
 for (const [name, output, width, height, kind] of jobs) {
   const path = findStem(name);
   if (!path) { missing.push(name); continue; }
-  let img = sharp(path);
-  // Clean bottom-right corner for new stems
-  if (name.includes('-') && kind !== 'other') {
-    const meta = await sharp(path).metadata();
-    const cw = Math.floor(meta.width * 0.06), ch = Math.floor(meta.height * 0.08);
-    const patch = await sharp(path).extract({ left: 0, top: meta.height - ch, width: cw, height: ch }).flop().toBuffer();
-    img = sharp(path).composite([{ input: patch, left: meta.width - cw, top: meta.height - ch }]);
+  // Resize first: sharp composites after resize, so source-resolution
+  // offsets would otherwise fall outside the delivered texture.
+  const litName = output.replace('.jpg', '-lit.png').replace('illustrated-facade-', 'facade-').replace('illustrated-storefront', 'storefront');
+  const authored = `${source}/authored-lights/${litName}`;
+  // Preserve the exact delivered albedo paired with an authored mask.
+  if (!existsSync(authored) || !existsSync(`${target}/${output}`)) {
+    const resized = await sharp(path).resize(width, height, { fit: 'fill', kernel: sharp.kernel.lanczos3 }).png().toBuffer();
+    let img = sharp(resized);
+    if (name.includes('-') && kind !== 'other' && !existsSync(authored)) {
+      const cw = Math.floor(width * 0.06), ch = Math.floor(height * 0.08);
+      const patch = await sharp(resized).extract({ left: 0, top: height - ch, width: cw, height: ch }).flop().toBuffer();
+      img = sharp(resized).composite([{ input: patch, left: width - cw, top: height - ch }]);
+    }
+    await img.jpeg({ quality: 88, mozjpeg: true }).toFile(`${target}/${output}`);
   }
-  await img.resize(width, height, { fit: 'fill', kernel: sharp.kernel.lanczos3 })
-    .jpeg({ quality: 88, mozjpeg: true })
-    .toFile(`${target}/${output}`);
 
   // Generate lit mask
   if (kind === 'facade' || kind === 'storefront') {
     const litW = kind === 'storefront' ? 1024 : 512;
     const litH = kind === 'storefront' ? 512 : 512;
-    const litName = output.replace('.jpg', '-lit.png').replace('illustrated-facade-', 'facade-').replace('illustrated-storefront', 'storefront');
-    const authored = `${source}/authored-lights/${litName}`;
     if (existsSync(authored)) {
       // These masks were painted against the original artwork. Keep their
       // exact bytes and resolution rather than replacing them with a heuristic.

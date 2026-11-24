@@ -260,7 +260,7 @@ export function profileFor(b: Building, t: BuildingType | undefined): Profile {
 
   // Works, civic and residential fronts retain their masonry to the pavement.
   const base: BaseKind = illegal ? 'none' : isShop ? 'shop' : 'entry';
-  const baseHeight = base === 'shop' ? Math.min(masses[0].h - .25, STOREY_H * .98)
+  const baseHeight = base === 'shop' ? (storeys === 1 ? masses[0].h - .25 : Math.min(masses[0].h - .25, STOREY_H * .98))
     : base === 'entry' ? Math.min(height, 3.45) : 0;
 
   // Classical civic fronts carry a column portico, as in the original's streets.

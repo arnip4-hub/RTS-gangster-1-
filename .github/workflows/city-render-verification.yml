@@ -55,6 +55,7 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npx playwright install --with-deps chromium
       - name: Capture noon and night
+        shell: bash
         run: |
           mkdir -p visual-review-output
           node scripts/capture-visual-review.mjs visual-review-output/day.png 1.35 --site=${{ matrix.site }} | tee visual-review-output/day.json
