@@ -1588,7 +1588,7 @@ export class CityRenderer {
           else if (b.state === 'ceased') this.tintScratch.multiplyScalar(0.7);
           if(fireStage)this.tintScratch.setRGB(.15,.14,.13);
           const style = storefrontStyle(b.typeId, b.id);
-          const pool = this.shopPools[style] ?? this.shopBase;
+          const pool = this.shopPools?.[style] ?? this.shopBase;
           if (style !== 'classicDisplay' && this.deliveredStorefront) this.tintScratch.setRGB(0.94 + r01(b.id, 53) * 0.12, 0.94 + r01(b.id, 54) * 0.12, 0.94 + r01(b.id, 55) * 0.12);
           pool.push(this.dummy.matrix, this.tintScratch, this.uvScratch);
           if (b.fbiClosedWeek != null && b.state !== 'destroyed') this.closedFronts.push(this.dummy.matrix);
