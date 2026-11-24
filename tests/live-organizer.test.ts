@@ -42,7 +42,7 @@ describe('live Organizer', () => {
     expect(useGame.getState().organizerOpen).toBe(true);
     useGame.getState().cancelJobCard();
     useGame.getState().setWeekPlanOpen(false);
-    useGame.getState().beginSpecialistOrder('employPolice', null);
+    useGame.getState().beginSpecialistOrder('employPolice');
     expect(useGame.getState().weekPlanOpen).toBe(true);
     expect(useGame.getState().organizerOpen).toBe(true);
   });

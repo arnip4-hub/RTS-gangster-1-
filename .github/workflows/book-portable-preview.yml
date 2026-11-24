@@ -2,7 +2,7 @@ name: Book portable preview
 on:
   push:
     branches: [book-portable-preview]
-    paths: ['.github/workflows/book-portable-preview.yml']
+    paths: ['.github/workflows/book-portable-preview.yml', 'src/**', 'tests/live-organizer.test.ts']
   workflow_dispatch:
 permissions:
   contents: read
