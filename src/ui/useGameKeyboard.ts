@@ -76,11 +76,7 @@ export function useGameKeyboard() {
       }
       if (!planning && !e.ctrlKey && !e.altKey && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
-        s.setOrganizerOpen(!s.organizerOpen);
-        if (!s.organizerOpen) {
-          s.setOrganizerCollapsed(false);
-          s.setPlanningView('city');
-        }
+        s.toggleLiveBook();
         return;
       }
       // The Organizer's sheets on their letters, and the week's street orders

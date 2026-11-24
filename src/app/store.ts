@@ -201,6 +201,7 @@ interface GameState {
   setQuitPrompt: (open: boolean) => void;
   toggleOverlay: (o: OverlayKind) => void;
   setOrganizerOpen: (v: boolean) => void;
+  toggleLiveBook: () => void;
   setOrganizerCollapsed: (v: boolean) => void;
   setOverlays: (o: OverlayKind[]) => void;
   setSheet: (s: OrganizerSheet) => void;
@@ -663,6 +664,12 @@ export const useGame = create<GameState>((set, get) => ({
   setOverlays: (overlays) => set({ overlays,
     ...(get().pickMode?.kind === 'lieutenantArea' && !overlays.includes('lieutenant') ? { pickMode: null } : {}) }),
   setOrganizerOpen: (organizerOpen) => set({ organizerOpen }),
+  toggleLiveBook: () => set(s => ({
+    organizerOpen: !s.organizerOpen,
+    organizerCollapsed: false,
+    planningView: 'plan',
+    weekPlanOpen: !s.organizerOpen,
+  })),
   setOrganizerCollapsed: (organizerCollapsed) => set({ organizerCollapsed }),
   setSheet: (sheet) => set({ sheet }),
   setPlanningView: (planningView) => set({ planningView }),
@@ -682,8 +689,9 @@ export const useGame = create<GameState>((set, get) => ({
       organizerCollapsed: false,
       // The orders list makes way for the map the targets are picked on.
       sheet: null,
-      // Open the overview / planner map with the job book.
+      // Planning and live RTS use different map flags.
       planningView: 'plan',
+      ...(sim?.world.phase === 'week' ? { weekPlanOpen: true, organizerOpen: true } : {}),
       jobCard: {
         type,
         teamId,
@@ -745,7 +753,8 @@ export const useGame = create<GameState>((set, get) => ({
   beginSpecialistOrder: (type, personId) => set({ specialistCard: { type, personId: personId ?? null }, jobCard: null,
     selectedBuildingId: null, selectedPersonId: null,
     pickMode: { kind: type === 'employPolice' && personId == null ? 'policeArea' : 'specialist' },
-    policeAreaBlockIds: [], sheet: null, organizerCollapsed: false }),
+    policeAreaBlockIds: [], sheet: null, organizerCollapsed: false, planningView: 'plan',
+    ...(get().sim?.world.phase === 'week' ? { weekPlanOpen: true, organizerOpen: true } : {}) }),
   selectSpecialistTarget: (personId) => {
     const { sim, specialistCard } = get();
     if (!sim || !specialistCard) return;

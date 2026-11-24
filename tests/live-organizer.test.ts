@@ -20,6 +20,33 @@ describe('live Organizer', () => {
     expect(useGame.getState().organizerOpen).toBe(false);
   });
 
+  it('opens the actual live city plan when toggling Book, then returns to the city', () => {
+    useGame.getState().startGame({ ...defaultGameOptions(), seed: 404, citySize: 10 });
+    useGame.getState().sim!.launchWeek();
+    useGame.getState().setWeekPlanOpen(false);
+    useGame.getState().toggleLiveBook();
+    expect(useGame.getState().organizerOpen).toBe(true);
+    expect(useGame.getState().weekPlanOpen).toBe(true);
+    expect(useGame.getState().organizerCollapsed).toBe(false);
+    useGame.getState().toggleLiveBook();
+    expect(useGame.getState().organizerOpen).toBe(false);
+    expect(useGame.getState().weekPlanOpen).toBe(false);
+  });
+
+  it('opens the live city plan for crew and specialist job cards', () => {
+    useGame.getState().startGame({ ...defaultGameOptions(), seed: 404, citySize: 10 });
+    const sim = useGame.getState().sim!;
+    sim.launchWeek();
+    useGame.getState().beginOrder('goTo', sim.playerGang.teamIds[0]);
+    expect(useGame.getState().weekPlanOpen).toBe(true);
+    expect(useGame.getState().organizerOpen).toBe(true);
+    useGame.getState().cancelJobCard();
+    useGame.getState().setWeekPlanOpen(false);
+    useGame.getState().beginSpecialistOrder('employPolice', null);
+    expect(useGame.getState().weekPlanOpen).toBe(true);
+    expect(useGame.getState().organizerOpen).toBe(true);
+  });
+
   it('dispatches an order added while the week is already running', () => {
     const sim = new Sim({ ...defaultGameOptions(), seed: 404, citySize: 10 });
     const w = sim.world, gang = sim.playerGang, team = w.teams[gang.teamIds[0]];

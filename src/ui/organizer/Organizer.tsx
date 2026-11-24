@@ -75,6 +75,7 @@ export function Organizer() {
   const closeLiveOrganizer = () => {
     setOrganizerOpen(false);
     setCollapsed(false);
+    useGame.getState().setWeekPlanOpen(false);
   };
 
   const mapButtons = (
