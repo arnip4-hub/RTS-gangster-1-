@@ -599,7 +599,7 @@ function makeStorefront(): { map: THREE.Texture; lights: THREE.Texture } {
   return { map: texture(canvas), lights: texture(lit.canvas) };
 }
 
-/** Blank shutters/brick for the ground floor of buildings with no shop. */
+/** Fine masonry water table for legacy plinth profiles. */
 function makePlinth(): THREE.Texture {
   const W = 256;
   const H = 128;
@@ -607,11 +607,11 @@ function makePlinth(): THREE.Texture {
   const rng = mulberry32(777);
   ctx.fillStyle = '#5f584c';
   ctx.fillRect(0, 0, W, H);
-  for (let y = 0; y < H; y += 16) {
-    for (let x = -40; x < W + 40; x += 40) {
-      const off = ((y / 16) % 2) * 20;
-      ctx.fillStyle = mixHex('#4a463c', '#726957', rng());
-      ctx.fillRect(x + off + 1, y + 1, 38, 14);
+  for (let y = 0; y < H; y += 8) {
+    for (let x = -24; x < W + 24; x += 24) {
+      const off = ((y / 8) % 2) * 12;
+      ctx.fillStyle = mixHex('#615a50', '#746b5c', rng());
+      ctx.fillRect(x + off, y + 1, 23, 7);
     }
   }
   ctx.globalAlpha = 0.28;

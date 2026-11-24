@@ -40,9 +40,18 @@
       const { world } = createWorld({ ...defaultGameOptions(), continuousTime: true,
         citySize: 12, cityLayout: 'varied', seed: 193022 });
       world.phase = 'week';
-      world.minute = 900;
-      const buildings = Object.values(world.buildings).filter(b => b.cls === 'commercial' &&
-        b.frontId == null && b.state !== 'destroyed');
+      const site = query.get('site');
+      const baseMinute = query.get('night') === '1' ? 22 * 60 : site ? 12 * 60 : 900;
+      world.minute = baseMinute;
+      const buildings = Object.values(world.buildings).filter(b => {
+        if (b.frontId != null || b.state === 'destroyed') return false;
+        if (site === 'mill') return b.typeId === 'mill';
+        if (b.cls !== 'commercial') return false;
+        if (site !== 'shop1' && site !== 'shopMulti') return true;
+        const lot = world.lots[b.lotId], block = world.blocks[b.blockId];
+        const p = profileForLot(b, BUILDING_BY_ID[b.typeId], lot, lotFacing(lot, block.center, b.id));
+        return p.base === 'shop' && (site === 'shop1' ? p.height < 5 : p.height >= 7);
+      });
       const preferred = ['cafe', 'jazzClub', 'restaurant', 'barbers', 'tailors'];
       buildings.sort((a, b) => {
         const rank = site => {
@@ -60,7 +69,7 @@
         return rank(a) - rank(b);
       });
       const building = buildings[0];
-      if (!building) throw Error('The review city has no commercial corner.');
+      if (!building) throw Error('The review city has no matching site: ' + (site ?? 'commercial'));
       const door = buildingDoor(world, building);
       const block = world.blocks[building.blockId];
       // The reference corner has a vacant lot opposite its storefront. It
@@ -216,7 +225,7 @@
           setDestination(world, person, finish);
           for (let m = 0; m < whole; m++) stepPerson(person, 1);
         }
-        world.minute = 900 + whole;
+        world.minute = baseMinute + whole;
         renderer.setSubMinute(time - whole);
         renderer.update();
         if (paintedActor) {
@@ -238,7 +247,7 @@
               facade: profileForLot(b, BUILDING_BY_ID[b.typeId], lot,
                 lotFacing(lot, block.center, b.id)).facade }; }) },
         cast: cast.map(p => ({ id: p.id, role: p.role })),
-        stats() { return { drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
+        stats() { return { minute: world.minute, storefronts: Object.fromEntries(Object.entries(renderer.shopMats ?? {}).map(([style, mat]) => [style, { map: mat.map?.image?.src, emissiveIntensity: mat.emissiveIntensity, uv: mat.customProgramCacheKey() }])), drivers: renderer.drivers.filter(d => Math.hypot(d.x - driver.pos.x, d.z - driver.pos.y) < 2),
           carModels: renderer.sedans?.count,
           wardrobeMode, detailed: wardrobeMode ? renderer.getSculptModelStatus() : undefined,
           painted3d: paintedActor ? { skinnedMeshes: paintedActor.skeletons.length,

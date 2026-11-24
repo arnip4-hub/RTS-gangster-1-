@@ -1,0 +1,68 @@
+name: City lighting and storefront verification
+on:
+  pull_request:
+    branches: [rts-development]
+    paths:
+      - 'src/render/**'
+      - 'scripts/city-light-mask.*'
+      - 'scripts/build-illustrated-corner.mjs'
+      - 'scripts/capture-visual-review.mjs'
+      - 'public/art/city/**'
+      - 'visual-review.html'
+      - 'tests/storefront-material.test.ts'
+      - '.github/workflows/city-render-verification.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  render-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npm run typecheck
+      - name: Focused rendering regression tests
+        run: npm test -- tests/render-architecture.test.ts tests/render-interior-fixtures.test.ts tests/render-fire-escape.test.ts tests/render-building-sections.test.ts tests/render-texture-ownership.test.ts tests/render-preparation.test.ts tests/render-city-light-masks.test.ts tests/building-variety.test.ts tests/storefront-material.test.ts
+      - name: Regenerate and verify painted assets
+        run: |
+          npm run art:corner
+          npm test -- tests/render-city-light-masks.test.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: regenerated-city-light-masks
+          path: public/art/city/*-lit.png
+  visual-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        site: [shop1, shopMulti, mill]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      - run: npx playwright install --with-deps chromium
+      - name: Capture noon and night
+        shell: bash
+        run: |
+          mkdir -p visual-review-output
+          node scripts/capture-visual-review.mjs visual-review-output/day.png 1.35 --site=${{ matrix.site }} | tee visual-review-output/day.json
+          node scripts/capture-visual-review.mjs visual-review-output/night.png 1.35 --site=${{ matrix.site }} --night | tee visual-review-output/night.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: city-review-${{ matrix.site }}
+          path: visual-review-output/
