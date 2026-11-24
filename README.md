@@ -24,6 +24,10 @@ Existing save data remains supported. This is a work-in-progress beta, not a
 final production release. Older 2D experiments are kept in repository history
 and art archives, not as separate supported game modes.
 
+## GitHub Pages
+
+**GitHub Pages is working and enabled** for this repository. The website is published through the project's GitHub Pages deployment workflow.
+
 ## Where the project stands
 
 Work happens on the [`rts-development`](https://github.com/arnip4-hub/RTS-gangster-1-/tree/rts-development)
