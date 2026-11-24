@@ -11,7 +11,7 @@ const rects = {
   'storefront-cafe': [[82,130,262,271],[281,130,467,271],[557,130,631,271],[689,139,803,170],[691,207,732,394],[764,207,803,394],[865,130,941,270]],
   'storefront-nightlife': [[651,253,709,344],[651,374,709,429],[769,253,827,344],[769,374,827,429]],
   'storefront-financial': [[159,195,172,214],[179,195,186,214],[211,163,224,185],[233,163,245,185],[211,194,224,213],[233,194,245,213],[299,162,312,185],[321,162,334,185],[299,194,312,213],[321,194,334,213],[360,195,373,214],[380,195,390,214],...[0,480].flatMap(off=>[151,174,211,233,299,321,357,380].flatMap(x=>[[x+off,249,x+off+13,275],[x+off,286,x+off+13,314]])),...[ [159,195,172,214],[179,195,186,214],[211,163,224,185],[233,163,245,185],[211,194,224,213],[233,194,245,213],[299,162,312,185],[321,162,334,185],[299,194,312,213],[321,194,334,213],[360,195,373,214],[380,195,390,214] ].map(r=>[r[0]+480,r[1],r[2]+480,r[3]])],
-  'storefront-service': [[104,121,135,151],[145,121,179,151],[190,121,225,151],[235,121,268,151],[280,121,314,151],[324,121,358,151],[369,121,402,151],[413,121,442,151],...[584,621,657,694,730,768].flatMap(x=>[124,167,218,267,316].map(y=>[x+2,y+2,x+27,y+41])).filter(r=>!(r[0]<615&&r[1]<160)),...[817,853,889].flatMap(x=>[123,165].map(y=>[x+3,y+3,x+29,y+37])),[857,274,879,301]],
+  'storefront-service': [[104,121,135,151],[145,121,179,151],[190,121,225,151],[235,121,268,151],[280,121,314,151],[324,121,358,151],[369,121,402,151],[413,121,442,151],...[584,621,657,694,730,768].flatMap(x=>[124,167,218,267,316].map(y=>[x+2,y+2,x+27,y+(y===124?29:41)])).filter(r=>!(r[0]<615&&r[1]<160)),...[817,853,889].flatMap(x=>[123,165].map(y=>[x+3,y+3,x+29,y+37])),[857,274,879,301]],
   'storefront-pawnshop': [[126,105,510,146],[128,165,305,384],[324,165,510,384],[621,110,884,137],...[622,643,667,690].flatMap(x=>[168,224,330].map((y,i)=>[x,y,x+13,i===0?211:i===1?319:387])),[768,198,862,342]],
   'storefront-apothecary': [[92,125,455,256],[92,271,263,330],[282,271,455,330],[92,349,263,418],[282,349,455,418],[564,123,606,421],[629,123,650,422],[689,135,803,160],[706,215,788,395],[846,128,871,420],[894,125,932,420]],
   'storefront-boutique': [[87,114,132,170],[149,114,401,170],[417,114,462,170],[87,188,132,430],[149,188,401,432],[417,188,462,430],[612,216,649,423],[707,216,746,423],[801,119,831,170],[850,119,932,170],[801,190,831,432],[850,190,932,432]],
@@ -35,7 +35,7 @@ export function buildLightMask(data, width, height, kind, name) {
   for(let i=0;i<lum.length;i++) lum[i] = .3*data[i*3]+.5*data[i*3+1]+.2*data[i*3+2];
   const sample = (l,t,r,b) => {const a=[]; for(let y=t;y<b;y+=3)for(let x=l;x<r;x+=3)a.push(lum[y*width+x]);return a;};
   const paint = ([l,t,r,b], tone, ceiling, gradient, blind=0) => {
-    const mid=median(sample(l,t,r,b)); const low=Math.max(7,mid*.42);
+    const mid=median(sample(l,t,r,b)); const low=Math.max(7,mid*((name==='dark-granite'||name==='cast-iron') ? .65 : .42));
     const high=Math.min(ceiling,mid+22);
     for(let y=t+Math.floor((b-t)*blind);y<b;y++)for(let x=l;x<r;x++){
       const i=y*width+x, v=lum[i];
@@ -55,7 +55,11 @@ export function buildLightMask(data, width, height, kind, name) {
     for(const cell of selected){
       const x=(cell%4)*128,y=Math.floor(cell/4)*128;
       const masonry=median([...sample(x+3,y+12,x+10,y+113),...sample(x+118,y+12,x+125,y+113),...sample(x+16,y+113,x+112,y+123)]);
-      const ceiling=masonry*.88;
+      // Cast iron and granite have dark structural metal; glass is often
+      // brighter than its frame. The individually inset panes, not a global
+      // luminance cut-off, are the hard boundary for these two sheets.
+      const iron = name === 'dark-granite' || name === 'cast-iron';
+      const ceiling=iron ? Math.max(85,masonry*.88) : masonry*.88;
       const tone=TONES[hash(seed+cell+30)%3], blind=hash(seed+cell+60)%5===0?.48:0;
       for(const [l,t,r,b] of facadePanes(name)){
         if(blind && t<64)continue;
