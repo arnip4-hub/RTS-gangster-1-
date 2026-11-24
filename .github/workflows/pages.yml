@@ -16,7 +16,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  pages-status:
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - name: Check whether GitHub Pages is enabled
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          if gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url' >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled; proceeding with the deployment."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GitHub Pages not configured::Enable Pages at https://github.com/$GITHUB_REPOSITORY/settings/pages and choose GitHub Actions as source; deployment is skipped until then."
+          fi
+
   build:
+    needs: pages-status
+    if: needs.pages-status.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
@@ -43,7 +64,8 @@ jobs:
           path: dist
 
   deploy:
-    needs: build
+    needs: [pages-status, build]
+    if: needs.pages-status.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
