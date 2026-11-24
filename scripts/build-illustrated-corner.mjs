@@ -1,6 +1,7 @@
 /** Shared painterly materials for the illustrated street-corner review. */
 import sharp from 'sharp';
-import { existsSync } from 'fs';
+import { existsSync, copyFileSync } from 'node:fs';
+import { buildLightMask } from './city-light-mask.mjs';
 
 const source = 'art-source/illustrated/corner';
 const target = 'public/art/city';
@@ -64,20 +65,17 @@ for (const [name, output, width, height, kind] of jobs) {
     const litW = kind === 'storefront' ? 1024 : 512;
     const litH = kind === 'storefront' ? 512 : 512;
     const litName = output.replace('.jpg', '-lit.png').replace('illustrated-facade-', 'facade-').replace('illustrated-storefront', 'storefront');
-    // Simple deterministic window glow: sample the resized image, lighten bright-ish regions
-    const { data, info } = await sharp(`${target}/${output}`).resize(litW, litH).raw().toBuffer({ resolveWithObject: true });
-    const out = Buffer.alloc(info.width * info.height * 4);
-    for (let i = 0; i < info.width * info.height; i++) {
-      const r = data[i * 3], g = data[i * 3 + 1], b = data[i * 3 + 2];
-      const lum = r * 0.3 + g * 0.5 + b * 0.2;
-      // Window-like: mid-bright, not pure white masonry
-      const isWindow = lum > 40 && lum < 180 && Math.abs(r - b) < 40;
-      out[i * 4] = isWindow ? 0xff : 0;
-      out[i * 4 + 1] = isWindow ? 0xd7 : 0;
-      out[i * 4 + 2] = isWindow ? 0x96 : 0;
-      out[i * 4 + 3] = isWindow ? 180 : 0;
+    const authored = `${source}/authored-lights/${litName}`;
+    if (existsSync(authored)) {
+      // These masks were painted against the original artwork. Keep their
+      // exact bytes and resolution rather than replacing them with a heuristic.
+      copyFileSync(authored, `${target}/${litName}`);
+      continue;
     }
-    await sharp(out, { raw: { width: info.width, height: info.height, channels: 4 } })
+    const { data } = await sharp(`${target}/${output}`).resize(litW, litH)
+      .toColourspace('srgb').removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const out = buildLightMask(data, litW, litH, kind, name);
+    await sharp(out, { raw: { width: litW, height: litH, channels: 3 } })
       .png().toFile(`${target}/${litName}`);
   }
 }
