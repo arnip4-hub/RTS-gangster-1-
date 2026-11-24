@@ -4630,3 +4630,61 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .police-file-facts dd { margin: 0; overflow-wrap: anywhere; }
 .police-file-details > summary { cursor: var(--cur-point, pointer); padding: 4px 0; }
 .police-statement { padding: 5px 0 5px 9px; border-left: 2px solid var(--dots); margin: 4px 0; }
+
+/* Live Book: one compact leather journal beside the interactive city map. */
+.organizer-frame.compact-live-book {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 8px 12px;
+}
+.organizer-frame.compact-live-book .planning-journal { grid-row: 1; }
+.compact-live-book .book-heading-summary {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px 10px;
+  color: #e8c778; font: 600 13px var(--font-heading);
+}
+.compact-live-book .book-heading-summary b { color: #fff3d0; }
+.compact-live-book .journal-heading .kicker { letter-spacing: .05em; font-size: 13px; }
+.compact-live-book .book-return {
+  background: var(--red-button); color: #fff3dc; font-size: 12px;
+  border: 1px solid #b78750; padding: 5px 9px; box-shadow: inset 0 1px #f6c19055;
+}
+.compact-live-book .book-return:hover { filter: brightness(1.15); }
+.compact-live-book .book-diplomacy { font-size: 11px; }
+.compact-live-book .page-foot .hit-streets { display: none; }
+.compact-live-book .page-foot .brass:has(.hit-streets) { display: none; }
+.compact-live-book .queued-orders { max-height: none; }
+.compact-live-book .queued-orders .report-item { padding-block: 6px; }
+.live-organizer-interface:has(.compact-live-book) .classic-hud .hood-command-bar,
+.live-organizer-interface:has(.compact-live-book) .classic-hud .week-windows,
+.live-organizer-interface:has(.compact-live-book) .classic-hud .week-minimap,
+.live-organizer-interface:has(.compact-live-book) .classic-hud .week-clock,
+.live-organizer-interface:has(.compact-live-book) .classic-hud .message-window { display: none; }
+.live-organizer-interface:has(.compact-live-book) .city-plan-key { padding: 5px 0 2px; }
+.live-organizer-interface:has(.compact-live-book) .city-plan-header { gap: 3px 8px; padding-bottom: 5px; }
+.live-organizer-interface:has(.compact-live-book) .city-plan-heading h2 { font-size: 16px; }
+.live-organizer-interface:has(.compact-live-book) .city-plan-tools button { min-height: 23px; padding: 2px 6px; font-size: 11px; }
+@media (min-width: 901px) {
+  .organizer-frame.live-organizer.compact-live-book {
+    left: 8px; right: 8px; bottom: 8px; top: 88px;
+    grid-template-columns: minmax(0, 51vw) minmax(0, 1fr);
+  }
+  .organizer-frame.compact-live-book .planning-journal {
+    grid-template-columns: 48px minmax(0, 1fr); gap: 5px; padding: 8px;
+  }
+  .organizer-frame.compact-live-book .planning-journal .lt-strip { width: 48px; gap: 3px; padding: 2px; }
+  .compact-live-book .lt-tab { width: 44px; height: 44px; }
+  .compact-live-book .lt-tab .portrait { max-width: 100%; max-height: 100%; }
+  .compact-live-book .planning-journal .page-body { padding: 7px 8px 0; }
+  .compact-live-book .lieutenant-planning .team-head { grid-template-columns: 52px minmax(0, 1fr) auto; gap: 7px; }
+  .compact-live-book .lieutenant-planning .team-head h3 { font-size: clamp(17px, 1.7vw, 25px); }
+  .compact-live-book .planning-groups .group-btn { padding: 5px 7px; }
+  .compact-live-book .planning-groups .gb-name { font-size: 14px; }
+  .compact-live-book .planning-groups .gb-description { font-size: 11px; }
+  .organizer-frame.compact-live-book > .right-sheet {
+    grid-column: 1; grid-row: 1; margin: 40px 8px 8px 58px;
+    z-index: 8; align-self: stretch;
+  }
+  .live-organizer-interface:has(.compact-live-book) .map-buttons {
+    top: 96px; transform: none; right: 8px;
+    max-height: calc(100dvh - 104px); overflow-y: auto;
+  }
+}

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { useGame } from '../src/app/store';
-import { openWeekSection, WEEK_QUICK_LINKS } from '../src/ui/weekQuickNavigation';
+import { closeLiveBook, openLiveBook, openWeekSection, WEEK_QUICK_LINKS } from '../src/ui/weekQuickNavigation';
 
 afterEach(() => useGame.setState({
   organizerTab: 'lieutenants', organizerOpen: false, organizerCollapsed: false,
-  planningView: 'city', jobCard: null, pickMode: null, specialistCard: null,
+  planningView: 'city', weekPlanOpen: false, jobCard: null, pickMode: null, specialistCard: null,
 }));
 
 describe('working week top-bar navigation', () => {
@@ -37,5 +37,26 @@ describe('working week top-bar navigation', () => {
     openWeekSection('lawyer');
     expect(useGame.getState().organizerTab).toBe('lawyer');
     expect(useGame.getState().organizerOpen).toBe(true);
+  });
+});
+
+describe('live Book navigation', () => {
+  it('opens the crew journal and the live overhead map, including from another section', () => {
+    useGame.setState({ organizerTab: 'lawyer', organizerOpen: false, organizerCollapsed: true, planningView: 'city', weekPlanOpen: false });
+    openLiveBook();
+    const s = useGame.getState();
+    expect(s.organizerTab).toBe('lieutenants');
+    expect(s.organizerOpen).toBe(true);
+    expect(s.organizerCollapsed).toBe(false);
+    expect(s.weekPlanOpen).toBe(true);
+  });
+
+  it('returns from the book to the street view', () => {
+    openLiveBook();
+    closeLiveBook();
+    const s = useGame.getState();
+    expect(s.organizerOpen).toBe(false);
+    expect(s.organizerCollapsed).toBe(false);
+    expect(s.weekPlanOpen).toBe(false);
   });
 });

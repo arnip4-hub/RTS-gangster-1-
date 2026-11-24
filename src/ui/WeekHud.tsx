@@ -27,7 +27,7 @@ import { cameraApi } from './CityView';
 import { Icon } from './common';
 import { InterfaceButton, WindowHeading } from './InterfaceControls';
 import { MapAccess } from './MapAccess';
-import { openWeekSection, WEEK_QUICK_LINKS } from './weekQuickNavigation';
+import { closeLiveBook, openLiveBook, openWeekSection, WEEK_QUICK_LINKS } from './weekQuickNavigation';
 import { RightSheet } from './organizer/RightSheet';
 import { HoodsCommandBar } from './HoodsCommandBar';
 import { Minimap } from './Minimap';
@@ -149,8 +149,8 @@ export function WeekHud() {
           <InterfaceButton label={paused&&!finishing?'Resume':'Pause'} icon={paused&&!finishing?'hud/play':'hud/pause'} caption={paused&&!finishing?'Resume':'Pause'} aria-pressed={paused&&!finishing}
             title={finishing?'Stop skipping and pause (P)':paused?'Resume (P)':'Pause (P)'} onClick={()=>finishing?state().cancelFinishWeek():state().setPaused(!paused)}/>
           <InterfaceButton label={organizerOpen?'Close Organizer':'Open Organizer'} glyph="▤" caption="Book" aria-pressed={organizerOpen} title={organizerOpen?'Close the live Organizer (O)':'Open the live Organizer (O)'} onClick={()=>{
-            if(organizerOpen){state().setOrganizerOpen(false);state().setOrganizerCollapsed(false);}
-            else {state().setOrganizerOpen(true);state().setOrganizerCollapsed(false);state().setPlanningView('plan');}
+            if(organizerOpen) closeLiveBook();
+            else openLiveBook();
           }}/>
           <InterfaceButton label="Help" glyph="?" caption="Help" onClick={()=>state().setHelpOpen(true)}/>
           <InterfaceButton label="City Plan View" icon="tabs/maps" caption="City plan" aria-pressed={weekPlanOpen} title="Overhead City Plan (Insert) · Move with W/A/S/D or arrow keys" onClick={()=>zoom('plan')}/>

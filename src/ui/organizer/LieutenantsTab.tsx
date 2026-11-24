@@ -377,7 +377,7 @@ export function LieutenantsTab() {
               {orders.length > 0 && (
                 <div className="queued-orders" tabIndex={0} role="region" aria-label="This week's orders">
                   <Kicker style={{ marginBottom: 4 }}>
-                    This week · {orders.length} order{orders.length === 1 ? '' : 's'}
+                    This week's orders · {orders.length} · {Math.round(timePct)}% time assigned
                   </Kicker>
                   {orders.map((o) => (
                     <div key={o.id} className="row between report-item">
@@ -393,7 +393,7 @@ export function LieutenantsTab() {
                           {o.opts.repeat && ' · repeats'}
                           {o.opts.priority && ' · priority'}
                           {o.opts.wait && ' · waits'}
-                          <span className="muted"> · {hours(o.estimatedMinutes)}</span>
+                          <span className="muted"> · {hours(o.estimatedMinutes)} · {Math.round(100 * o.estimatedMinutes / Math.max(1, weekDuration(w)))}%</span>
                         </div>
                         {liveOrderProgress(o, w) && <div className="muted tiny" style={{ marginTop: 3 }}>{liveOrderProgress(o, w)}</div>}
                         {o.type === 'recruit' && o.results.length > 0 &&

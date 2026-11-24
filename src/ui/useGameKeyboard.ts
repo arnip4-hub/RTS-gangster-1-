@@ -3,6 +3,7 @@ import { useGame } from '../app/store';
 import type { MessageCategory } from '../sim/types';
 import { cameraApi } from './CityView';
 import { blueprintApi } from './Blueprint';
+import { closeLiveBook, openLiveBook } from './weekQuickNavigation';
 import { VIEW_ZOOM, viewForZoom } from '../render/viewModes';
 
 type PannableCamera = Pick<NonNullable<typeof cameraApi.ref>, 'panBy'>;
@@ -76,11 +77,8 @@ export function useGameKeyboard() {
       }
       if (!planning && !e.ctrlKey && !e.altKey && (e.key === 'o' || e.key === 'O')) {
         e.preventDefault();
-        s.setOrganizerOpen(!s.organizerOpen);
-        if (!s.organizerOpen) {
-          s.setOrganizerCollapsed(false);
-          s.setPlanningView('city');
-        }
+        if (s.organizerOpen) closeLiveBook();
+        else openLiveBook();
         return;
       }
       // The Organizer's sheets on their letters, and the week's street orders
@@ -243,6 +241,7 @@ export function useGameKeyboard() {
           if (s.sheet) s.setSheet(null);
           else if (s.jobCard) cancelJobCard();
           else if (s.specialistCard) s.cancelSpecialistCard();
+          else if (!planning && s.organizerOpen && !s.pickMode) closeLiveBook();
           else if (!s.pickMode && s.messageBox) s.setMessageBox(null);
           else setPickMode(null);
           break;

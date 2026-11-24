@@ -5,7 +5,9 @@ import { useGame, type OrganizerTab } from '../../app/store';
 import type { OverlayKind } from '../../render/scene';
 import { ORDERS } from '../../sim/constants';
 import { weekDuration } from '../../sim/calendar';
-import { gangAssets, territoryCount, gangManpower, money } from '../../sim/world';
+import { gangAssets, territoryCount, gangManpower, money, dayIndex } from '../../sim/world';
+import { WEEK_DAYS } from '../WeekClock';
+import { closeLiveBook } from '../weekQuickNavigation';
 import { cameraApi } from '../CityView';
 import { VIEW_ZOOM } from '../../render/viewModes';
 import { Icon, Kicker, Rivets } from '../common';
@@ -57,7 +59,6 @@ export function Organizer() {
   const tab = useGame((s) => s.organizerTab);
   const setTab = useGame((s) => s.setTab);
   const launchWeek = useGame((s) => s.launchWeek);
-  const setOrganizerOpen = useGame((s) => s.setOrganizerOpen);
   const collapsed = useGame((s) => s.organizerCollapsed);
   const setCollapsed = useGame((s) => s.setOrganizerCollapsed);
   const pickMode = useGame((s) => s.pickMode);
@@ -65,6 +66,7 @@ export function Organizer() {
   const toggleOverlay = useGame((s) => s.toggleOverlay);
   const requestCamera = useGame((s) => s.requestCamera);
   const planningView = useGame((s) => s.planningView);
+  const weekPlanOpen = useGame((s) => s.weekPlanOpen);
   const setPlanningView = useGame((s) => s.setPlanningView);
   useGame((s) => s.version);
 
@@ -72,10 +74,7 @@ export function Organizer() {
   const w = sim.world;
   const gang = sim.playerGang;
   const live = w.phase === 'week';
-  const closeLiveOrganizer = () => {
-    setOrganizerOpen(false);
-    setCollapsed(false);
-  };
+  const closeLiveOrganizer = closeLiveBook;
 
   const mapButtons = (
     <div className="brass flat map-buttons">
@@ -92,7 +91,7 @@ export function Organizer() {
         </>}
         {(live || planningView === 'city') && (
           <>
-            <button className="hud-btn" onClick={() => { if (live) useGame.getState().setWeekPlanOpen(true); else setPlanningView('plan'); cameraApi.ref?.setZoom(VIEW_ZOOM.plan); }} title="Overhead City Plan (Insert)">
+            <button aria-pressed={live ? weekPlanOpen : planningView === 'plan'} className={`hud-btn${live && weekPlanOpen ? ' on' : ''}`} onClick={() => { if (live) useGame.getState().setWeekPlanOpen(true); else setPlanningView('plan'); cameraApi.ref?.setZoom(VIEW_ZOOM.plan); }} title="Overhead City Plan (Insert)">
               Plan
             </button>
             <button className="hud-btn" onClick={() => { if (live) useGame.getState().setWeekPlanOpen(false); cameraApi.ref?.setZoom(VIEW_ZOOM.roof); }} title="Rooftop (Home)">
@@ -197,11 +196,12 @@ export function Organizer() {
     .reduce((s, p) => s + p.pay, 0);
   const withStrip = tab === 'lieutenants' && !jobCard && !staff;
   const bookMode = !!(jobCard || staff);
+  const compactBook = live && (tab === 'lieutenants' || bookMode);
 
   return (
     <>
-      <div className={`organizer-frame${live ? ' live-organizer' : ''}${bookMode ? ' job-book-mode' : ''}`}>
-        {!bookMode && <div className="journal-tabs" role="tablist" aria-label="Organizer sections">
+      <div className={`organizer-frame${live ? ' live-organizer' : ''}${bookMode ? ' job-book-mode' : ''}${compactBook ? ' compact-live-book' : ''}`}>
+        {!bookMode && !compactBook && <div className="journal-tabs" role="tablist" aria-label="Organizer sections">
           {TABS.map((t) => (
             <button key={t.id} role="tab" tabIndex={tab === t.id ? 0 : -1} onKeyDown={e => {
               const i = TABS.findIndex(x => x.id === t.id);
@@ -217,12 +217,13 @@ export function Organizer() {
         </div>}
         <div className={`journal planning-journal${withStrip ? ' with-strip' : ''}`}>
           <div className="journal-heading">
-            <Kicker className="gold">Gang Organizer · Week {w.week}{live ? ' · Live' : ''}</Kicker>
+            {compactBook ? <div className="book-heading-summary"><Kicker className="gold">Gang Organizer</Kicker><span>Cash <b><MoneyRoll value={gang.cash} /></b></span><span>Week {w.week} · {WEEK_DAYS[dayIndex(w.minute, !!w.options.continuousTime)]}</span></div> : <Kicker className="gold">Gang Organizer · Week {w.week}{live ? ' · Live' : ''}</Kicker>}
             <div className="journal-tools">
               <button className="journal-help" aria-label="Help" title="Help (?)" onClick={()=>useGame.getState().setHelpOpen(true)}>?</button>
               {!jobCard && <MapAccess />}
-              <button className="journal-fold" onClick={() => live && !jobCard && !staff ? closeLiveOrganizer() : setCollapsed(true)} title={live && !jobCard && !staff ? 'Close the Organizer and return to the city' : 'Fold the journal away to see the whole city'}>
-                {live && !jobCard && !staff ? '× Close Organizer' : jobCard ? '▼ Pick on map' : '▼ See the city'}
+              {compactBook && !bookMode && <button className="journal-help book-diplomacy" onClick={() => setTab('diplomacy')} title="Diplomacy (F4)">Diplomacy</button>}
+              <button className={`journal-fold${compactBook && !bookMode ? ' book-return' : ''}`} onClick={() => live && !jobCard && !staff ? closeLiveOrganizer() : setCollapsed(true)} title={live && !jobCard && !staff ? 'Close the Organizer and return to the city' : 'Fold the journal away to see the whole city'}>
+                {live && !jobCard && !staff ? (compactBook ? 'Back to the City [Esc] ×' : '× Close Organizer') : jobCard ? '▼ Pick on map' : '▼ See the city'}
               </button>
             </div>
           </div>

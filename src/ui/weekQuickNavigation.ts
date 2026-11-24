@@ -21,3 +21,22 @@ export function openWeekSection(section: WeekQuickSection): void {
   state.setOrganizerCollapsed(false);
   state.setPlanningView('city');
 }
+
+/** The Book is a live crew journal with the real overhead city plan. */
+export function openLiveBook(): void {
+  const state = useGame.getState();
+  state.setTab('lieutenants');
+  state.setOrganizerOpen(true);
+  state.setOrganizerCollapsed(false);
+  state.setPlanningView('plan');
+  state.setWeekPlanOpen(true);
+}
+
+/** Return to the 3D street, rather than leaving the overhead plan open. */
+export function closeLiveBook(): void {
+  const state = useGame.getState();
+  state.setOrganizerOpen(false);
+  state.setOrganizerCollapsed(false);
+  state.setWeekPlanOpen(false);
+  state.setSheet(null);
+}
