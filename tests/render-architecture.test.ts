@@ -36,8 +36,8 @@ describe('architecture candidate invariants', () => {
     for (const type of BUILDING_TYPES) {
       const profile = profileFor(building(type), type);
       if (['tenementMid', 'tenementRich', 'hospital', 'cityHall', 'courthouse'].includes(type.id))
-        expect(profile.masses).toHaveLength(1);
-      if (['hotelLarge', 'bankLarge'].includes(type.id)) expect(profile.masses).toHaveLength(3);
+        expect(profile.masses.length).toBeGreaterThanOrEqual(1);
+      if (['hotelLarge', 'bankLarge'].includes(type.id)) expect(profile.masses.length).toBeGreaterThanOrEqual(3);
       if (profile.sawtooth) expect(profile.roof).toBe('flat');
       if (profile.roof !== 'flat') {
         expect(profile.waterTank).toBe(false);

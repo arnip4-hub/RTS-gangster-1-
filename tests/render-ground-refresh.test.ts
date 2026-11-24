@@ -25,7 +25,7 @@ function fixture(overlays: OverlayKind[] = ['territory']) {
     hiddenRoofs: false, buildingsRemoved: false, foregroundCutaways: new Set(),
     characterActions: {update:vi.fn()}, updateForegroundCutaways:vi.fn(), tagged:new TaggedViews(),
     drawGround, refreshBuildings, applyTimeOfDay: () => 0,
-    refreshStreet: vi.fn(), actorMotion: { clear: vi.fn() },
+    refreshStreet: vi.fn(), actorMotion: { clear: vi.fn() }, corpseFacings: { clear: vi.fn() }, lastVehicleYaw: { clear: vi.fn() },
   }) as CityRenderer;
   const redraw = () => { city.markDirty(); city.update(); };
   redraw();

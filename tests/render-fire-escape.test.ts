@@ -38,10 +38,10 @@ function fixture(typeId = 'bankSmall', index = 7, withCentre = false) {
   const world = { gridW: 18, gridH: 18, buildings, lots, gangs: {},
     blocks: [{ id: 0, gx: 15, gy: 13, center: { x: cx, y: cz }, lotIds: Array.from({ length: 9 }, (_, i) => i) }] } as unknown as World;
   const pool = (geometry = slabGeometry()) => new InstancePool(geometry, new THREE.MeshBasicMaterial(), 64, { color: true });
-  const wallPools = Array.from({ length: 8 }, () => pool(wallShellGeometry()));
-  const cutawayWalls = Array.from({ length: 8 }, () => pool(wallShellGeometry(true)));
-  const names = ['interiorRooms', 'interiorWorks', 'entryDoors', 'cutawayDoors', 'gableRoofs', 'hipRoofs',
-    'cornice', 'shopBase', 'plinthBase', 'signs', 'banners', 'awnings', 'fireEscapes', 'sawteeth', 'tanks',
+  const wallPools = Array.from({ length: 12 }, () => pool(wallShellGeometry()));
+  const cutawayWalls = Array.from({ length: 12 }, () => pool(wallShellGeometry(true)));
+  const names = ['interiorRooms', 'interiorWorks', 'entryDoors', 'cutawayDoors', 'gableRoofs', 'hipRoofs', 'mansardRoofs',
+    'cornice', 'shopBase', 'closedFronts', 'plinthBase', 'signs', 'banners', 'awnings', 'marquees', 'bladeSigns', 'pilasters', 'stoops', 'skylights', 'fireEscapes', 'sawteeth', 'tanks',
     'chimneys', 'bulkheads', 'columns', 'pediments', 'spires', 'domes', 'picks'];
   const pools = Object.fromEntries(names.map(name => [name, pool(name === 'columns' ? columnGeometry()
     : name === 'pediments' ? pedimentGeometry() : name === 'spires' ? spireGeometry()
@@ -57,7 +57,7 @@ function fixture(typeId = 'bankSmall', index = 7, withCentre = false) {
     buildingViews: new Map(), buildingViewMeshes: new Map(), foregroundCutaways: new Set(),
     overlays: [], overlayGang: null, footprints: new Map(), buildingPickBounds: new BuildingPickBounds(),
     dummy: new THREE.Object3D(), colorScratch: new THREE.Color(), tintScratch: new THREE.Color(), uvScratch: new THREE.Vector4(),
-    wallPools, cutawayWalls, decor: Object.values(pools), ...pools,
+    wallPools, cutawayWalls, decor: Object.values(pools), shopPools: {}, ...pools,
     camera, raycaster: new THREE.Raycaster(), pointer: new THREE.Vector2(), ground, streetsOpen: false, agentMesh, agentIds: [777] };
   const renderer = Object.setPrototypeOf(state, CityRenderer.prototype) as unknown as CityRenderer;
   // `ground`: the target stands between the camera and its focus, so it opens
