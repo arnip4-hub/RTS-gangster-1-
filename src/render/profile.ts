@@ -256,14 +256,12 @@ export function profileFor(b: Building, t: BuildingType | undefined): Profile {
 
   const isShop =
     cls === 'commercial' ||
-    (cls === 'tenement' && r01(id, 6) < 0.4) ||
-    (cls === 'industrial' && !LOW_INDUSTRIAL.has(b.typeId) && r01(id, 6) < 0.3);
+    (cls === 'tenement' && r01(id, 6) < 0.4);
 
-  // The delivered plinth bitmap depicts warehouse shutters, not a generic
-  // stone base. Civic/residential fronts continue their facade around a door.
-  const base: BaseKind = illegal ? 'none' : isShop ? 'shop' : cls === 'industrial' ? 'plinth' : 'entry';
-  const baseHeight = base === 'entry' ? Math.min(height, 3.45)
-    : Math.min(height * 0.42, STOREY_H * (base === 'shop' ? 1.02 : 0.85));
+  // Works, civic and residential fronts retain their masonry to the pavement.
+  const base: BaseKind = illegal ? 'none' : isShop ? 'shop' : 'entry';
+  const baseHeight = base === 'shop' ? Math.min(masses[0].h - .25, STOREY_H * .98)
+    : base === 'entry' ? Math.min(height, 3.45) : 0;
 
   // Classical civic fronts carry a column portico, as in the original's streets.
   const columns =

@@ -146,7 +146,6 @@ const VEHICLE_GROUND_CLEARANCE = .008;
 const COAT_COLORS = [0x7a6a52, 0x5f6650, 0x3f4a63, 0x6b3a35, 0xa8926d, 0x45464c, 0x8c8a86, 0x5a4a3c];
 const AWNING_COLORS = [0x2f4636, 0x5a2b28, 0x2c3a56, 0x6a5322, 0x7a6a52, 0x39383a, 0x8a3b2c, 0x3f5a4a, 0x6b4a6a, 0xa08452];
 const awningScratch = new THREE.Color();
-const paintScratch = new THREE.Color();
 /** Cornices, copings and porticoes are dressed stone, never painted brick. */
 // Weathered limestone: lighter than the brick, but not a white outline round
 // every building when seen from the air.
@@ -303,7 +302,7 @@ export class CityRenderer {
   /** Boards and notice over a shopfront the FBI has closed. */
   private closedFronts!: InstancePool;
   /** Delivered shop photographs already contain stone, joinery and glass colour. */
-  private deliveredStorefront = false;
+  private deliveredStorefronts = new Set<string>();
   private plinthBase!: InstancePool;
   private signs!: InstancePool;
   private banners!: InstancePool;
@@ -583,15 +582,20 @@ export class CityRenderer {
       if (!f || !m) return;
       m.map = this.ownedTextures.replace(m.map, f.map);
       m.emissiveMap = this.ownedTextures.replace(m.emissiveMap, f.lights);
+      m.emissive.setRGB(1, 1, 1);
       m.needsUpdate = true;
     });
-    if (art.storefront) {
-      this.shopMat.map = this.ownedTextures.replace(this.shopMat.map, art.storefront.map);
-      this.shopMat.emissiveMap = this.ownedTextures.replace(this.shopMat.emissiveMap, art.storefront.lights);
-      this.deliveredStorefront = true;
-      // The delivered emission image already encodes its warm light colour.
-      this.shopMat.emissive.setRGB(1, 1, 1);
-      this.shopMat.needsUpdate = true;
+    let storefrontLoaded = false;
+    const storefronts = { classicDisplay: art.storefront ?? undefined, ...art.storefronts };
+    for (const [style, sf] of Object.entries(storefronts)) {
+      const mat = this.shopMats[style];
+      if (!mat || !sf) continue;
+      mat.map = this.ownedTextures.replace(mat.map, sf.map);
+      mat.emissiveMap = this.ownedTextures.replace(mat.emissiveMap, sf.lights);
+      mat.emissive.setRGB(1, 1, 1);
+      mat.needsUpdate = true;
+      this.deliveredStorefronts.add(style);
+      storefrontLoaded = true;
     }
     if (art.roof) {
       this.roofMat.map = this.ownedTextures.replace(this.roofMat.map, art.roof, 1, 1);
@@ -626,7 +630,7 @@ export class CityRenderer {
     }
     if (art.road) this.groundMat.setAsphalt(art.road);
     // Replace the fallback paint tint as soon as the photograph is available.
-    if (art.storefront) this.refreshBuildings();
+    if (storefrontLoaded) this.refreshBuildings();
   }
 
   // ------------------------------------------------------------ construction
@@ -810,8 +814,13 @@ export class CityRenderer {
     this.shopMats.classicDisplay = this.shopMat;
     for (const style of ['provisionMarket', 'artDecoGlazed', 'cafeBistro', 'nightlifeLobby', 'financialStone', 'serviceBay', 'pawnSecured', 'apothecarySoda', 'luxuryBoutique', 'poolParlor', 'fireEngineBay', 'hotelCanopy']) {
       const mat = this.shopMat.clone();
+      // Material.clone does not copy shader callbacks. Each material also owns
+      // its own texture wrappers so replacing one style cannot dispose another.
+      mat.map = this.ownedTextures.clone(this.tex.storefront.map);
+      mat.emissiveMap = this.ownedTextures.clone(this.tex.storefront.lights);
+      patchInstancedUv(mat);
       this.shopMats[style] = mat;
-      this.shopPools[style] = new InstancePool(front, mat, nB, { color: true, uv: true, receiveShadow: true });
+      this.shopPools[style] = new InstancePool(front, mat, nB, { color: true, uv: true, castShadow: true, receiveShadow: true });
     }
 
 
@@ -853,7 +862,7 @@ export class CityRenderer {
     const skylightGeo = new THREE.BoxGeometry(1.6, 0.12, 1.1);
     this.marquees = new InstancePool(marqueeGeo, new THREE.MeshStandardMaterial({ color: 0x3a3028, roughness: .6, metalness: .15, emissive: 0x221810 }), nB, { color: true, castShadow: true });
     this.bladeSigns = new InstancePool(bladeGeo, new THREE.MeshStandardMaterial({ color: 0x2a2420, roughness: .7, metalness: .1, emissive: 0x181410 }), nB, { color: true, castShadow: true });
-    this.pilasters = new InstancePool(pilasterGeo, new THREE.MeshStandardMaterial({ color: 0x8a8070, roughness: .85 }), nB * 2, { color: true, castShadow: true });
+    this.pilasters = new InstancePool(pilasterGeo, new THREE.MeshStandardMaterial({ roughness: .85 }), nB * 2, { color: true, castShadow: true });
     this.stoops = new InstancePool(stoopGeo, new THREE.MeshStandardMaterial({ color: 0x6a6058, roughness: .9 }), nB, { color: true, castShadow: true });
     this.skylights = new InstancePool(skylightGeo, new THREE.MeshStandardMaterial({ color: 0x8898a0, roughness: .3, metalness: .1, transparent: true, opacity: .7 }), nB, { color: true, castShadow: true });
 
@@ -1580,16 +1589,16 @@ export class CityRenderer {
           // Shopfronts are painted joinery, so they take their own colour
           // rather than the brickwork's.
           this.uvScratch.set((m0.w + 0.5) / 6.2, bh / prof.baseHeight, uOff * 0.5, 0);
-          // The delivered joinery photograph takes a per-shop paint wash, so
-          // neighbouring shops are not one repeated front.
-          if (this.deliveredStorefront) this.tintScratch.setRGB(1.12, 1.12, 1.12).lerp(paintScratch.setHex(SHOP_PAINT[rint(b.id, 52, SHOP_PAINT.length)]).multiplyScalar(1.6), .45);
-          else this.tintScratch.setHex(SHOP_PAINT[rint(b.id, 52, SHOP_PAINT.length)]);
+          const style = storefrontStyle(b.typeId, b.id);
+          if (this.deliveredStorefronts?.has(style)) {
+            const brightness = .96 + r01(b.id, 53) * .08;
+            const warmth = (r01(b.id, 54) - .5) * .04;
+            this.tintScratch.setRGB(brightness + warmth, brightness, brightness - warmth);
+          } else this.tintScratch.setHex(SHOP_PAINT[rint(b.id, 52, SHOP_PAINT.length)]);
           if (b.state === 'damaged') this.tintScratch.multiplyScalar(0.5);
           else if (b.state === 'ceased') this.tintScratch.multiplyScalar(0.7);
           if(fireStage)this.tintScratch.setRGB(.15,.14,.13);
-          const style = storefrontStyle(b.typeId, b.id);
           const pool = this.shopPools?.[style] ?? this.shopBase;
-          if (style !== 'classicDisplay' && this.deliveredStorefront) this.tintScratch.setRGB(0.94 + r01(b.id, 53) * 0.12, 0.94 + r01(b.id, 54) * 0.12, 0.94 + r01(b.id, 55) * 0.12);
           pool.push(this.dummy.matrix, this.tintScratch, this.uvScratch);
           if (b.fbiClosedWeek != null && b.state !== 'destroyed') this.closedFronts.push(this.dummy.matrix);
         } else if (prof.base === 'plinth') {
@@ -1613,7 +1622,7 @@ export class CityRenderer {
           const row = Math.floor(tile / tex.signs.cols);
           const signFront = frontOf(m0, .09);
           const [sx, sz] = local(signFront.x, signFront.z);
-          this.dummy.position.set(sx, KERB_H + (prof.base === 'entry' ? 2.90 : bh - .64), sz);
+          this.dummy.position.set(sx, KERB_H + (prof.base === 'entry' ? Math.min(2.90, m0.h - .7) : bh - .64), sz);
           this.dummy.rotation.set(0, yaw, 0);
           this.dummy.scale.set(Math.min(6.4, m0.w * .72), .55, 1);
           this.dummy.updateMatrix();
@@ -1629,7 +1638,7 @@ export class CityRenderer {
         if (prof.awning && !frontCut && !fireStage) {
           const awningFront = frontOf(m0, .56);
           const [ax, az] = local(awningFront.x, awningFront.z);
-          this.dummy.position.set(ax, KERB_H + Math.max(2.3, bh - .92), az);
+          this.dummy.position.set(ax, KERB_H + Math.max(1.9, bh - 1.3), az);
           this.dummy.rotation.set(0, yaw, 0);
           this.dummy.scale.set(Math.min(4.8, m0.w * .48), .75, 1.25);
           this.dummy.updateMatrix();
@@ -1640,30 +1649,31 @@ export class CityRenderer {
         // 3D streetscape dressing
         if (!frontCut && !fireStage && !prof.ruin) {
           const style = storefrontStyle(b.typeId, b.id);
-          if (style === 'nightlifeLobby' && r01(b.id, 44) < 0.7) {
+          if (prof.base === 'shop' && style === 'nightlifeLobby' && r01(b.id, 44) < 0.7) {
             const mf = frontOf(m0, .7);
             const [mx, mz] = local(mf.x, mf.z);
-            this.dummy.position.set(mx, KERB_H + bh + .3, mz);
+            this.dummy.position.set(mx, KERB_H + Math.min(bh - .95, m0.h - .3), mz);
             this.dummy.scale.set(Math.min(5, m0.w * .6), 1, 1);
             this.dummy.updateMatrix();
             this.marquees.push(this.dummy.matrix);
           }
-          if ((style === 'classicDisplay' || style === 'artDecoGlazed' || style === 'nightlifeLobby') && r01(b.id, 45) < 0.5) {
+          if (prof.base === 'shop' && (style === 'classicDisplay' || style === 'artDecoGlazed' || style === 'nightlifeLobby') && r01(b.id, 45) < 0.5) {
             const bf = frontOf(m0, .15);
             const [bx2, bz2] = local(bf.x, bf.z);
-            this.dummy.position.set(bx2, KERB_H + bh + .6, bz2);
+            this.dummy.position.set(bx2, KERB_H + Math.min(bh - .7, m0.h - .7), bz2);
             this.dummy.scale.set(1, 1, 1);
             this.dummy.updateMatrix();
             this.bladeSigns.push(this.dummy.matrix);
           }
-          if (prof.base === 'shop') {
+          if (prof.base === 'shop' && !this.deliveredStorefronts?.has(style)) {
             for (const side of [-1, 1]) {
               const pf = frontOf(m0, .06);
-              const [px, pz] = local(pf.x + side * m0.w * .42, pf.z);
+              const [px, pz] = local(pf.x + side * (m0.w * .5 - .11), pf.z);
               this.dummy.position.set(px, KERB_H + bh * .5, pz);
               this.dummy.scale.set(1, bh, 1);
               this.dummy.updateMatrix();
-              this.pilasters.push(this.dummy.matrix);
+              this.tintScratch.copy(this.colorScratch).multiply(STONE);
+              this.pilasters.push(this.dummy.matrix, this.tintScratch);
             }
           }
           if (prof.base === 'entry' && r01(b.id, 46) < 0.4) {
@@ -2967,7 +2977,7 @@ export class CityRenderer {
     // In the continuous city, windows and lamps stay on through the night.
     const lightUp = continuous ? dusk : smoothstep(0.66, 1.0, phase);
     for (const m of this.facadeMats) m.emissiveIntensity = lightUp * 1.1;
-    this.shopMat.emissiveIntensity = lightUp * 0.9;
+    for (const mat of Object.values(this.shopMats)) if (mat) mat.emissiveIntensity = lightUp * 0.9;
     this.glowMat.opacity = dusk * 0.95;
     this.headlampMat.opacity = dusk * 0.9;
     this.taillightMat.opacity = dusk * 0.75;

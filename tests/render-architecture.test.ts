@@ -141,10 +141,15 @@ describe('architecture candidate invariants', () => {
     }
   });
 
-  it('restricts shutter plinths to industrial sites and never adds entry doors to hidden illegal sites', () => {
+  it('keeps industrial masonry entries, full-height shops and hidden illegal sites', () => {
     for (const type of BUILDING_TYPES) for (let id = 1; id <= 16; id++) {
       const profile = profileFor(building(type, id), type);
-      if (profile.base === 'plinth') expect(type.cls).toBe('industrial');
+      if (type.cls === 'industrial') expect(profile.base).toBe('entry');
+      if (profile.base === 'shop') {
+        expect(profile.baseHeight).toBeGreaterThan(3);
+        expect(profile.baseHeight).toBeLessThan(profile.masses[0].h);
+        if (profile.height < 5) expect(profile.height - profile.baseHeight).toBeLessThan(1);
+      }
       if (type.cls === 'municipal' || type.cls === 'charity') expect(profile.base).toBe('entry');
       if (type.cls === 'tenement') expect(['shop', 'entry']).toContain(profile.base);
       if (type.cls === 'illegal') expect(profile.base).toBe('none');
