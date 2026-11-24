@@ -9,6 +9,7 @@ on:
       - 'scripts/capture-visual-review.mjs'
       - 'public/art/city/**'
       - 'visual-review.html'
+      - 'tests/storefront-material.test.ts'
       - '.github/workflows/city-render-verification.yml'
   workflow_dispatch:
 permissions:
@@ -28,7 +29,7 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
       - run: npm run typecheck
       - name: Focused rendering regression tests
-        run: npm test -- tests/render-architecture.test.ts tests/render-interior-fixtures.test.ts tests/render-fire-escape.test.ts tests/render-building-sections.test.ts tests/render-texture-ownership.test.ts tests/render-preparation.test.ts tests/render-city-light-masks.test.ts tests/building-variety.test.ts
+        run: npm test -- tests/render-architecture.test.ts tests/render-interior-fixtures.test.ts tests/render-fire-escape.test.ts tests/render-building-sections.test.ts tests/render-texture-ownership.test.ts tests/render-preparation.test.ts tests/render-city-light-masks.test.ts tests/building-variety.test.ts tests/storefront-material.test.ts
       - name: Regenerate and verify painted assets
         run: |
           npm run art:corner
