@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { GANG_COLORS } from '../sim/constants';
 import type { Gang, Person } from '../sim/types';
-import { portraitUrl } from './art';
+import { portraitUrl, specialistPortraitUrl } from './art';
 import { useArtStatus } from './useArtStatus';
 import { appearanceIndex, personSkinGroup } from '../render/personAppearance';
 import { resolveCharacterWardrobe } from '../render/characterWardrobe';
@@ -15,9 +15,10 @@ import { resolveCharacterWardrobe } from '../render/characterWardrobe';
 export function Portrait({ person, gang, size = 30 }: { person: Person; gang?: Gang; size?: number }) {
   // Citizens and rank-and-file officers use a stable layered drawing. The
   // commissioned paintings remain for the crew and agency leadership.
-  const composed = !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
+  const specialist = specialistPortraitUrl(person);
+  const composed = !specialist && !['boss', 'lieutenant', 'hood', 'policeChief', 'fbiHead'].includes(person.role);
   // A boss's own painting when it has been delivered; the pool face otherwise.
-  const boss = undefined;
+  const boss = specialist;
   const bossStatus = useArtStatus(boss);
   const pool = composed ? undefined : portraitUrl(person);
   const poolStatus = useArtStatus(pool);

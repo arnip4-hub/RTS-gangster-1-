@@ -64,16 +64,16 @@ export function TaggedWindow({id}: {id: number}) {
   const pursuit = streetTarget ? person.halted ? 'Waiting for traffic' : person.dest ? 'Approaching' :
     person.streetOrder?.type === 'tail' ? 'Watching' : 'Attacking' : null;
   const orderName = person.streetOrder
-    ? ({ goTo: 'Go to', guard: 'Guard', patrol: 'Patrol', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
+    ? ({ goTo: 'Go to', enterBuilding: 'Inside building', guard: 'Guard', patrol: 'Patrol', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
     : cargoActivity(w,person) ?? (order ? ORDERS[order.type].name : staff ? SPECIALIST_JOB_NAMES[staff.type] : restingStatus(w, person));
   const cargo=person.vehicleKey?w.vehicleFleet?.[person.vehicleKey]?.cargo:undefined;
-  const command = (kind: 'kill' | 'assault' | 'tail' | 'goTo') => {
+  const command = (kind: 'kill' | 'assault' | 'tail' | 'goTo' | 'enterBuilding') => {
     if (kind !== 'goTo' && useGame.getState().weekPlanOpen) {
       useGame.getState().setWeekPlanOpen(false);
       cameraApi.ref?.setZoom(VIEW_ZOOM.roof);
     }
     setPickMode({ kind: 'streetOrder', orderType: kind, personIds: [person.id] });
-    notify(kind === 'goTo' ? 'Click where they should go.' : 'Click the person to target.');
+    notify(kind === 'goTo' ? 'Click where they should go.' : kind === 'enterBuilding' ? 'Click one of your gang\'s buildings.' : 'Click the person to target.');
   };
 
   const pickingHere = pickMode?.kind === 'streetOrder' && pickMode.personIds.includes(id);
@@ -138,6 +138,7 @@ export function TaggedWindow({id}: {id: number}) {
         <InterfaceButton label="Tail" caption="Tail" icon="street/tail" aria-pressed={pickingHere&&pickMode.orderType==='tail'} onClick={() => command('tail')}/>
       </>}
       <InterfaceButton label="Go to" caption="Go to" icon="street/goTo" aria-pressed={pickingHere&&pickMode.orderType==='goTo'} onClick={() => command('goTo')}/>
+      <InterfaceButton label="Enter building" caption="Enter" glyph="⌂" aria-pressed={pickingHere&&pickMode.orderType==='enterBuilding'} onClick={() => command('enterBuilding')}/>
       <InterfaceButton label="Cancel target selection" caption="Cancel" glyph="×" disabled={!pickingHere} onClick={()=>setPickMode(null)}/>
       </div>
     </div>}

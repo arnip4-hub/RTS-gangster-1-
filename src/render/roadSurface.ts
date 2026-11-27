@@ -28,7 +28,9 @@ function markingTile(streetInset: number, paveW = PAVE_W): HTMLCanvasElement {
   const pavementOffset = PAVEMENT_OFFSET + streetInset - (paveW - PAVE_W);
   const streetWidth = STREET_WIDTH + streetInset * 2;
   ctx.scale(scale, scale);
-  ctx.strokeStyle = 'rgba(226,214,178,0.3)'; ctx.lineWidth = .5; ctx.setLineDash([3.2, 4.4]);
+  // Long, narrow period lane dashes. A second translucent pass below makes
+  // the paint look worn into the aggregate rather than pasted over it.
+  ctx.strokeStyle = 'rgba(226,218,192,0.38)'; ctx.lineWidth = .44; ctx.setLineDash([4.8, 3.4]);
   for (const edge of [0, CELL]) {
     ctx.beginPath(); ctx.moveTo(edge, streetWidth); ctx.lineTo(edge, CELL - streetWidth); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(streetWidth, edge); ctx.lineTo(CELL - streetWidth, edge); ctx.stroke();
@@ -148,12 +150,29 @@ export class RoadSurfaceMaterial extends THREE.MeshStandardMaterial {
             float inside = step(0.0, uv.x) * step(uv.x, 1.0) * step(0.0, uv.y) * step(uv.y, 1.0);
             // Suppress averaged atlas rectangles once letters are sub-pixel.
             return ink * inside * (1.0 - smoothstep(0.12, 0.3, length(fwidth(uv))));
+          }
+          float roadHash(vec2 p) {
+            return fract(sin(dot(floor(p), vec2(127.1, 311.7))) * 43758.5453);
           }`)
         .replace('#include <map_fragment>', `
           vec2 roadGrid = vRoadPosition / ${CELL.toFixed(1)};
           vec2 streetIndex = floor(roadGrid + 0.5);
           vec2 streetOffset = vRoadPosition - streetIndex * ${CELL.toFixed(1)};
           vec3 roadColour = texture2D(roadAsphalt, vec2(vRoadPosition.x, -vRoadPosition.y) / ${ROAD_ASPHALT_METRES.toFixed(1)}).rgb;
+          // Break the broad brown sheet into cool aggregate, old resurfacing
+          // panels and faint wheel-polished bands. Everything is world-space,
+          // so the pattern stays still and joins cleanly across block edges.
+          float grit = roadHash(vRoadPosition * 1.35) - 0.5;
+          float broad = roadHash(vRoadPosition / 17.0) - 0.5;
+          vec2 patchCell = fract(vRoadPosition / vec2(19.0, 13.0));
+          float patchEdge = smoothstep(.05, .12, min(min(patchCell.x, 1.0 - patchCell.x), min(patchCell.y, 1.0 - patchCell.y)));
+          float patchPick = step(.69, roadHash(vRoadPosition / vec2(19.0, 13.0)));
+          float repaired = patchPick * patchEdge;
+          float lanePolish = exp(-pow(min(abs(streetOffset.x), abs(streetOffset.y)) - 2.0, 2.0) / 2.2);
+          roadColour *= .91 + grit * .055 + broad * .07;
+          roadColour = mix(roadColour, roadColour * vec3(.80, .83, .86), repaired * .24);
+          roadColour = mix(roadColour, roadColour * vec3(1.035, 1.025, 1.01), lanePolish * .13);
+          roadColour = mix(roadColour, dot(roadColour, vec3(.299, .587, .114)) * vec3(.91, .94, .98), .18);
           // Rails differ by avenue. Analytic edges stay sharp without another city-size image.
           vec2 railDistance = abs(abs(streetOffset) - 0.72);
           vec2 aa = max(fwidth(vRoadPosition), vec2(0.001));
@@ -171,10 +190,11 @@ export class RoadSurfaceMaterial extends THREE.MeshStandardMaterial {
           // Avenue centre line: a dashed stripe down the middle of the avenue block.
           vec2 fromCentre = (fract(roadGrid) - 0.5) * ${CELL.toFixed(1)};
           vec2 lineAa = max(fwidth(vRoadPosition), vec2(0.001));
-          float alongX = (1.0 - smoothstep(0.12 - lineAa.y, 0.12 + lineAa.y, abs(fromCentre.y))) * step(0.5, fract(vRoadPosition.x / 6.0));
-          float alongY = (1.0 - smoothstep(0.12 - lineAa.x, 0.12 + lineAa.x, abs(fromCentre.x))) * step(0.5, fract(vRoadPosition.y / 6.0));
+          float alongX = (1.0 - smoothstep(0.14 - lineAa.y, 0.14 + lineAa.y, abs(fromCentre.y))) * step(0.38, fract(vRoadPosition.x / 8.0));
+          float alongY = (1.0 - smoothstep(0.14 - lineAa.x, 0.14 + lineAa.x, abs(fromCentre.x))) * step(0.38, fract(vRoadPosition.y / 8.0));
           float centreLine = max(alongX * step(0.5, blockInfo.g), alongY * step(0.5, blockInfo.b));
-          roadColour = mix(roadColour, vec3(226.0, 214.0, 178.0) / 255.0, centreLine * 0.55);
+          float paintWear = .72 + roadHash(vRoadPosition * .72) * .28;
+          roadColour = mix(roadColour, vec3(226.0, 214.0, 178.0) / 255.0, centreLine * 0.58 * paintWear);
           vec2 segmentOffset = (fract(roadGrid) - 0.5) * ${CELL.toFixed(1)};
           vec2 nsUv = vec2(0.5 - segmentOffset.y / ${LABEL_WORLD_W.toFixed(1)}, 0.5 + streetOffset.x / ${LABEL_WORLD_H.toFixed(1)});
           vec2 ewUv = vec2(0.5 + segmentOffset.x / ${LABEL_WORLD_W.toFixed(1)}, 0.5 + streetOffset.y / ${LABEL_WORLD_H.toFixed(1)});
@@ -187,7 +207,7 @@ export class RoadSurfaceMaterial extends THREE.MeshStandardMaterial {
           diffuseColor.rgb *= mix(painted / 12.92, pow((painted + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), painted));
         `);
     };
-    this.customProgramCacheKey = () => 'og-road-detail-v6';
+    this.customProgramCacheKey = () => 'og-road-detail-v7';
   }
 
   override dispose(): void {

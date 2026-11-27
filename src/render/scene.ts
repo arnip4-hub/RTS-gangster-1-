@@ -44,6 +44,7 @@ import {
   sawtoothGeometry,
   slabGeometry,
   spireGeometry,
+  trashCanGeometry,
   treeGeometry,
   wallShellGeometry,
   waterTankGeometry,
@@ -334,6 +335,7 @@ export class CityRenderer {
   private lamps!: InstancePool;
   private lampGlow!: InstancePool;
   private hydrants!: InstancePool;
+  private trashCans!: InstancePool;
   private trees!: InstancePool;
   private treeModels?: SculptTrees;
   private treeLoad: Promise<void> | null = null;
@@ -606,7 +608,7 @@ export class CityRenderer {
       this.plinthMat.needsUpdate = true;
     }
     if (art.pavement) {
-      this.paveTop.map = this.ownedTextures.replace(this.paveTop.map, art.pavement, (SLAB_HALF * 2) / 6, (SLAB_HALF * 2) / 6);
+      this.paveTop.map = this.ownedTextures.replace(this.paveTop.map, art.pavement, (SLAB_HALF * 2) / 3, (SLAB_HALF * 2) / 3);
       this.paveTop.needsUpdate = true;
     }
     if (art.kerb) {
@@ -948,7 +950,7 @@ export class CityRenderer {
     const slabGeo = new THREE.BoxGeometry(SLAB_HALF * 2, KERB_H, SLAB_HALF * 2);
     slabGeo.translate(0, KERB_H / 2, 0);
     const paveTop = new THREE.MeshStandardMaterial({
-      map: this.ownedTextures.clone(this.tex.pavement, (SLAB_HALF * 2) / 6, (SLAB_HALF * 2) / 6),
+      map: this.ownedTextures.clone(this.tex.pavement, (SLAB_HALF * 2) / 3, (SLAB_HALF * 2) / 3),
       roughness: 0.94,
       metalness: 0.02,
     });
@@ -967,13 +969,14 @@ export class CityRenderer {
     this.scene.add(this.pavement.mesh);
 
     const ironMat = new THREE.MeshStandardMaterial({ roughness: 0.65, metalness: 0.3, vertexColors: true });
-    this.lamps = new InstancePool(lampPostGeometry(), ironMat, nBlocks * 4, { castShadow: true });
-    this.lampGlow = new InstancePool(lampGlowGeometry(), this.glowMat, nBlocks * 4, {});
+    this.lamps = new InstancePool(lampPostGeometry(), ironMat, nBlocks * 5, { castShadow: true });
+    this.lampGlow = new InstancePool(lampGlowGeometry(), this.glowMat, nBlocks * 5, {});
     const propMat = new THREE.MeshStandardMaterial({ roughness: 0.85, vertexColors: true });
     this.hydrants = new InstancePool(hydrantGeometry(), propMat, nBlocks * 2, { castShadow: true });
+    this.trashCans = new InstancePool(trashCanGeometry(), propMat, nBlocks * 2, { castShadow: true });
     this.trees = new InstancePool(treeGeometry(), propMat, nBlocks * 3, { castShadow: true });
 
-    for (const p of [this.lamps, this.lampGlow, this.hydrants, this.trees]) this.scene.add(p.mesh);
+    for (const p of [this.lamps, this.lampGlow, this.hydrants, this.trashCans, this.trees]) this.scene.add(p.mesh);
   }
 
   private buildAgents(): void {
@@ -1924,6 +1927,7 @@ export class CityRenderer {
     this.lamps.reset();
     this.lampGlow.reset();
     this.hydrants.reset();
+    this.trashCans.reset();
     this.trees.reset();
 
     const pave = paveWidth(w);
@@ -1998,6 +2002,19 @@ export class CityRenderer {
         this.lamps.push(this.dummy.matrix);
         this.lampGlow.push(this.dummy.matrix);
       }
+      // Busier streets get one additional standard between corners. It is
+      // kept close to the kerb and off-centre, leaving shop doors and the
+      // walking line clear.
+      if (blk.district !== 'residential' || r01(blk.id, 18) < .32) {
+        const lampSide = rint(blk.id, 19, 4), lampAlong = (r01(blk.id, 20) < .5 ? -1 : 1) * BLOCK_SIZE * .27;
+        const lx = lampSide < 2 ? cx + lampAlong : cx + (lampSide === 2 ? corner : -corner);
+        const lz = lampSide < 2 ? cz + (lampSide === 0 ? cornerZ : -cornerZ) : cz + lampAlong;
+        this.dummy.position.set(lx, KERB_H, lz);
+        this.dummy.rotation.set(0, lampSide * Math.PI / 2, 0);
+        this.dummy.updateMatrix();
+        this.lamps.push(this.dummy.matrix);
+        this.lampGlow.push(this.dummy.matrix);
+      }
 
       // A hydrant, and trees on the leafier blocks.
       const side = rint(blk.id, 21, 4);
@@ -2009,7 +2026,25 @@ export class CityRenderer {
       this.dummy.updateMatrix();
       this.hydrants.push(this.dummy.matrix);
 
-      if (blk.district === 'residential' || blk.district === 'civic' || r01(blk.id, 24) < 0.22) {
+      // Refuse cans sit near the kerb, away from the middle of the pavement
+      // and from building entrances. Commercial and industrial blocks are a
+      // little busier; stable block seeds keep saves and screenshots identical.
+      const canCount = blk.district === 'industrial' || blk.district === 'commercial'
+        ? 1 + rint(blk.id, 64, 2) : r01(blk.id, 64) < .55 ? 1 : 0;
+      for (let k = 0; k < canCount; k++) {
+        const canSide = rint(blk.id, 65 + k, 4);
+        const canAlong = (r01(blk.id, 68 + k) < .5 ? -1 : 1) * (BLOCK_SIZE * (.27 + r01(blk.id, 72 + k) * .12));
+        const inset = 1.05;
+        const bx = canSide < 2 ? cx + canAlong : cx + (canSide === 2 ? corner - inset : -corner + inset);
+        const bz = canSide < 2 ? cz + (canSide === 0 ? cornerZ - inset : -cornerZ + inset) : cz + canAlong;
+        this.dummy.position.set(bx, KERB_H, bz);
+        this.dummy.rotation.set(0, r01(blk.id, 76 + k) * Math.PI * 2, 0);
+        this.dummy.updateMatrix();
+        this.trashCans.push(this.dummy.matrix);
+      }
+
+      if (blk.district === 'residential' || blk.district === 'civic' ||
+          (blk.district === 'commercial' ? r01(blk.id, 24) < .46 : r01(blk.id, 24) < .28)) {
         const n = 1 + rint(blk.id, 25, 3);
         for (let k = 0; k < n; k++) {
           const s2 = rint(blk.id, 26 + k, 4);
@@ -2033,7 +2068,8 @@ export class CityRenderer {
     this.lamps.commit();
     this.lampGlow.commit();
     this.hydrants.commit();
-    this.streetFurniture = [this.lamps, this.lampGlow, this.hydrants].map(pool => snapshotPlacements(pool));
+    this.trashCans.commit();
+    this.streetFurniture = [this.lamps, this.lampGlow, this.hydrants, this.trashCans].map(pool => snapshotPlacements(pool));
     this.furnitureAt.set(Infinity, 0, Infinity);
     this.cullStreetFurniture();
     this.trees.commit();
@@ -3432,6 +3468,7 @@ export class CityRenderer {
       this.lamps,
       this.lampGlow,
       this.hydrants,
+      this.trashCans,
       this.trees,
       this.footRings,
       this.waitMarks,

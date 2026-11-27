@@ -72,7 +72,7 @@ export type PickMode =
   | { kind: 'lieutenantArea'; teamId: ID }
   | { kind: 'policeArea' }
   | { kind: 'specialist' }
-  | { kind: 'streetOrder'; orderType: 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol'; personIds: ID[] };
+  | { kind: 'streetOrder'; orderType: 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol' | 'enterBuilding'; personIds: ID[] };
 
 interface GameState {
   sim: Sim | null;

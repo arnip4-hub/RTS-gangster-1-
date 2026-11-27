@@ -76,7 +76,7 @@ import { isStorageSite } from './goodsStorage';
 
 import { clearDestination, setDestination } from './movement';
 import { canonicalAreaBlocks, lieutenantAreaChoices } from './lieutenantAreas';
-import { CENTRE_LOT, allBuildings, buildingDoor, buildingsOfBlock, dist, gangAssets, ownedBuildings, teamsOf, territoryBlocks } from './world';
+import { CENTRE_LOT, allBuildings, buildingDoor, buildingName, buildingsOfBlock, dist, gangAssets, ownedBuildings, teamsOf, territoryBlocks } from './world';
 import { peopleList } from './entityLists';
 import { quitGangPayroll } from './payrollMark';
 
@@ -767,11 +767,31 @@ export function hireRecruit(
 
 // ---------------------------------------------------------------- resources
 
+/** Purchases are handed over at one of the gang's premises, not conjured onto
+ * a crew in the street. A lieutenant counts as there while inside, or waiting
+ * at the door (the normal idle-at-base representation). */
+function lieutenantCanReceivePurchase(w: WorldState, gangId: ID, teamId?: ID): boolean {
+  const gang = w.gangs[gangId];
+  if (!gang) return false;
+  // Planning takes place at headquarters; saved map coordinates are the last
+  // street-week positions and are not authoritative until the week is live.
+  if (w.phase === 'planning') return true;
+  const lieutenants = (teamId == null ? gang.teamIds : [teamId])
+    .map(id => w.teams[id])
+    .filter((team): team is Team => !!team && team.gangId === gangId)
+    .map(team => w.people[team.lieutenantId])
+    .filter((p): p is Person => !!p && p.status === 'active');
+  const premises = allBuildings(w).filter(b => b.ownerGangId === gangId && b.state !== 'destroyed');
+  return lieutenants.some(p => premises.some(b => p.buildingId === b.id ||
+    (p.buildingId == null && !p.dest && !p.inVehicle && dist(p.pos, buildingDoor(w, b)) <= 5)));
+}
+
 export function buyWeapon(w: WorldState, gangId: ID, weapon: WeaponId, teamId?: ID): ApiResult {
   const gang = w.gangs[gangId];
   if (!gang) return fail('No such gang.');
   if (teamId != null && w.teams[teamId]?.gangId !== gangId) return fail('No such crew.');
   if (!WEAPONS[weapon]) return fail('No such weapon.');
+  if (!lieutenantCanReceivePurchase(w, gangId, teamId)) return fail('A lieutenant must be at headquarters or another gang-owned building to receive weapons.');
   const cost = WEAPONS[weapon].cost;
   if (gang.cash < cost) return fail('You cannot afford it.');
   payCash(w, gang, 'purchases', cost, 'capital');
@@ -826,6 +846,7 @@ export function buyVehicle(w: WorldState, gangId: ID, vehicle: VehicleId, teamId
   if (!gang) return fail('No such gang.');
   if (teamId != null && w.teams[teamId]?.gangId !== gangId) return fail('No such crew.');
   if (!VEHICLES[vehicle]) return fail('No such vehicle.');
+  if (!lieutenantCanReceivePurchase(w, gangId, teamId)) return fail('A lieutenant must be at headquarters or another gang-owned building to receive a vehicle.');
   const cost = VEHICLES[vehicle].cost;
   if (gang.cash < cost) return fail('You cannot afford it.');
   payCash(w, gang, 'purchases', cost, 'capital');
@@ -1354,7 +1375,7 @@ export function snitchPrice(w: WorldState, gangId: ID, targetGangIds: ID[]): num
 
 // ---------------------------------------------------------------- street orders
 
-export type StreetOrderType = 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol';
+export type StreetOrderType = 'kill' | 'assault' | 'tail' | 'goTo' | 'guard' | 'patrol' | 'enterBuilding';
 
 export function issueStreetOrder(
   w: WorldState,
@@ -1363,12 +1384,17 @@ export function issueStreetOrder(
   type: StreetOrderType,
   targetPersonId: ID | null,
   pos: Vec2 | null,
+  buildingId?: ID | null,
 ): ApiResult {
   if (!w.gangs[gangId] || personIds.some((id) => !w.people[id] || w.people[id].gangId !== gangId || w.people[id].status !== 'active')) {
     return fail('Choose available people from your gang.');
   }
-  if (!['goTo', 'guard', 'patrol', 'tail', 'assault', 'kill'].includes(type)) return fail('No such street order.');
-  if (type === 'goTo' || type === 'guard' || type === 'patrol') {
+  if (!['goTo', 'guard', 'patrol', 'tail', 'assault', 'kill', 'enterBuilding'].includes(type)) return fail('No such street order.');
+  const building = type === 'enterBuilding' && buildingId != null ? w.buildings[buildingId] : null;
+  if (type === 'enterBuilding') {
+    if (!building || building.state === 'destroyed' || building.ownerGangId !== gangId) return fail('Choose one of your gang\'s buildings.');
+    pos = buildingDoor(w, building);
+  } else if (type === 'goTo' || type === 'guard' || type === 'patrol') {
     if (!validPoint(w, pos)) return fail('Choose a place inside the city.');
   } else {
     const target = targetPersonId != null ? w.people[targetPersonId] : null;
@@ -1383,6 +1409,7 @@ export function issueStreetOrder(
   }
 
   for (const a of actors) {
+    a.buildingId = null;
     const car=a.vehicleKey?w.vehicleFleet?.[a.vehicleKey]:undefined;
     // Out of a car shared with others not given this order — and out of a
     // reservation on a car he was still walking to (it boarded him and drove
@@ -1405,10 +1432,11 @@ export function issueStreetOrder(
     }
     a.streetOrder = {
       type, targetPersonId, pos: pos ? { ...pos } : null,
+      buildingId: building?.id ?? null,
       ...(type === 'patrol' ? { patrolOrigin: { ...a.pos }, patrolReturning: false } : {}),
     };
     clearDestination(a);
-    if (['goTo', 'guard', 'patrol'].includes(type) && pos) setDestination(w, a, pos);
+    if (['goTo', 'guard', 'patrol', 'enterBuilding'].includes(type) && pos) setDestination(w, a, pos);
   }
   // Start the route now, so the renderer can show movement between minute
   // ticks. Allocate after every actor has their new task, as the tick does.
@@ -1420,6 +1448,7 @@ export function issueStreetOrder(
   const message = type === 'goTo' ? `${subject}: moving to the selected location.` :
     type === 'guard' ? `${subject}: guarding the selected position.` :
     type === 'patrol' ? `${subject}: patrolling between the starting point and the selected position.` :
+    type === 'enterBuilding' ? `${subject}: heading inside ${buildingName(w, building!.id)}.` :
     `${subject}: ${type === 'kill' ? 'Kill' : type === 'assault' ? 'Assault' : 'Tail'} ${w.people[targetPersonId!].name}.`;
   addMessage(
     w,

@@ -1646,6 +1646,58 @@ input[type='range']::-moz-range-thumb {
   padding: 12px 18px 16px;
   border-top: 1px solid var(--rule);
 }
+.job-crew-reference {
+  border: 1px solid rgba(105, 75, 28, .35);
+  background: rgba(255, 249, 226, .42);
+  font-size: 12px;
+}
+.job-crew-reference > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 9px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.job-crew-reference[open] > summary { border-bottom: 1px dotted var(--dots); }
+.crew-reference-note { padding: 7px 9px 3px; }
+.crew-skill-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px 8px 8px;
+}
+.crew-skill-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.crew-skill-table th,
+.crew-skill-table td {
+  padding: 4px 6px;
+  border-bottom: 1px dotted rgba(84, 63, 34, .28);
+  text-align: center;
+  white-space: nowrap;
+}
+.crew-skill-table th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 128px;
+  max-width: 180px;
+  background: #eee3c8;
+  text-align: left;
+}
+.crew-skill-table tbody th:first-child { display: table-cell; }
+.crew-skill-table tbody th span,
+.crew-skill-table tbody th small { display: block; overflow: hidden; text-overflow: ellipsis; }
+.crew-skill-table tbody th small { color: var(--ink-2); font-weight: 400; text-transform: capitalize; }
+.crew-skill-table .needed {
+  background: rgba(184, 134, 42, .18);
+  color: #4f350b;
+  font-weight: 700;
+}
+.crew-skill-table tr.unavailable { opacity: .55; }
 .opt-row {
   display: flex;
   gap: 6px;

@@ -357,6 +357,25 @@ export function hydrantGeometry(): THREE.BufferGeometry {
   ]);
 }
 
+/** Galvanised municipal refuse can, common beside shopfronts and tenements.
+ * The shallow lid and vertical ribs keep it readable from the isometric view
+ * without spending a separate draw call on details. */
+export function trashCanGeometry(): THREE.BufferGeometry {
+  const zinc: [number, number, number] = [0.34, 0.36, 0.35];
+  const dark: [number, number, number] = [0.20, 0.21, 0.20];
+  const parts: Part[] = [
+    { geo: new THREE.CylinderGeometry(.27, .23, .72, 10), color: zinc, matrix: place(0, .36, 0) },
+    { geo: new THREE.CylinderGeometry(.31, .28, .07, 10), color: dark, matrix: place(0, .755, 0) },
+    { geo: new THREE.CylinderGeometry(.08, .08, .08, 8), color: dark, matrix: place(0, .83, 0) },
+  ];
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5;
+    parts.push({ geo: new THREE.BoxGeometry(.035, .56, .035), color: dark,
+      matrix: place(Math.cos(a) * .245, .37, Math.sin(a) * .245, 0, -a, 0) });
+  }
+  return merge(parts);
+}
+
 export function treeGeometry(): THREE.BufferGeometry {
   const rgb = (hex: number) => new THREE.Color(hex).toArray() as [number, number, number];
   const bark = rgb(0x493b2b);

@@ -7,6 +7,7 @@ import {
   interrogatePrisoner,
   killMember,
   killPrisoner,
+  moveToPool,
   outOfReach,
   releasePrisoner,
   repeatOrder,
@@ -315,14 +316,13 @@ export function LieutenantsTab() {
                     const absent = ABSENT[m.status];
                     const job = orders.find((o) => o.opts.preferredHoodId === m.id || o.assignedIds.includes(m.id));
                     return (
-                      <button
+                      <div
                         key={m.id}
                         className={`row-line${m.pay < m.payDemand ? ' unhappy' : ''}`}
-                        onClick={() => setSheet(sheet?.kind === 'person' && sheet.id === m.id ? null : { kind: 'person', id: m.id })}
                         {...resourceDragProps({ kind: 'hood', id: m.id })}
                         title="Click for his details; drag onto another lieutenant or the pool to move him"
                       >
-                        <span className="nm">{m.name}</span>
+                        <button className="nm" onClick={() => setSheet(sheet?.kind === 'person' && sheet.id === m.id ? null : { kind: 'person', id: m.id })}>{m.name}</button>
                         <span className="st">
                           {absent ? (
                             <>
@@ -335,7 +335,8 @@ export function LieutenantsTab() {
                           )}
                           {absent && (m.status === 'kidnapped' ? ' · tied to a chair' : m.status === 'arrested' || m.status === 'onTrial' ? ' · behind bars' : '')}
                         </span>
-                      </button>
+                        <button className="btn sm" onClick={() => notify(act((s) => moveToPool(s.world, gang.id, m.id))!)}>To pool</button>
+                      </div>
                     );
                   })
                 )}

@@ -9,7 +9,7 @@ import { Portrait } from './Portrait';
 import { HOOD_SLOTS, hoodPage, updateHoodSelection } from './hoodSelection';
 
 const ORDER_NAMES = {
-  goTo: 'Moving', guard: 'Guarding', patrol: 'Patrolling', tail: 'Tailing',
+  goTo: 'Moving', enterBuilding: 'Entering building', guard: 'Guarding', patrol: 'Patrolling', tail: 'Tailing',
   kill: 'Attacking', assault: 'Assaulting',
 } as const;
 type LiveCommand = keyof typeof ORDER_NAMES;

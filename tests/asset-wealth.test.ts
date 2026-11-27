@@ -4,7 +4,7 @@ import { assignStaffVehicle, buyVehicle, buyWeapon, canGoStraight, demote, hireR
 import { VEHICLES, VEHICLE_ORDER, WEAPONS, WEAPON_ORDER } from '../src/sim/constants';
 import { Sim } from '../src/sim/sim';
 import { allocateTransport, dismount, startStaffJourney } from '../src/sim/transport';
-import { gangAssets, gangHoldings, gangWealth, powerRating } from '../src/sim/world';
+import { buildingDoor, gangAssets, gangHoldings, gangWealth, powerRating } from '../src/sim/world';
 
 function fixture() {
   const sim = new Sim({ ...defaultGameOptions(), seed: 404, citySize: 10, startMoney: 500_000 });
@@ -30,6 +30,16 @@ function resolve(s: ReturnType<typeof fixture>, stage = 15) {
 const farFrom = (w: { gridW: number; gridH: number }, p: { x: number; y: number }) => ({ x: p.x < w.gridW * 27 ? w.gridW * 54 - 30 : 30, y: p.y < w.gridH * 27 ? w.gridH * 54 - 30 : 30 });
 
 describe('separate cash, assets and total wealth', () => {
+  it('only receives live-week purchases while a lieutenant is at gang premises', () => {
+    const s = fixture(), lieutenant = s.w.people[s.team.lieutenantId];
+    s.w.phase = 'week';
+    lieutenant.buildingId = null; lieutenant.dest = null; lieutenant.inVehicle = false;
+    lieutenant.pos = { x: 1, y: 1 };
+    expect(buyWeapon(s.w, s.gang.id, 'pistol', s.team.id).ok).toBe(false);
+    const hq = Object.values(s.w.buildings).find(b => b.ownerGangId === s.gang.id && b.isHQ)!;
+    lieutenant.pos = buildingDoor(s.w, hq);
+    expect(buyWeapon(s.w, s.gang.id, 'pistol', s.team.id).ok).toBe(true);
+  });
   it('cash changes wealth and power once, without changing the assets', () => {
     const s = fixture(), before = gangHoldings(s.w, s.gang), power = powerRating(s.w, s.gang);
     s.gang.cash += 100_000;

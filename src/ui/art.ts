@@ -1,4 +1,5 @@
 import type { Person } from '../sim/types';
+import { bossFace, heritageOfSurname, HERITAGES, sitterFromSeed } from '../sim/heritage';
 import thickenedIcons from '../../public/art/icons-small/index.json';
 
 /**
@@ -31,6 +32,16 @@ export function portraitUrl(person: Pick<Person, 'portrait' | 'female'> & Partia
   const n = Math.abs(person.portrait | 0);
   if (person.female) return art(`portraits/f/f-${String(1 + (n % FEMALE_PORTRAITS)).padStart(2, '0')}.png`);
   return art(`portraits/m/m-${String(1 + (n % MALE_PORTRAITS)).padStart(2, '0')}.png`);
+}
+
+/** Accountants and lawyers use the newer painted nationality set. Their
+ * surname selects a matching set when possible; otherwise the portrait seed
+ * selects one stably, so old saves do not change faces between loads. */
+export function specialistPortraitUrl(person: Pick<Person, 'name' | 'portrait' | 'female' | 'role'>): string | undefined {
+  if (person.role !== 'accountant' && person.role !== 'lawyer') return undefined;
+  const surname = person.name.trim().split(/\s+/).at(-1) ?? '';
+  const heritage = heritageOfSurname(surname) ?? HERITAGES[Math.abs(person.portrait | 0) % HERITAGES.length].id;
+  return art(`portraits/nationality/${bossFace(heritage, person.female, sitterFromSeed(person.portrait))}.png`);
 }
 
 /** A gang boss's painted heritage portrait (P3b), when the person has one. */

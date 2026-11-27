@@ -5,7 +5,7 @@ import type { Building } from '../src/sim/types';
 import { profileFor } from '../src/render/profile';
 import { centreSiteHalfExtent, entryDoorGeometry, frontOf, frontageGeometry, interiorGeometry, massesForView, pitchedRoofGeometry } from '../src/render/architecture';
 import { CENTRE_LOT, LOT_SIZE } from '../src/sim/world';
-import { hydrantGeometry, lampGlowGeometry, lampPostGeometry, wallShellGeometry } from '../src/render/geometry';
+import { hydrantGeometry, lampGlowGeometry, lampPostGeometry, trashCanGeometry, wallShellGeometry } from '../src/render/geometry';
 
 function building(type: (typeof BUILDING_TYPES)[number], id = 404): Building {
   return { id, typeId: type.id, cls: type.cls, state: 'trading', lotId: id, blockId: 0,
@@ -182,14 +182,16 @@ describe('architecture candidate invariants', () => {
     material.dispose();
   });
   it('keeps lamps at the original’s proportion to people, and hydrants at human scale', () => {
-    const lamp = lampPostGeometry(), glow = lampGlowGeometry(), hydrant = hydrantGeometry();
-    for (const geometry of [lamp, glow, hydrant]) geometry.computeBoundingBox();
+    const lamp = lampPostGeometry(), glow = lampGlowGeometry(), hydrant = hydrantGeometry(), trash = trashCanGeometry();
+    for (const geometry of [lamp, glow, hydrant, trash]) geometry.computeBoundingBox();
     expect(lamp.boundingBox!.min.y).toBeCloseTo(0, 5);
     // A23: about 1.8 people tall, as the original's corner lamp (3.25 m).
     expect(lamp.boundingBox!.max.y).toBeCloseTo(3.25, 2);
     expect(glow.boundingBox!.max.y).toBeCloseTo(3.25, 2);
     expect(hydrant.boundingBox!.max.y).toBeCloseTo(.78, 4);
     expect(hydrant.boundingBox!.getSize(new THREE.Vector3()).x).toBeLessThanOrEqual(.401);
-    for (const geometry of [lamp, glow, hydrant]) geometry.dispose();
+    expect(trash.boundingBox!.max.y).toBeCloseTo(.87, 2);
+    expect(trash.boundingBox!.getSize(new THREE.Vector3()).x).toBeLessThan(.7);
+    for (const geometry of [lamp, glow, hydrant, trash]) geometry.dispose();
   });
 });

@@ -18,7 +18,6 @@ import { cargoActivity } from '../sim/cargo';
 import { restingStatus } from '../sim/transport';
 import type { Gang, MessageCategory, Person, WorldState } from '../sim/types';
 import type { OverlayKind } from '../render/scene';
-import { previewPosition } from '../sim/movement';
 import { allocateWeapons } from '../sim/weapons';
 import { streetLocation } from '../sim/cityLayout';
 import { dayIndex } from '../sim/world';
@@ -57,7 +56,7 @@ const OVERLAYS:{id:OverlayKind;label:string;caption:string}[]=[
 function currentOrder(p:Person,w:WorldState) {
   const staff = Object.values(w.specialistJobs ?? {}).find(j => j.actorId === p.id && j.week === w.week && ['travelling', 'working'].includes(j.state));
   if (staff) return staff.paused ? 'Waiting' : staff.type === 'audit' ? 'Audit' : staff.type === 'bribeOfficials' ? 'Bribe Officials' : staff.type === 'investigateCrime' ? 'Investigate case' : 'Employ Police';
-  if(p.streetOrder)return ({goTo:'Go to',guard:'Guard',patrol:'Patrol',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
+  if(p.streetOrder)return ({goTo:'Go to',enterBuilding:'Entering building',guard:'Guard',patrol:'Patrol',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
   const order=p.orderId==null?null:w.orders[p.orderId];
   return order?.state==='waiting'?'Waiting':cargoActivity(w,p)??(order?ORDERS[order.type].name:restingStatus(w,p));
 }
@@ -110,7 +109,7 @@ export function WeekHud() {
   const counts={combat:0,police:0,failed:0,waiting:0};
   for(const m of w.messages)counts[m.category]++;
   const zoom=(mode:CityViewMode)=>{state().setWeekPlanOpen(mode==='plan');setView(mode);cameraApi.ref?.setZoom(VIEW_ZOOM[mode]);};
-  const watch=(p:Person)=>{state().selectPerson(p.id);state().requestCamera(previewPosition(p,sim.subMinute,{x:0,y:0}));};
+  const watch=(p:Person)=>{state().selectPerson(p.id);state().centreOnPerson(p.id);};
   // A roster crew is already filtered to people currently out in the city.
   // Send all of them to one destination without first opening each person's
   // tagged window. The map click still goes through the normal live-order API.

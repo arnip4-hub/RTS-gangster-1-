@@ -40,14 +40,20 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
     const so = p.streetOrder;
     if (!so || p.status !== 'active' || p.burningEscape?.week===w.week) continue;
 
-    if (so.type === 'goTo') {
+    if (so.type === 'goTo' || so.type === 'enterBuilding') {
       if (!so.pos) {
         p.streetOrder = null;
         clearDestination(p);
         continue;
       }
       if (!p.dest && !p.tramTrip) setDestination(w, p, so.pos);
-      if (stepPerson(p, minutes, trafficContext(w))) p.streetOrder = null;
+      if (stepPerson(p, minutes, trafficContext(w))) {
+        if (so.type === 'enterBuilding' && so.buildingId != null && w.buildings[so.buildingId]?.ownerGangId === p.gangId) {
+          p.buildingId = so.buildingId;
+          p.pos = { ...w.lots[w.buildings[so.buildingId].lotId].center };
+        }
+        p.streetOrder = null;
+      }
       continue;
     }
 

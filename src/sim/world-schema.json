@@ -3937,6 +3937,9 @@
               },
               {
                 "literal": "patrol"
+              },
+              {
+                "literal": "enterBuilding"
               }
             ]
           }
@@ -3963,6 +3966,19 @@
               },
               {
                 "ref": "T10"
+              }
+            ]
+          }
+        },
+        "buildingId": {
+          "optional": true,
+          "shape": {
+            "union": [
+              {
+                "literal": null
+              },
+              {
+                "type": "number"
               }
             ]
           }

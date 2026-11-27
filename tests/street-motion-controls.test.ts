@@ -49,6 +49,18 @@ describe('visible street-order movement', () => {
     expect(preview(person,.8).moving).toBe(false);
   });
 
+  it('walks into an owned building and remains there', () => {
+    const { sim, person, w } = fixture();
+    const site = Object.values(w.buildings).find(b => b.ownerGangId === sim.playerGang.id && b.state !== 'destroyed')!;
+    person.pos = buildingDoor(w, site);
+    person.dest = null; person.path = []; person.streetOrder = null;
+    expect(issueStreetOrder(w, sim.playerGang.id, [person.id], 'enterBuilding', null, null, site.id).ok).toBe(true);
+    tickStreetOrders(w, sim.rng, 1);
+    expect(person.buildingId).toBe(site.id);
+    expect(person.streetOrder).toBeNull();
+    expect(person.dest).toBeNull();
+  });
+
   it('stops Wait immediately and replaces a cancelled planned route with the journey home', () => {
     const { person, w } = fixture();
     const order = Object.values(w.orders)[0];

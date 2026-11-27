@@ -118,7 +118,13 @@ export function handleMapHit(hit: PickResult, opts: MapClickOptions = {}): void 
   // ---- live street orders
   if (mode?.kind === 'streetOrder') {
     let res;
-    if (mode.orderType === 'goTo' || mode.orderType === 'guard' || mode.orderType === 'patrol') {
+    if (mode.orderType === 'enterBuilding') {
+      if (hit.buildingId == null) {
+        state.notify('Click one of your gang\'s buildings.');
+        return;
+      }
+      res = act((sim) => issueStreetOrder(sim.world, sim.playerGang.id, mode.personIds, 'enterBuilding', null, null, hit.buildingId));
+    } else if (mode.orderType === 'goTo' || mode.orderType === 'guard' || mode.orderType === 'patrol') {
       if (!onMap) {
         state.notify('Click somewhere in the city.');
         return;

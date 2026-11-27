@@ -7,7 +7,7 @@ import { ORDERS, ORDER_GROUPS } from '../sim/constants';
 import { weekDuration } from '../sim/calendar';
 import { BUILDING_BY_ID, ILLEGAL_TYPES, ESTABLISHABLE_TYPES, coverQuality } from '../sim/data/buildings';
 import { premisesAskingPrice, expandTargets, fitsWeek, weekCharge } from '../sim/execution';
-import { SKILL_LABELS } from '../sim/types';
+import { SKILLS, SKILL_LABELS } from '../sim/types';
 import { donationAmount } from '../sim/charity';
 import { crewHasFirearm, crewPeople, crewWeaponLoadout, orderStaffing, readyForPlanning } from '../sim/orderStaffing';
 import { orderSkill, orderSkillText } from '../sim/orderSkills';
@@ -186,6 +186,47 @@ export function JobCardPanel() {
             </span>
             <span className="muted tiny">{orderSkillText(def) ? `Skill used: ${orderSkillText(def)}` : 'no skill needed'}</span>
           </div>
+
+          {team && (
+            <details className="job-crew-reference">
+              <summary>
+                <span>Crew skills &amp; members</span>
+                <span className="muted tiny">{people.length} people · {staffing?.available ?? 0} available</span>
+              </summary>
+              <div className="muted tiny crew-reference-note">
+                {def.skills.length
+                  ? <>Skills highlighted in gold matter for this job: <b>{def.skills.map(k => SKILL_LABELS[k]).join(' · ')}</b>.</>
+                  : 'This job has no preferred skill; availability and manpower still matter.'}
+              </div>
+              <div className="crew-skill-scroll" tabIndex={0} role="region" aria-label="Crew member skill comparison">
+                <table className="crew-skill-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Person</th>
+                      {SKILLS.map(k => <th key={k} scope="col" className={def.skills.includes(k) ? 'needed' : ''} title={SKILL_LABELS[k]}>
+                        <Icon name={`skills/${k}`} size={14} />
+                        <span className="sr-only">{SKILL_LABELS[k]}</span>
+                      </th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {people.map(p => {
+                      const available = readyForPlanning(w, p);
+                      return <tr key={p.id} className={available ? '' : 'unavailable'}>
+                        <th scope="row">
+                          <span>{p.name}</span>
+                          <small>{p.id === team.lieutenantId ? 'Lieutenant' : available ? 'Hood' : p.status}</small>
+                        </th>
+                        {SKILLS.map(k => <td key={k} className={def.skills.includes(k) ? 'needed' : ''} title={`${SKILL_LABELS[k]} ${p.skills[k]} stars`}>
+                          {p.skills[k]}<span aria-hidden="true">★</span>
+                        </td>)}
+                      </tr>;
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          )}
 
           <div className="target-box">
             <b>{prompt}</b>
