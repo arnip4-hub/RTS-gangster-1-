@@ -20,6 +20,8 @@ police, body-handling, and street fixes.
 - [Portable Windows EXE](https://github.com/arnip4-hub/RTS-gangster-1-/releases/download/rts-beta-20261123.3/RTS-gangster-beta-Portable-0.3.0-beta.11.exe)
 - [Latest beta release notes](https://github.com/arnip4-hub/RTS-gangster-1-/releases/tag/rts-beta-20261123.3)
 
+**Upcoming beta.12 (prepared 28 November 2026):** The development branch is preparing version `0.3.0-beta.12`. See the [beta.12 release candidate notes](docs/releases/rts-beta-20261128.1.md) for changes and the Windows validation procedure. The working beta.11 download links above remain in place until both new Windows packages are tested and published.
+
 Existing save data remains supported. This is a work-in-progress beta, not a
 final production release. Older 2D experiments are kept in repository history
 and art archives, not as separate supported game modes.

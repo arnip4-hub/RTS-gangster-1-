@@ -3,13 +3,10 @@ name: Windows beta build and tests
 on:
   pull_request:
     branches: [rts-development]
-  push:
-    branches: [rts-development]
-    paths: ['docs/releases/rts-beta-20261123.3.md']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Optional prerelease tag to publish (blank: artifact only)'
+        description: 'Blank: artifact only; rts-beta-20261128.1: publish after Windows smoke test'
         required: false
         default: ''
 
@@ -22,6 +19,16 @@ jobs:
     env:
       PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
     steps:
+      - name: Validate publishing request
+        if: github.event_name == 'workflow_dispatch' && inputs.tag != ''
+        shell: pwsh
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/rts-development' -or $env:TAG -ne 'rts-beta-20261128.1') {
+            throw 'Publishing requires rts-development and the beta.12 tag'
+          }
+
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -43,17 +50,35 @@ jobs:
       - name: Validate vehicle, storefront, building and 3D renderer regressions
         run: npx vitest run tests/vehicle-enamel.test.ts tests/vehicle-roll.test.ts tests/vehicle-livery.test.ts tests/vehicle-paint.test.ts tests/sculpt-vehicles.test.ts tests/sculpt-character-retention.test.ts tests/storefront-material.test.ts tests/city-layout.test.ts tests/visual-style.test.ts
 
-      - name: Verify beta.11 package version and illustrated3d style
+      - name: Check live building stays, vehicle routing, purchases, finance and Book regressions
+        run: npx vitest run tests/street-building.test.ts tests/street-motion-controls.test.ts tests/vehicle-navigation.test.ts tests/vehicle-choice.test.ts tests/asset-wealth.test.ts tests/finances.test.ts tests/live-city-plan.test.ts tests/render-architecture.test.ts
+
+      - name: Verify beta.12 package and lockfile versions
         shell: pwsh
         run: |
           $packageVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          $lockVersion = (Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable)['version']
-          if ($packageVersion -ne '0.3.0-beta.11' -or $lockVersion -ne $packageVersion) {
-            throw "Release version mismatch: package=$packageVersion lock=$lockVersion"
+          $lock = Get-Content package-lock.json -Raw | ConvertFrom-Json -AsHashtable
+          if ($packageVersion -ne '0.3.0-beta.12' -or $lock['version'] -ne $packageVersion -or $lock['packages']['']['version'] -ne $packageVersion) {
+            throw "Release version mismatch: package=$packageVersion lock=$($lock['version'])"
           }
 
       - name: Build Windows installer and portable app
         run: npm run package:win -- --publish never
+
+      - name: Verify both Windows packages and record checksums
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $files = @("release/RTS-gangster-beta-Setup-$version.exe", "release/RTS-gangster-beta-Portable-$version.exe")
+          foreach ($file in $files) {
+            if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-Item -LiteralPath $file).Length -le 0) {
+              throw "Missing or empty package: $file"
+            }
+          }
+          if (@(Get-ChildItem release/RTS-gangster-beta-*.exe -File).Count -ne 2) {
+            throw 'Unexpected Windows package count'
+          }
+          Get-FileHash -Algorithm SHA256 -LiteralPath $files | Format-Table -AutoSize
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,37 +86,25 @@ jobs:
           path: release/RTS-gangster-beta-*.exe
           if-no-files-found: error
 
-      - name: Publish Windows packages to prerelease
-        if: (github.event_name == 'workflow_dispatch' && inputs.tag != '') || (github.event_name == 'push' && github.ref == 'refs/heads/rts-development')
+      - name: Publish Windows packages to a new prerelease
+        if: github.event_name == 'workflow_dispatch' && inputs.tag == 'rts-beta-20261128.1' && github.ref == 'refs/heads/rts-development'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event_name == 'push' && 'rts-beta-20261123.3' || inputs.tag }}
+          TAG: ${{ inputs.tag }}
         shell: pwsh
         run: |
-          if ($env:GITHUB_EVENT_NAME -eq 'push') {
-            $branchSha = (gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/rts-development" --jq .object.sha).Trim()
-            if ($branchSha -ne $env:GITHUB_SHA) { throw "Newer commits were pushed during build; refusing to publish an outdated release" }
+          $branchSha = (gh api "repos/$env:GITHUB_REPOSITORY/git/ref/heads/rts-development" --jq .object.sha).Trim()
+          if ($LASTEXITCODE -ne 0 -or $branchSha -ne $env:GITHUB_SHA) {
+            throw 'Branch head changed or could not be verified; refusing to publish'
           }
           $notes = "docs/releases/$($env:TAG).md"
-          if (!(Test-Path $notes)) { throw "Release notes not found: $notes" }
+          if (!(Test-Path -LiteralPath $notes -PathType Leaf)) { throw "Release notes not found: $notes" }
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $files = @("release/RTS-gangster-beta-Setup-$version.exe", "release/RTS-gangster-beta-Portable-$version.exe")
+          # Never replace an existing release or move an existing tag.
           gh release view $env:TAG *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $env:TAG release/RTS-gangster-beta-*.exe --target "${{ github.sha }}" --prerelease --title "RTS gangster beta $version" --notes-file $notes
-            if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
-          } else {
-            # Replace the files in the existing prerelease, without creating a
-            # new tag or changing the 0.3.0-beta.11 download filenames.
-            gh release upload $env:TAG release/RTS-gangster-beta-*.exe --clobber
-            if ($LASTEXITCODE -ne 0) { throw 'Release upload failed' }
-            # Keep the existing beta.11 tag and release notes aligned with the
-            # newly packaged source revision. This tag is a lightweight ref.
-            if ($env:TAG -eq 'rts-beta-20261123.3' -and $env:GITHUB_REF -eq 'refs/heads/rts-development') {
-              $repo = $env:GITHUB_REPOSITORY
-              $commit = $env:GITHUB_SHA
-              gh api --method PATCH "repos/$repo/git/refs/tags/$($env:TAG)" -f "sha=$commit" -F force=true
-              if ($LASTEXITCODE -ne 0) { throw 'Failed to retarget existing beta.11 tag' }
-              gh release edit $env:TAG --target $commit --notes-file $notes
-              if ($LASTEXITCODE -ne 0) { throw 'Failed to update existing beta.11 release notes' }
-            }
-          }
+          if ($LASTEXITCODE -eq 0) { throw 'Release already exists; refusing to overwrite it' }
+          $existingTag = git ls-remote --tags origin "refs/tags/$($env:TAG)"
+          if ($LASTEXITCODE -ne 0 -or $existingTag) { throw 'Tag exists or could not be checked; refusing to publish' }
+          gh release create $env:TAG $files --target $env:GITHUB_SHA --prerelease --title "RTS gangster beta $version" --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed' }
