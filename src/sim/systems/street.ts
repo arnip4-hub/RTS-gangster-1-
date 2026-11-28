@@ -1,14 +1,15 @@
 import { addMessage, recordCrime } from '../events';
 import { respondToBureauViolence } from '../bureauViolence';
 import { keepContactDistance, killPerson, knockDown } from '../execution';
-import { dist } from '../world';
+import { buildingDoor, dist } from '../world';
 import { fireRate, originalFireRoll } from '../fireRoll';
 import { presentAttack } from '../presentationEvents';
 import { absoluteMinute, UNDER_FIRE_MINUTES } from './combat';
 import { clearDestination, setDestination, stepPerson } from '../movement';
 import { trafficContext } from '../traffic';
 import { prepareStreetPursuit, streetOrderRange } from '../streetPursuit';
-import { sendHome } from '../transport';
+import { alight, sendHome } from '../transport';
+import { leaveStreetBuilding } from '../streetBuilding';
 import type { Rng } from '../rng';
 import type { Person, WorldState } from '../types';
 import { closeCombatBlow, endCloseCombat, meleeWeapon, spendLostTurn, type Blow } from '../closeCombat';
@@ -40,7 +41,39 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
     const so = p.streetOrder;
     if (!so || p.status !== 'active' || p.burningEscape?.week===w.week) continue;
 
-    if (so.type === 'goTo' || so.type === 'enterBuilding') {
+    if (so.type === 'enterBuilding') {
+      const building = so.buildingId == null ? null : w.buildings[so.buildingId];
+      if (!building || building.state === 'destroyed' || building.ownerGangId !== p.gangId) {
+        leaveStreetBuilding(w, p);
+        p.streetOrder = null;
+        clearDestination(p);
+        standDown(w, p);
+        continue;
+      }
+      // Keep the command while indoors: otherwise the interrupted weekly job
+      // would immediately take the visitor back out again.
+      if (p.buildingId === building.id && !p.inVehicle) continue;
+      const door = buildingDoor(w, building);
+      if (!p.dest && !p.tramTrip) setDestination(w, p, door);
+      if (!stepPerson(p, minutes, trafficContext(w))) continue;
+      if (p.inVehicle || p.vehicleKey) {
+        const car = p.vehicleKey ? w.vehicleFleet?.[p.vehicleKey] : undefined;
+        const riders = car ? [...car.occupantIds].map(id => w.people[id]) : [p];
+        // Park together, then finish each person's journey to the door on foot.
+        for (const rider of riders) {
+          if (rider?.streetOrder?.type !== 'enterBuilding' || rider.streetOrder.buildingId !== building.id) continue;
+          alight(w, rider);
+          setDestination(w, rider, door);
+        }
+        continue;
+      }
+      p.buildingId = building.id;
+      p.pos = { ...w.lots[building.lotId].center };
+      clearDestination(p);
+      continue;
+    }
+
+    if (so.type === 'goTo') {
       if (!so.pos) {
         p.streetOrder = null;
         clearDestination(p);
@@ -48,10 +81,6 @@ export function tickStreetOrders(w: WorldState, rng: Rng, minutes: number, loado
       }
       if (!p.dest && !p.tramTrip) setDestination(w, p, so.pos);
       if (stepPerson(p, minutes, trafficContext(w))) {
-        if (so.type === 'enterBuilding' && so.buildingId != null && w.buildings[so.buildingId]?.ownerGangId === p.gangId) {
-          p.buildingId = so.buildingId;
-          p.pos = { ...w.lots[w.buildings[so.buildingId].lotId].center };
-        }
         p.streetOrder = null;
       }
       continue;

@@ -20,14 +20,15 @@ describe('working week top-bar navigation', () => {
     section => {
       useGame.setState({
         organizerTab: 'lieutenants', organizerOpen: false,
-        organizerCollapsed: true, planningView: 'plan',
+        organizerCollapsed: true, planningView: 'city', weekPlanOpen: false,
       });
       openWeekSection(section);
       const state = useGame.getState();
       expect(state.organizerTab).toBe(section);
       expect(state.organizerOpen).toBe(true);
       expect(state.organizerCollapsed).toBe(false);
-      expect(state.planningView).toBe('city');
+      expect(state.planningView).toBe('plan');
+      expect(state.weekPlanOpen).toBe(true);
     },
   );
 

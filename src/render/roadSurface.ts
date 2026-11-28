@@ -168,7 +168,8 @@ export class RoadSurfaceMaterial extends THREE.MeshStandardMaterial {
           float patchEdge = smoothstep(.05, .12, min(min(patchCell.x, 1.0 - patchCell.x), min(patchCell.y, 1.0 - patchCell.y)));
           float patchPick = step(.69, roadHash(vRoadPosition / vec2(19.0, 13.0)));
           float repaired = patchPick * patchEdge;
-          float lanePolish = exp(-pow(min(abs(streetOffset.x), abs(streetOffset.y)) - 2.0, 2.0) / 2.2);
+          float laneOffset = min(abs(streetOffset.x), abs(streetOffset.y)) - 2.0;
+          float lanePolish = exp(-(laneOffset * laneOffset) / 2.2);
           roadColour *= .91 + grit * .055 + broad * .07;
           roadColour = mix(roadColour, roadColour * vec3(.80, .83, .86), repaired * .24);
           roadColour = mix(roadColour, roadColour * vec3(1.035, 1.025, 1.01), lanePolish * .13);
@@ -207,7 +208,7 @@ export class RoadSurfaceMaterial extends THREE.MeshStandardMaterial {
           diffuseColor.rgb *= mix(painted / 12.92, pow((painted + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), painted));
         `);
     };
-    this.customProgramCacheKey = () => 'og-road-detail-v7';
+    this.customProgramCacheKey = () => 'og-road-detail-v8';
   }
 
   override dispose(): void {

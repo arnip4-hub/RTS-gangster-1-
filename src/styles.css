@@ -4700,7 +4700,10 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   border: 1px solid #b78750; padding: 5px 9px; box-shadow: inset 0 1px #f6c19055;
 }
 .compact-live-book .book-return:hover { filter: brightness(1.15); }
-.compact-live-book .book-diplomacy { font-size: 11px; }
+.compact-live-book .book-section-select {
+  width: auto; max-width: 150px; min-height: 27px; padding: 3px 5px;
+  font: 12px var(--font-heading); background: #f3e5c5; color: #392a1e;
+}
 .compact-live-book .page-foot .hit-streets { display: none; }
 .compact-live-book .page-foot .brass:has(.hit-streets) { display: none; }
 .compact-live-book .queued-orders { max-height: none; }

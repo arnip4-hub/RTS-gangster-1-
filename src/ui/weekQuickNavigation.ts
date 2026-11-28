@@ -10,7 +10,7 @@ export const WEEK_QUICK_LINKS = [
   { id: 'maps', label: 'City maps' },
 ] as const satisfies ReadonlyArray<{ id: OrganizerTab; label: string }>;
 
-export type WeekQuickSection = typeof WEEK_QUICK_LINKS[number]['id'] | 'options';
+export type WeekQuickSection = OrganizerTab;
 
 /** Open a top-bar section without creating a second screen or interrupting the
  * live simulation. Standard setTab rules still apply to pending job cards. */
@@ -19,17 +19,13 @@ export function openWeekSection(section: WeekQuickSection): void {
   state.setTab(section);
   state.setOrganizerOpen(true);
   state.setOrganizerCollapsed(false);
-  state.setPlanningView('city');
+  state.setPlanningView('plan');
+  state.setWeekPlanOpen(true);
 }
 
 /** The Book is a live crew journal with the real overhead city plan. */
 export function openLiveBook(): void {
-  const state = useGame.getState();
-  state.setTab('lieutenants');
-  state.setOrganizerOpen(true);
-  state.setOrganizerCollapsed(false);
-  state.setPlanningView('plan');
-  state.setWeekPlanOpen(true);
+  openWeekSection('lieutenants');
 }
 
 /** Return to the 3D street, rather than leaving the overhead plan open. */

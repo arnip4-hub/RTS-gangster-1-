@@ -6,6 +6,7 @@ import { Sim, MINUTES_PER_SECOND } from '../src/sim/sim';
 import { MINUTES_PER_WEEK } from '../src/sim/constants';
 import { weeklyEconomy } from '../src/sim/systems/economy';
 import type { FinanceReport } from '../src/sim/types';
+import { buildingDoor } from '../src/sim/world';
 
 const create = () => new Sim({ ...defaultGameOptions(), seed: 202, citySize: 10 });
 function reconciles(report: FinanceReport) {
@@ -55,9 +56,13 @@ describe('Monday-to-Friday financial reports', () => {
       gang.accountantId = accountant.id;
       gang.evadingTax = true;
     }
-    buyWeapon(w, gang.id, 'pistol');
+    expect(buyWeapon(w, gang.id, 'pistol').ok).toBe(true);
     sim.launchWeek();
-    buyWeapon(w, gang.id, 'pistol');
+    const team = w.teams[gang.teamIds[0]];
+    const lieutenant = w.people[team.lieutenantId];
+    const office = Object.values(w.buildings).find(b => b.isHQ && b.ownerGangId === gang.id)!;
+    lieutenant.pos = buildingDoor(w, office);
+    expect(buyWeapon(w, gang.id, 'pistol', team.id).ok).toBe(true);
     sim.finishWeek();
     const completed = gang.lastFinanceReport!;
     expect(completed.costs.purchases).toBe(200);

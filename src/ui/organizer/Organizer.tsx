@@ -196,7 +196,7 @@ export function Organizer() {
     .reduce((s, p) => s + p.pay, 0);
   const withStrip = tab === 'lieutenants' && !jobCard && !staff;
   const bookMode = !!(jobCard || staff);
-  const compactBook = live && (tab === 'lieutenants' || bookMode);
+  const compactBook = live;
 
   return (
     <>
@@ -221,7 +221,9 @@ export function Organizer() {
             <div className="journal-tools">
               <button className="journal-help" aria-label="Help" title="Help (?)" onClick={()=>useGame.getState().setHelpOpen(true)}>?</button>
               {!jobCard && <MapAccess />}
-              {compactBook && !bookMode && <button className="journal-help book-diplomacy" onClick={() => setTab('diplomacy')} title="Diplomacy (F4)">Diplomacy</button>}
+              {compactBook && !bookMode && <select className="book-section-select" aria-label="Organizer section" value={tab} onChange={e => setTab(e.target.value as typeof tab)}>
+                {TABS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>}
               <button className={`journal-fold${compactBook && !bookMode ? ' book-return' : ''}`} onClick={() => live && !jobCard && !staff ? closeLiveOrganizer() : setCollapsed(true)} title={live && !jobCard && !staff ? 'Close the Organizer and return to the city' : 'Fold the journal away to see the whole city'}>
                 {live && !jobCard && !staff ? (compactBook ? 'Back to the City [Esc] ×' : '× Close Organizer') : jobCard ? '▼ Pick on map' : '▼ See the city'}
               </button>

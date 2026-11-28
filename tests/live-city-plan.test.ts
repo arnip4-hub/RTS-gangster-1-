@@ -40,4 +40,18 @@ describe('live overhead City Plan', () => {
     expect(useGame.getState().weekPlanOpen).toBe(false);
     expect(useGame.getState().cameraRequest).toEqual({ ...destination, zoom: VIEW_ZOOM.roof });
   });
+
+  it('sends a selected crew into an owned building from the overhead map', () => {
+    const sim = liveCity(), w = sim.world;
+    const crew = w.teams[sim.playerGang.teamIds[0]];
+    const ids = [crew.lieutenantId, ...crew.memberIds];
+    const site = Object.values(w.buildings).find(b => b.isHQ && b.ownerGangId === sim.playerGang.id)!;
+    const state = useGame.getState();
+    state.setWeekPlanOpen(true);
+    state.setPickMode({ kind: 'streetOrder', orderType: 'enterBuilding', personIds: ids });
+    handleMapHit({ blockId: site.blockId, buildingId: site.id, personId: null, point: w.lots[site.lotId].center }, { fromPlan: true });
+    for (const id of ids) expect(w.people[id].streetOrder).toMatchObject({ type: 'enterBuilding', buildingId: site.id });
+    expect(useGame.getState().weekPlanOpen).toBe(true);
+    expect(useGame.getState().pickMode).toBeNull();
+  });
 });

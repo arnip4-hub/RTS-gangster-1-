@@ -504,7 +504,9 @@ export class Sim {
       }
     }
     for (const p of peopleList(w)) {
-      p.streetOrder = null;
+      // Visitors stay put across weekly settlement until recalled or given a
+      // replacement command. Keep the command so they can still leave the door.
+      if (p.streetOrder?.type !== 'enterBuilding' || p.buildingId == null) p.streetOrder = null;
       if (p.status === 'beaten') p.status = 'active';
       delete p.beatenUntil;
       delete p.resumeOrderId;

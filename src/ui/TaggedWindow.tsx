@@ -64,11 +64,11 @@ export function TaggedWindow({id}: {id: number}) {
   const pursuit = streetTarget ? person.halted ? 'Waiting for traffic' : person.dest ? 'Approaching' :
     person.streetOrder?.type === 'tail' ? 'Watching' : 'Attacking' : null;
   const orderName = person.streetOrder
-    ? ({ goTo: 'Go to', enterBuilding: 'Inside building', guard: 'Guard', patrol: 'Patrol', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
+    ? ({ goTo: 'Go to', enterBuilding: person.buildingId != null ? 'Inside building' : 'Entering building', guard: 'Guard', patrol: 'Patrol', kill: 'Kill', assault: 'Assault', tail: 'Tail' }[person.streetOrder.type] ?? person.streetOrder.type)
     : cargoActivity(w,person) ?? (order ? ORDERS[order.type].name : staff ? SPECIALIST_JOB_NAMES[staff.type] : restingStatus(w, person));
   const cargo=person.vehicleKey?w.vehicleFleet?.[person.vehicleKey]?.cargo:undefined;
   const command = (kind: 'kill' | 'assault' | 'tail' | 'goTo' | 'enterBuilding') => {
-    if (kind !== 'goTo' && useGame.getState().weekPlanOpen) {
+    if (kind !== 'goTo' && kind !== 'enterBuilding' && useGame.getState().weekPlanOpen) {
       useGame.getState().setWeekPlanOpen(false);
       cameraApi.ref?.setZoom(VIEW_ZOOM.roof);
     }

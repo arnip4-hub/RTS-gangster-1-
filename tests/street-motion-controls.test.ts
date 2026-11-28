@@ -57,7 +57,7 @@ describe('visible street-order movement', () => {
     expect(issueStreetOrder(w, sim.playerGang.id, [person.id], 'enterBuilding', null, null, site.id).ok).toBe(true);
     tickStreetOrders(w, sim.rng, 1);
     expect(person.buildingId).toBe(site.id);
-    expect(person.streetOrder).toBeNull();
+    expect(person.streetOrder).toMatchObject({ type: 'enterBuilding', buildingId: site.id });
     expect(person.dest).toBeNull();
   });
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { act, useGame } from '../app/store';
 import { clearStreetOrder, returnToBase } from '../sim/api';
 import type { Person } from '../sim/types';
-import { previewPosition } from '../sim/movement';
+import { openLiveBook } from './weekQuickNavigation';
 import { VIEW_ZOOM } from '../render/viewModes';
 import { cameraApi } from './CityView';
 import { Portrait } from './Portrait';
@@ -16,7 +16,7 @@ type LiveCommand = keyof typeof ORDER_NAMES;
 
 function personDuty(p: Person): string {
   if (p.status !== 'active') return p.status === 'beaten' ? 'Recovering' : p.status;
-  if (p.streetOrder) return ORDER_NAMES[p.streetOrder.type];
+  if (p.streetOrder) return p.streetOrder.type === 'enterBuilding' && p.buildingId != null ? 'Inside building' : ORDER_NAMES[p.streetOrder.type];
   if (p.orderId != null) return 'On assignment';
   if (p.dest) return 'Travelling';
   return 'Available';
@@ -74,7 +74,7 @@ export function HoodsCommandBar() {
     game().selectPeople(next);
     if (!modifiers.shiftKey) setAnchor(p.id);
     if (!modifiers.ctrlKey && !modifiers.metaKey && !modifiers.shiftKey)
-      game().requestCamera(previewPosition(p, sim.subMinute, { x: 0, y: 0 }));
+      game().centreOnPerson(p.id);
   };
 
   const startCommand = (kind: LiveCommand) => {
@@ -93,6 +93,7 @@ export function HoodsCommandBar() {
       ? `Click a person to ${kind} with ${actors.length} selected.`
       : kind === 'patrol' ? 'Click the other end of the patrol route.'
       : kind === 'guard' ? 'Click the position to guard.'
+      : kind === 'enterBuilding' ? 'Click one of your gang\'s buildings to enter and stay inside.'
       : `Click the destination for ${actors.length} selected.`);
   };
 
@@ -123,10 +124,7 @@ export function HoodsCommandBar() {
   };
   const openCrew = () => {
     if (team) game().selectTeam(team.id);
-    game().setTab('lieutenants');
-    game().setOrganizerOpen(true);
-    game().setOrganizerCollapsed(false);
-    game().setPlanningView('city');
+    openLiveBook();
   };
 
   return (
@@ -173,7 +171,7 @@ export function HoodsCommandBar() {
           </div>
           <div className="hood-bar-orders" role="group" aria-label="Live orders">
             {([
-              ['goTo','Move'],['guard','Guard'],['patrol','Patrol'],['tail','Tail'],
+              ['goTo','Move'],['enterBuilding','Enter building'],['guard','Guard'],['patrol','Patrol'],['tail','Tail'],
               ['kill','Kill'],['assault','Assault'],
             ] as [LiveCommand,string][]).map(([kind,label]) =>
               <button key={kind} className="hood-action" disabled={kind === 'tail' || kind === 'kill' || kind === 'assault' ? !fighters.length : !movable.length}
@@ -181,6 +179,7 @@ export function HoodsCommandBar() {
                 onClick={() => startCommand(kind)} title={kind === 'guard' ? 'Hold the position selected on the map' :
                   kind === 'patrol' ? 'Keep travelling between current and selected positions' :
                   kind === 'tail' ? 'Follow a person selected on the street' :
+                  kind === 'enterBuilding' ? 'Enter a gang-owned building and stay until given another command' :
                   kind === 'goTo' ? 'Move selected people to a location' : `${label} a selected target`}>{label}</button>)}
             <button className="hood-action hood-action-retreat" disabled={!movable.length} onClick={flee}
               title="Break off assignments and retreat to the nearest gang office">Flee / HQ</button>

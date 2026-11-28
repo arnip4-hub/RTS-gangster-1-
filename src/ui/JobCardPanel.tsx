@@ -89,6 +89,7 @@ export function JobCardPanel() {
   // The people best suited to the job first, with the skills it calls on.
   const armedCrew = crewHasFirearm(team);
   const crewLoadout = team ? crewWeaponLoadout(w, team) : new Map();
+  const relevantSkills = [...new Set([...def.skills, ...(def.armedSkills ?? [])])];
   const suited = (p: (typeof people)[number]) => (def.skills.length ? orderSkill(p, def, crewLoadout.has(p.id)) : 0);
   const ranked = [...people].sort((a, b) => Number(readyForPlanning(w, b)) - Number(readyForPlanning(w, a)) || suited(b) - suited(a));
   const skillNote = (p: (typeof people)[number]) => [...new Set([...def.skills, ...(def.armedSkills ?? [])])]
@@ -195,7 +196,7 @@ export function JobCardPanel() {
               </summary>
               <div className="muted tiny crew-reference-note">
                 {def.skills.length
-                  ? <>Skills highlighted in gold matter for this job: <b>{def.skills.map(k => SKILL_LABELS[k]).join(' · ')}</b>.</>
+                  ? <>Skills highlighted in gold matter for this job: <b>{orderSkillText(def)}</b>.</>
                   : 'This job has no preferred skill; availability and manpower still matter.'}
               </div>
               <div className="crew-skill-scroll" tabIndex={0} role="region" aria-label="Crew member skill comparison">
@@ -203,7 +204,7 @@ export function JobCardPanel() {
                   <thead>
                     <tr>
                       <th scope="col">Person</th>
-                      {SKILLS.map(k => <th key={k} scope="col" className={def.skills.includes(k) ? 'needed' : ''} title={SKILL_LABELS[k]}>
+                      {SKILLS.map(k => <th key={k} scope="col" className={relevantSkills.includes(k) ? 'needed' : ''} title={SKILL_LABELS[k]}>
                         <Icon name={`skills/${k}`} size={14} />
                         <span className="sr-only">{SKILL_LABELS[k]}</span>
                       </th>)}
@@ -217,7 +218,7 @@ export function JobCardPanel() {
                           <span>{p.name}</span>
                           <small>{p.id === team.lieutenantId ? 'Lieutenant' : available ? 'Hood' : p.status}</small>
                         </th>
-                        {SKILLS.map(k => <td key={k} className={def.skills.includes(k) ? 'needed' : ''} title={`${SKILL_LABELS[k]} ${p.skills[k]} stars`}>
+                        {SKILLS.map(k => <td key={k} className={relevantSkills.includes(k) ? 'needed' : ''} title={`${SKILL_LABELS[k]} ${p.skills[k]} stars`}>
                           {p.skills[k]}<span aria-hidden="true">★</span>
                         </td>)}
                       </tr>;

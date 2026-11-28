@@ -56,7 +56,7 @@ const OVERLAYS:{id:OverlayKind;label:string;caption:string}[]=[
 function currentOrder(p:Person,w:WorldState) {
   const staff = Object.values(w.specialistJobs ?? {}).find(j => j.actorId === p.id && j.week === w.week && ['travelling', 'working'].includes(j.state));
   if (staff) return staff.paused ? 'Waiting' : staff.type === 'audit' ? 'Audit' : staff.type === 'bribeOfficials' ? 'Bribe Officials' : staff.type === 'investigateCrime' ? 'Investigate case' : 'Employ Police';
-  if(p.streetOrder)return ({goTo:'Go to',enterBuilding:'Entering building',guard:'Guard',patrol:'Patrol',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
+  if(p.streetOrder)return p.streetOrder.type==='enterBuilding'&&p.buildingId!=null?'Inside building':({goTo:'Go to',enterBuilding:'Entering building',guard:'Guard',patrol:'Patrol',kill:'Kill',assault:'Assault',tail:'Tail'} as const)[p.streetOrder.type];
   const order=p.orderId==null?null:w.orders[p.orderId];
   return order?.state==='waiting'?'Waiting':cargoActivity(w,p)??(order?ORDERS[order.type].name:restingStatus(w,p));
 }
@@ -252,7 +252,7 @@ export function WeekHud() {
         <button aria-label="Older message" title="Older message" disabled={!message||messageIndex===messages.length-1} onClick={()=>setMessageId(messages[messageIndex+1].id)}>›</button>
         <button aria-label="Earliest message" title="Earliest message" disabled={!message||messageIndex===messages.length-1} onClick={()=>setMessageId(messages.at(-1)!.id)}>»</button>
         <button disabled={!message||(!message.pos&&message.personId==null)} onClick={()=>eventView(message)}>View event</button>
-        {messageBox==='police' && <button onClick={()=>{state().setTab('lawyer');state().setOrganizerOpen(true);setMessageBox(null);}}>Investigations</button>}
+        {messageBox==='police' && <button onClick={()=>{openWeekSection('lawyer');setMessageBox(null);}}>Investigations</button>}
         <button disabled={!message} title="Remove this report from the message box" onClick={()=>{
           if(message){w.messages=w.messages.filter(m=>m.id!==message.id);state().bump();}
           setMessageId(null);

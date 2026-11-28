@@ -5,6 +5,7 @@ import { LEFT_GANG, NO_ORIGINAL_CHANNEL, opinionSet } from './attitudes';
 import { originalStartingWage, specialistAskingWage } from './originalWages';
 import { cityBlockAt } from './cityLayout';
 import { orderStaffing } from './orderStaffing';
+import { leaveStreetBuilding } from './streetBuilding';
 import { observeTargetRace } from './targetRace';
 import {
   MAX_TEAMS,
@@ -1409,6 +1410,7 @@ export function issueStreetOrder(
   }
 
   for (const a of actors) {
+    leaveStreetBuilding(w, a);
     a.buildingId = null;
     const car=a.vehicleKey?w.vehicleFleet?.[a.vehicleKey]:undefined;
     // Out of a car shared with others not given this order — and out of a
@@ -1475,6 +1477,7 @@ export function returnToBase(w: WorldState, gangId: ID, personId: ID): ApiResult
     p.orderId = null;
   }
   delete p.resumeOrderId;
+  leaveStreetBuilding(w, p);
   p.streetOrder = null;
   const office = nearestOffice(w, gangId, p.pos);
   if (!office) return fail('You have no office to return to.');
@@ -1499,6 +1502,7 @@ export function clearStreetOrder(w: WorldState, personIds: ID[]): ApiResult {
   for (const id of personIds) {
     const p = w.people[id];
     if (!p?.streetOrder) continue;
+    leaveStreetBuilding(w, p);
     p.streetOrder = null; delete p.tramTrip; clearDestination(p);
     // A driver stopped: passengers still on a street order go on, on foot
     // (they had no route of their own and sat there for good).
